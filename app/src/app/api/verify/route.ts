@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyClaim, type SourceSeed } from "@/trustnode/pipeline";
+import { verifyClaim, communityTextStance, type SourceSeed } from "@/trustnode/pipeline";
 import { publicFileUrl, supabaseConfigured, supabaseFor } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -55,30 +55,35 @@ export async function POST(req: Request) {
         file_path: string | null;
         excerpt: string | null;
         created_at: string;
-      }[]).map((r) => ({
-        id: `community:${r.id}`,
-        title: r.title,
-        url:
-          r.kind === "link"
-            ? (r.url ?? "")
-            : r.file_path
-              ? publicFileUrl(r.file_path)
-              : "",
-        publisher: "Community contribution",
-        published: r.created_at.slice(0, 10),
-        updated: r.created_at.slice(0, 10),
-        superseded_by: null,
-        trust: {
-          earned: 0,
-          earned_rationale:
-            "Community-contributed source: no measured track record yet.",
-          community: 0,
-          community_votes: 0,
-        },
-        keywords: [],
-        text: r.excerpt ?? "",
-        stances: [],
-      }));
+      }[]).map((r) => {
+        // Unreviewed community material: a labeled mechanical keyword stance,
+        // zero earned trust, so it surfaces visibly but never moves confidence.
+        const text = r.excerpt ?? "";
+        return {
+          id: `community:${r.id}`,
+          title: r.title,
+          url:
+            r.kind === "link"
+              ? (r.url ?? "")
+              : r.file_path
+                ? publicFileUrl(r.file_path)
+                : "",
+          publisher: "Community contribution",
+          published: r.created_at.slice(0, 10),
+          updated: r.created_at.slice(0, 10),
+          superseded_by: null,
+          trust: {
+            earned: 0,
+            earned_rationale:
+              "Community-contributed source: no measured track record yet.",
+            community: 0,
+            community_votes: 0,
+          },
+          keywords: [],
+          text,
+          stances: communityTextStance(r.title, text),
+        };
+      });
     } catch {
       // The commons shelf is best-effort; seeds always verify.
       extra = [];
