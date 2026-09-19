@@ -34,11 +34,14 @@ export interface SourceSeed {
   superseded_by: string | null;
   trust: TrustSignals;
   keywords: string[];
+  /** Free-text excerpt, used in retrieval for community-contributed sources. */
+  text?: string;
   stances: { claim_pattern: string[]; stance: Exclude<Stance, "unrelated">; quote: string; note: string | null }[];
 }
 
 export interface SourceResult {
   id: string;
+  origin: "seed" | "community";
   title: string;
   url: string;
   publisher: string;
@@ -124,29 +127,41 @@ function freshnessOf(src: SourceSeed): { status: Freshness; detail: string } {
   return { status: "current", detail: `Updated ${src.updated}.` };
 }
 
-export function verifyClaim(rawClaim: string, topK = 6): Verification {
+export function verifyClaim(
+  rawClaim: string,
+  topK = 6,
+  extra: SourceSeed[] = [],
+): Verification {
   const claim = rawClaim.trim();
   const claimTokens = tokens(claim);
   const seeds = (sourcesDoc as { sources: SourceSeed[] }).sources;
+  // The commons shelf: analyst seeds plus ready community contributions.
+  // Community sources carry no earned trust until it is measured (Art. IX) —
+  // they participate in retrieval and are labeled, never silently merged.
+  const corpus: { src: SourceSeed; origin: "seed" | "community" }[] = [
+    ...seeds.map((src) => ({ src, origin: "seed" as const })),
+    ...extra.map((src) => ({ src, origin: "community" as const })),
+  ];
 
   // --- retrieve: rank sources by keyword overlap with the claim ---
-  const ranked = seeds
-    .map((src) => {
-      const hay = tokens(src.title + " " + src.keywords.join(" ")).concat(
-        src.stances.flatMap((s) => tokens(s.claim_pattern.join(" "))),
-      );
+  const ranked = corpus
+    .map(({ src, origin }) => {
+      const hay = tokens(
+        src.title + " " + src.keywords.join(" ") + " " + (src.text ?? ""),
+      ).concat(src.stances.flatMap((s) => tokens(s.claim_pattern.join(" "))));
       const hits = [...new Set(hay.filter((t) => claimTokens.includes(t)))];
-      return { src, score: hits.length, hits };
+      return { src, origin, score: hits.length, hits };
     })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
 
-  const sources: SourceResult[] = ranked.map(({ src, hits }) => {
+  const sources: SourceResult[] = ranked.map(({ src, origin, hits }) => {
     const m = matchStance(claimTokens, src.stances);
     const f = freshnessOf(src);
     return {
       id: src.id,
+      origin,
       title: src.title,
       url: src.url,
       publisher: src.publisher,
@@ -158,7 +173,7 @@ export function verifyClaim(rawClaim: string, topK = 6): Verification {
       stance_note: m.note,
       match_explain:
         m.stance === "unrelated"
-          ? `Retrieved by keyword overlap (${hits.join(", ")}) but takes no position on this claim.`
+          ? `Retrieved by keyword overlap (${hits.join(", ")}) but takes no analyzed position on this claim.`
           : `Matched on: ${m.hits.join(", ")}.`,
     };
   });
@@ -209,12 +224,13 @@ export function verifyClaim(rawClaim: string, topK = 6): Verification {
   const derivation =
     `support ${support.toFixed(2)} × (1 − 0.6 × contradiction ${contra.toFixed(2)}) − staleness ${stale.toFixed(1)}` +
     ` = ${raw.toFixed(2)} → ${value}/100. ` +
-    `Community votes shown per source are never merged into this number (Charter Art. V).`;
+    `Community votes shown per source are never merged into this number (Charter Art. V); ` +
+    `community-contributed sources join retrieval with zero earned trust until it is measured (Charter Art. IX).`;
 
   return {
     claim,
     normalized: claimTokens.join(" "),
-    pipeline_version: "0.1.0",
+    pipeline_version: "0.2.0",
     sources,
     conflicts,
     confidence: { value, level, derivation },
