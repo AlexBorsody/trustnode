@@ -31,7 +31,8 @@ export default function Home() {
           with its derivation shown — never a bare number.
         </p>
         <p>
-          <a href="/verify" className="btn">Verify a claim →</a>
+          <a href="/verify" className="btn">Verify a claim →</a>{" "}
+          <a href="/sources" className="chip" style={{ textDecoration: "none", padding: "10px 18px" }}>The commons shelf →</a>
         </p>
       </div>
 
