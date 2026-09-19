@@ -119,6 +119,7 @@ export default function VerifyPage() {
                   {s.title}
                 </a>{" "}
                 <span className={STANCE_CLASS[s.stance]}>{s.stance}</span>{" "}
+                {s.origin === "community" && <span className="tag">community source</span>}{" "}
                 {s.freshness !== "current" && <span className="tag na">{s.freshness}</span>}
               </h2>
               <p className="panel-sub" style={{ marginBottom: 6 }}>
