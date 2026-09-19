@@ -4,7 +4,7 @@ export default function CharterPage() {
   return (
     <>
       <div className="meta-line">
-        TRUST COMMONS CHARTER <b>v1.0</b> · RATIFIED 2026-09-19 · AMENDMENTS REQUIRE A NEW VERSION
+        TRUST COMMONS CHARTER <b>v1.1</b> · RATIFIED 2026-09-19 · AMENDMENTS REQUIRE A NEW VERSION
       </div>
       <h1 className="page-title">The Trust Commons Charter</h1>
       <p className="page-sub">
@@ -51,7 +51,13 @@ export default function CharterPage() {
       <div className="panel">
       <h2>Article VIII — No single point of failure</h2>
       <p>If the founder walks away, gets hit by a bus, or sells out: the data stays public, the methodology stays versioned, the code stays forkable. Anyone can continue the work. A trust commons that depends on one person&#x27;s virtue is not a commons — it&#x27;s a promise. This charter exists so it doesn&#x27;t have to be.</p>
-      <p><i>Ratified by Alex Borsody, 2026-09-19. Version 1.0. Amendments require a new version, never a silent edit.</i></p>
+      </div>
+      <div className="panel">
+      <h2>Article IX — Trust is computed in the open</h2>
+      <p>Trust is a property of the graph, not a label anyone assigns. A source is trusted when trusted sources corroborate it, its claims verify against evidence, and the community relies on it — the same theory behind PageRank and TrustRank, applied to sources instead of web pages. Authority is computed from the graph; it is never asserted.</p>
+      <p>Google proved the theory and hid the machine: secret seeds, secret weights, a black box no one can audit. The commons runs the same playbook in the open. The seed set — the foundational sources from which trust flows — is published, versioned, and disputable. The algorithm is public. Every weight is inspectable, every ranking reproducible.</p>
+      <p>Seeds are starting points, not thrones. Any seed can be challenged, and trust that stops being earned stops flowing. What Google&#x27;s black box made unaccountable, the commons makes checkable.</p>
+      <p><i>Ratified by Alex Borsody, 2026-09-19. Version 1.1 (amended 2026-09-19: Article IX — the PageRank thesis). Amendments require a new version, never a silent edit.</i></p>
       </div>
     </>
   );
