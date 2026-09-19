@@ -42,6 +42,14 @@ The commons is free and open. Revenue comes from services around it: implementat
 
 If the founder walks away, gets hit by a bus, or sells out: the data stays public, the methodology stays versioned, the code stays forkable. Anyone can continue the work. A trust commons that depends on one person's virtue is not a commons — it's a promise. This charter exists so it doesn't have to be.
 
+## Article IX — Trust is computed in the open
+
+Trust is a property of the graph, not a label anyone assigns. A source is trusted when trusted sources corroborate it, its claims verify against evidence, and the community relies on it — the same theory behind PageRank and TrustRank, applied to sources instead of web pages. Authority is computed from the graph; it is never asserted.
+
+Google proved the theory and hid the machine: secret seeds, secret weights, a black box no one can audit. The commons runs the same playbook in the open. The seed set — the foundational sources from which trust flows — is published, versioned, and disputable. The algorithm is public. Every weight is inspectable, every ranking reproducible.
+
+Seeds are starting points, not thrones. Any seed can be challenged, and trust that stops being earned stops flowing. What Google's black box made unaccountable, the commons makes checkable.
+
 ---
 
-*Ratified by Alex Borsody, 2026-09-19. Version 1.0. Amendments require a new version, never a silent edit.*
+*Ratified by Alex Borsody, 2026-09-19. Version 1.1 (amended 2026-09-19: Article IX — the PageRank thesis). Amendments require a new version, never a silent edit.*
