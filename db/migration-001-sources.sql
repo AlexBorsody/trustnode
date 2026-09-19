@@ -75,6 +75,10 @@ drop policy if exists "auth insert"   on public.tn_tags;
 create policy "public read" on public.tn_tags for select using (true);
 create policy "auth insert" on public.tn_tags for insert
   with check (auth.role() = 'authenticated');
+drop policy if exists "auth update" on public.tn_tags;
+create policy "auth update" on public.tn_tags for update
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
 
 drop policy if exists "public read"   on public.tn_source_tags;
 drop policy if exists "auth insert"   on public.tn_source_tags;
