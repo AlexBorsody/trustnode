@@ -85,8 +85,7 @@ function stem(t: string): string {
   return t;
 }
 
-function tokens(text: string): string[] {
-  const out: string[] = [];
+export function tokens(text: string): string[] {  const out: string[] = [];
   for (const raw of text.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/)) {
     if (!raw) continue;
     // keep hyphen-joined form too ("single-page" -> "singlepage") for matching
@@ -116,8 +115,27 @@ function matchStance(
   return best ?? { stance: "unrelated", quote: null, note: null, hits: [] };
 }
 
-function freshnessOf(src: SourceSeed): { status: Freshness; detail: string } {
-  // Standards don't expire by age — only by supersession. Age is shown, not penalized.
+/** Mechanical stance for an unreviewed community source: pure keyword overlap,
+ *  labeled as unreviewed, never an analyst position. Carries zero weight in
+ *  confidence until the source earns trust (Charter Art. IX) — it can surface
+ *  relevant material visibly without moving the canonical number. */
+export function communityTextStance(
+  title: string,
+  text: string,
+): SourceSeed["stances"] {
+  const kw = [...new Set(tokens(`${title} ${text}`).filter((t) => t.length > 2))].slice(0, 14);
+  if (kw.length < 2) return [];
+  return [
+    {
+      claim_pattern: kw,
+      stance: "supports",
+      quote: text.slice(0, 280) || title,
+      note: "Unreviewed community contribution — position inferred from keyword overlap only. No analyst stance recorded; zero earned trust, so it cannot move the confidence number.",
+    },
+  ];
+}
+
+function freshnessOf(src: SourceSeed): { status: Freshness; detail: string } {  // Standards don't expire by age — only by supersession. Age is shown, not penalized.
   if (src.superseded_by) {
     return {
       status: "superseded",
