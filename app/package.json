@@ -1,1 +1,24 @@
-{"dependencies":{"@supabase/supabase-js":"^2.45.0","next":"^15.1.0","react":"^19.0.0","react-dom":"^19.0.0"},"description":"The Prove-It Clock — evidence-driven crypto accountability. Measures the distance between crypto's promises and reality.","devDependencies":{"@types/node":"^20.0.0","@types/react":"^19.0.0","@types/react-dom":"^19.0.0","tsx":"^4.19.0","typescript":"^5.6.0"},"name":"prove-it-clock","private":true,"scripts":{"build":"next build","dev":"next dev","pipeline":"npm run pipeline:ingest && npm run pipeline:score","pipeline:ingest":"tsx src/pipeline/ingest.ts","pipeline:score":"tsx src/pipeline/score.ts","start":"next start","typecheck":"tsc --noEmit"},"version":"0.1.0"}
+{
+  "dependencies": {
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "description": "TrustNode \u2014 the trust layer between generative AI and reality. Claim -> sources, evidence, contradictions, provenance.",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "name": "trustnode",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "version": "0.1.0"
+}
