@@ -1,1 +1,323 @@
-{"corpus":"oauth-pkce-seed-v1","note":"Seed corpus for the TrustNode prototype: OAuth / PKCE documentation. Trust signals are analyst-seeded (earned) and sample community votes. Real deployments replace seeds with measured track records.","sources":[{"id":"rfc7636","keywords":["pkce","proof key","code exchange","authorization code","public client","code_challenge","code_verifier","rfc 7636"],"published":"2015-09-01","publisher":"IETF","stances":[{"claim_pattern":["pkce","require"],"note":"Normative requirement for public clients.","quote":"PKCE (RFC 7636) is REQUIRED for public clients using the authorization code flow.","stance":"supports"},{"claim_pattern":["pkce","only","mobile"],"note":"Native apps are one example of public clients, not the scope.","quote":"The specification defines PKCE for public clients generally — it is not limited to mobile apps.","stance":"contradicts"}],"superseded_by":null,"title":"RFC 7636 — Proof Key for Code Exchange by OAuth Public Clients","trust":{"community":9.2,"community_votes":148,"earned":10,"earned_rationale":"Normative IETF standard; primary source for PKCE."},"updated":"2015-09-01","url":"https://www.rfc-editor.org/rfc/rfc7636"},{"id":"oauth-bcp","keywords":["oauth","security","best practice","best current practice","authorization code","pkce","implicit","rfc 9700","bcp"],"published":"2025-01-01","publisher":"IETF","stances":[{"claim_pattern":["pkce","require"],"note":"Extends the requirement beyond public clients to all authorization code flows.","quote":"Clients MUST use PKCE with the authorization code grant — for public and confidential clients alike.","stance":"supports"},{"claim_pattern":["implicit","spa","single-page"],"note":"The implicit grant is omitted from current best practice due to token exposure in the redirect.","quote":"The implicit grant is deprecated: it exposes access tokens in the redirect URI and must not be used.","stance":"contradicts"},{"claim_pattern":["pkce","only","mobile"],"note":"Current best practice explicitly generalizes PKCE past mobile.","quote":"PKCE is required for every authorization code flow, including web and single-page applications — not only mobile.","stance":"contradicts"}],"superseded_by":null,"title":"OAuth 2.0 Security Best Current Practice (RFC 9700)","trust":{"community":8.9,"community_votes":96,"earned":9,"earned_rationale":"Current IETF best practice; supersedes older guidance where they conflict."},"updated":"2025-01-01","url":"https://www.rfc-editor.org/rfc/rfc9700"},{"id":"auth0-pkce","keywords":["auth0","pkce","authorization code","spa","single-page","native","documentation"],"published":"2023-06-01","publisher":"Auth0 (Okta)","stances":[{"claim_pattern":["pkce","require"],"note":"Vendor docs describe PKCE as the standard for apps that cannot keep a secret.","quote":"Applications that cannot securely store a client secret — SPAs and native apps — should use the Authorization Code Flow with PKCE.","stance":"supports"},{"claim_pattern":["pkce","require"],"note":"Qualifies the blanket claim: confidential web apps have an alternative.","quote":"Regular web applications with a secure backend can use a client secret instead of PKCE.","stance":"qualifies"}],"superseded_by":null,"title":"Auth0 Docs — Authorization Code Flow with PKCE","trust":{"community":7.4,"community_votes":210,"earned":7,"earned_rationale":"Vendor documentation; accurate but scoped to Auth0's implementation."},"updated":"2024-11-01","url":"https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce"},{"id":"okta-pkce","keywords":["okta","pkce","oauth","authorization code","guide"],"published":"2022-09-01","publisher":"Okta","stances":[{"claim_pattern":["pkce","require"],"note":"General vendor guidance aligned with the standards.","quote":"Okta recommends PKCE for all applications using the authorization code flow where the client cannot be fully trusted.","stance":"supports"}],"superseded_by":null,"title":"Okta Developer Docs — PKCE Flow","trust":{"community":7.1,"community_votes":132,"earned":8,"earned_rationale":"Vendor documentation from a major identity provider; consistent with RFCs."},"updated":"2024-05-01","url":"https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/"},{"id":"blog-2019-pkce-mobile","keywords":["pkce","mobile","blog","ios","android"],"published":"2019-03-14","publisher":"Independent blog (2019)","stances":[{"claim_pattern":["pkce","only","mobile"],"note":"Outdated framing: true in 2019 practice, superseded by current best practice.","quote":"PKCE was designed for mobile apps, so if you're building for iOS or Android, you need it — web apps can skip it.","stance":"supports"}],"superseded_by":"oauth-bcp","title":"\"Do You Need PKCE?\" — independent blog post (2019)","trust":{"community":5.2,"community_votes":88,"earned":3,"earned_rationale":"Dated opinion piece; its core claim was true of 2019 practice but is contradicted by current best practice."},"updated":"2019-03-14","url":"https://example.invalid/blog/do-you-need-pkce-2019"},{"id":"so-answer-2021","keywords":["stackoverflow","pkce","implicit","spa","q&a"],"published":"2021-08-22","publisher":"Stack Overflow (community answer)","stances":[{"claim_pattern":["implicit","spa","single-page"],"note":"Community answer reflecting pre-BCP practice; the accepted guidance has since moved on.","quote":"For SPAs the implicit flow was the standard approach for years — many tutorials still show it.","stance":"supports"}],"superseded_by":"oauth-bcp","title":"Stack Overflow answer — \"OAuth flow for SPAs\" (2021)","trust":{"community":7.8,"community_votes":340,"earned":4,"earned_rationale":"Community Q&A: useful signal of what practitioners believed, not authoritative guidance."},"updated":"2021-08-22","url":"https://example.invalid/stackoverflow/oauth-flow-for-spas"}]}
+{
+ "corpus": "oauth-pkce-seed-v1",
+ "note": "Seed corpus for the TrustNode prototype: OAuth / PKCE documentation. Trust signals are analyst-seeded (earned) and sample community votes. Real deployments replace seeds with measured track records.",
+ "sources": [
+  {
+   "id": "rfc7636",
+   "keywords": [
+    "pkce",
+    "proof key",
+    "code exchange",
+    "authorization code",
+    "public client",
+    "code_challenge",
+    "code_verifier",
+    "rfc 7636"
+   ],
+   "published": "2015-09-01",
+   "publisher": "IETF",
+   "stances": [
+    {
+     "claim_pattern": [
+      "pkce",
+      "require"
+     ],
+     "note": "Normative requirement for public clients.",
+     "quote": "PKCE (RFC 7636) is REQUIRED for public clients using the authorization code flow.",
+     "stance": "supports"
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "protect",
+      "interception"
+     ],
+     "stance": "supports",
+     "quote": "PKCE protects public clients using the authorization code flow against authorization code interception attacks via the code_verifier / code_challenge exchange.",
+     "note": "The RFC's stated purpose: mitigate code interception on public clients."
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "public",
+      "client"
+     ],
+     "stance": "supports",
+     "quote": "PKCE (RFC 7636) is REQUIRED for public clients using the authorization code flow.",
+     "note": "Normative requirement for public clients."
+    },
+    {
+     "claim_pattern": [
+      "code_verifier",
+      "code_challenge"
+     ],
+     "stance": "supports",
+     "quote": "The client creates a secret code_verifier, sends its transformed code_challenge with the authorization request, and proves possession with the verifier at the token endpoint.",
+     "note": "The PKCE mechanism in brief."
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "only",
+      "mobile"
+     ],
+     "note": "Native apps are one example of public clients, not the scope.",
+     "quote": "The specification defines PKCE for public clients generally — it is not limited to mobile apps.",
+     "stance": "contradicts"
+    }
+   ],
+   "superseded_by": null,
+   "title": "RFC 7636 — Proof Key for Code Exchange by OAuth Public Clients",
+   "trust": {
+    "community": 9.2,
+    "community_votes": 148,
+    "earned": 10,
+    "earned_rationale": "Normative IETF standard; primary source for PKCE."
+   },
+   "updated": "2015-09-01",
+   "url": "https://www.rfc-editor.org/rfc/rfc7636"
+  },
+  {
+   "id": "oauth-bcp",
+   "keywords": [
+    "oauth",
+    "security",
+    "best practice",
+    "best current practice",
+    "authorization code",
+    "pkce",
+    "implicit",
+    "rfc 9700",
+    "bcp"
+   ],
+   "published": "2025-01-01",
+   "publisher": "IETF",
+   "stances": [
+    {
+     "claim_pattern": [
+      "pkce",
+      "require"
+     ],
+     "note": "Extends the requirement beyond public clients to all authorization code flows.",
+     "quote": "Clients MUST use PKCE with the authorization code grant — for public and confidential clients alike.",
+     "stance": "supports"
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "confidential",
+      "client"
+     ],
+     "stance": "supports",
+     "quote": "Clients MUST use PKCE with the authorization code grant — for public and confidential clients alike.",
+     "note": "Extends the requirement beyond public clients to all authorization code flows."
+    },
+    {
+     "claim_pattern": [
+      "implicit",
+      "deprecated"
+     ],
+     "stance": "supports",
+     "quote": "The implicit grant is deprecated: it exposes access tokens in the redirect URI and must not be used.",
+     "note": "Current best practice retires the implicit grant."
+    },
+    {
+     "claim_pattern": [
+      "implicit",
+      "spa",
+      "single-page"
+     ],
+     "note": "The implicit grant is omitted from current best practice due to token exposure in the redirect.",
+     "quote": "The implicit grant is deprecated: it exposes access tokens in the redirect URI and must not be used.",
+     "stance": "contradicts"
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "only",
+      "mobile"
+     ],
+     "note": "Current best practice explicitly generalizes PKCE past mobile.",
+     "quote": "PKCE is required for every authorization code flow, including web and single-page applications — not only mobile.",
+     "stance": "contradicts"
+    }
+   ],
+   "superseded_by": null,
+   "title": "OAuth 2.0 Security Best Current Practice (RFC 9700)",
+   "trust": {
+    "community": 8.9,
+    "community_votes": 96,
+    "earned": 9,
+    "earned_rationale": "Current IETF best practice; supersedes older guidance where they conflict."
+   },
+   "updated": "2025-01-01",
+   "url": "https://www.rfc-editor.org/rfc/rfc9700"
+  },
+  {
+   "id": "auth0-pkce",
+   "keywords": [
+    "auth0",
+    "pkce",
+    "authorization code",
+    "spa",
+    "single-page",
+    "native",
+    "documentation"
+   ],
+   "published": "2023-06-01",
+   "publisher": "Auth0 (Okta)",
+   "stances": [
+    {
+     "claim_pattern": [
+      "pkce",
+      "require"
+     ],
+     "note": "Vendor docs describe PKCE as the standard for apps that cannot keep a secret.",
+     "quote": "Applications that cannot securely store a client secret — SPAs and native apps — should use the Authorization Code Flow with PKCE.",
+     "stance": "supports"
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "spa",
+      "native"
+     ],
+     "stance": "supports",
+     "quote": "Applications that cannot securely store a client secret — SPAs and native apps — should use the Authorization Code Flow with PKCE.",
+     "note": "Vendor docs describe PKCE as the standard for apps that cannot keep a secret."
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "require"
+     ],
+     "note": "Qualifies the blanket claim: confidential web apps have an alternative.",
+     "quote": "Regular web applications with a secure backend can use a client secret instead of PKCE.",
+     "stance": "qualifies"
+    }
+   ],
+   "superseded_by": null,
+   "title": "Auth0 Docs — Authorization Code Flow with PKCE",
+   "trust": {
+    "community": 7.4,
+    "community_votes": 210,
+    "earned": 7,
+    "earned_rationale": "Vendor documentation; accurate but scoped to Auth0's implementation."
+   },
+   "updated": "2024-11-01",
+   "url": "https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce"
+  },
+  {
+   "id": "okta-pkce",
+   "keywords": [
+    "okta",
+    "pkce",
+    "oauth",
+    "authorization code",
+    "guide"
+   ],
+   "published": "2022-09-01",
+   "publisher": "Okta",
+   "stances": [
+    {
+     "claim_pattern": [
+      "pkce",
+      "require"
+     ],
+     "note": "General vendor guidance aligned with the standards.",
+     "quote": "Okta recommends PKCE for all applications using the authorization code flow where the client cannot be fully trusted.",
+     "stance": "supports"
+    },
+    {
+     "claim_pattern": [
+      "pkce",
+      "recommend",
+      "authorization",
+      "code"
+     ],
+     "stance": "supports",
+     "quote": "Okta recommends PKCE for all applications using the authorization code flow where the client cannot be fully trusted.",
+     "note": "General vendor guidance aligned with the standards."
+    }
+   ],
+   "superseded_by": null,
+   "title": "Okta Developer Docs — PKCE Flow",
+   "trust": {
+    "community": 7.1,
+    "community_votes": 132,
+    "earned": 8,
+    "earned_rationale": "Vendor documentation from a major identity provider; consistent with RFCs."
+   },
+   "updated": "2024-05-01",
+   "url": "https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/"
+  },
+  {
+   "id": "blog-2019-pkce-mobile",
+   "keywords": [
+    "pkce",
+    "mobile",
+    "blog",
+    "ios",
+    "android"
+   ],
+   "published": "2019-03-14",
+   "publisher": "Independent blog (2019)",
+   "stances": [
+    {
+     "claim_pattern": [
+      "pkce",
+      "only",
+      "mobile"
+     ],
+     "note": "Outdated framing: true in 2019 practice, superseded by current best practice.",
+     "quote": "PKCE was designed for mobile apps, so if you're building for iOS or Android, you need it — web apps can skip it.",
+     "stance": "supports"
+    }
+   ],
+   "superseded_by": "oauth-bcp",
+   "title": "\"Do You Need PKCE?\" — independent blog post (2019)",
+   "trust": {
+    "community": 5.2,
+    "community_votes": 88,
+    "earned": 3,
+    "earned_rationale": "Dated opinion piece; its core claim was true of 2019 practice but is contradicted by current best practice."
+   },
+   "updated": "2019-03-14",
+   "url": "https://example.invalid/blog/do-you-need-pkce-2019"
+  },
+  {
+   "id": "so-answer-2021",
+   "keywords": [
+    "stackoverflow",
+    "pkce",
+    "implicit",
+    "spa",
+    "q&a"
+   ],
+   "published": "2021-08-22",
+   "publisher": "Stack Overflow (community answer)",
+   "stances": [
+    {
+     "claim_pattern": [
+      "implicit",
+      "spa",
+      "single-page"
+     ],
+     "note": "Community answer reflecting pre-BCP practice; the accepted guidance has since moved on.",
+     "quote": "For SPAs the implicit flow was the standard approach for years — many tutorials still show it.",
+     "stance": "supports"
+    }
+   ],
+   "superseded_by": "oauth-bcp",
+   "title": "Stack Overflow answer — \"OAuth flow for SPAs\" (2021)",
+   "trust": {
+    "community": 7.8,
+    "community_votes": 340,
+    "earned": 4,
+    "earned_rationale": "Community Q&A: useful signal of what practitioners believed, not authoritative guidance."
+   },
+   "updated": "2021-08-22",
+   "url": "https://example.invalid/stackoverflow/oauth-flow-for-spas"
+  }
+ ]
+}
