@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { verifyClaim } from "@/trustnode/pipeline";
+import { verifyClaim, type SourceSeed } from "@/trustnode/pipeline";
+import { publicFileUrl, supabaseConfigured, supabaseFor } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -33,5 +34,56 @@ export async function POST(req: Request) {
   if (claim.length > 500) {
     return json({ error: "claim too long (max 500 chars)" }, 400);
   }
-  return json(verifyClaim(claim));
+
+  // The commons shelf: ready community-contributed sources join retrieval.
+  // They carry no earned trust until it is measured — labeled, never merged.
+  let extra: SourceSeed[] = [];
+  if (supabaseConfigured()) {
+    try {
+      const sb = supabaseFor();
+      const { data } = await sb
+        .from("tn_sources")
+        .select("id, kind, title, url, file_path, excerpt, created_at")
+        .eq("status", "ready")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      extra = ((data ?? []) as {
+        id: string;
+        kind: "file" | "link";
+        title: string;
+        url: string | null;
+        file_path: string | null;
+        excerpt: string | null;
+        created_at: string;
+      }[]).map((r) => ({
+        id: `community:${r.id}`,
+        title: r.title,
+        url:
+          r.kind === "link"
+            ? (r.url ?? "")
+            : r.file_path
+              ? publicFileUrl(r.file_path)
+              : "",
+        publisher: "Community contribution",
+        published: r.created_at.slice(0, 10),
+        updated: r.created_at.slice(0, 10),
+        superseded_by: null,
+        trust: {
+          earned: 0,
+          earned_rationale:
+            "Community-contributed source: no measured track record yet.",
+          community: 0,
+          community_votes: 0,
+        },
+        keywords: [],
+        text: r.excerpt ?? "",
+        stances: [],
+      }));
+    } catch {
+      // The commons shelf is best-effort; seeds always verify.
+      extra = [];
+    }
+  }
+
+  return json(verifyClaim(claim, 6, extra));
 }
