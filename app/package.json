@@ -1,15 +1,16 @@
 {
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "@supabase/supabase-js": "^2.45.0"
+    "react-dom": "^19.0.0"
   },
-  "description": "TrustNode \u2014 the trust layer between generative AI and reality. Claim -> sources, evidence, contradictions, provenance.",
+  "description": "TrustNode — the trust layer between generative AI and reality. Claim -> sources, evidence, contradictions, provenance.",
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "pdf-parse": "^1.1.1",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   },
@@ -19,7 +20,8 @@
     "build": "next build",
     "dev": "next dev",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx test/run.ts"
   },
   "version": "0.1.0"
 }
