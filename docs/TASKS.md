@@ -6,9 +6,10 @@ Legend: `- [ ]` open · `- [x]` done/fixed · `- [!]` blocked.
 
 ## Codex ↔ Muse handoffs
 
-Alex has designated Codex as project lead and Muse as an implementation collaborator.
+Alex has designated Codex as project lead and implementer, and Muse as the tester.
 This file is the shared assignment and review board. Codex owns prioritization,
-architecture, review, and integration; Muse owns explicitly assigned work below.
+architecture, implementation, review, and integration; Muse independently tests
+behavior, reports reproducible bugs, and retests fixes.
 Existing product decisions in DESIGN.md remain the contract.
 
 ### Starting a new Codex web session
@@ -29,7 +30,7 @@ Do not take over an assigned implementation task without recording reassignment.
 - Branch: `phase-0/cloud-review` (create from the published handoff branch until that branch is merged)
 - Scope: independently check `docs/REVIEW.md` against the implementation; write `docs/CLOUD-REVIEW.md` with confirmed/disputed findings and concrete input/expected-behavior cases for community isolation, negation, and malformed requests. Separate current behavior from proposed behavior and identify unresolved product decisions.
 - Acceptance: cite relevant source locations; report exact commands/results for any executed checks; never call static reasoning an executed test. Include commit/PR and limitations in the handoff below.
-- Exclusions: no application, dependency, database, or methodology changes; leave MUSE-001 files to Muse. This is a review task, not approval of the draft design.
+- Exclusions: no application, dependency, database, or methodology changes; leave development setup files to CODEX-002. This is a review task, not approval of the draft design.
 - Handoff from Codex web: pending.
 - Review from Codex local: pending.
 
@@ -43,10 +44,13 @@ Do not take over an assigned implementation task without recording reassignment.
 - This file does not send notifications or synchronize itself. Publish changes through GitHub so the other collaborator can read them; each collaborator checks it at the start of work and before handoff. Local-only edits are not visible to the other collaborator.
 - Do not merge, deploy, change production settings, or apply database migrations as part of an implementation assignment unless explicitly included in its scope.
 
-### MUSE-001 — Reproducible development setup and baseline CI
+### CODEX-002 — Reproducible development setup and baseline CI
+
+Reassigned from the original MUSE-001 to Codex local at Alex's request, 2026-09-19;
+Muse now owns testing rather than implementation.
 
 - [ ] Complete development setup and baseline CI — DESIGN §§10, 23, 25
-- Owner: Muse
+- Owner: Codex local
 - Assigned by: Codex, 2026-09-19
 - Status: assigned
 - Branch: `phase-0/dev-setup` (record actual branch when claimed)
@@ -55,16 +59,31 @@ Do not take over an assigned implementation task without recording reassignment.
 - Deliverables: choose and document a Node version compatible with locked dependencies; use `npm ci` from `app`; ignore dependencies, build outputs, local env files (retain the example), and TypeScript build metadata; provide placeholder-only examples for the four Supabase variables in DESIGN §25; document seeded verification without credentials and what requires Supabase; fix the README Charter path/version; add PR CI for typecheck and production build.
 - Acceptance: from a clean checkout, `npm ci`, `npm run typecheck`, and `npm run build` succeed in `app`; CI uses the committed lockfile and documented Node version; no secrets are required for baseline CI; generated files remain untracked. Record any failure honestly instead of disabling checks.
 - Exclusions: no pipeline, corpus, confidence, UI behavior, database, dependency-upgrade campaign, or production changes. Regression suite implementation is a separate assignment. This setup task does not approve the draft feature spec.
-- Handoff from Muse: pending — add commit/PR, changed files, checks/results, limitations, and questions here.
+- Handoff from Codex local: pending — add commit/PR, changed files, checks/results, limitations, and questions here.
 - Review from Codex: pending.
 
-### CODEX-001 — Correctness design and Muse integration review
+### MUSE-002 — Baseline testing and regression verification
 
-- [ ] Prepare correctness decisions and review MUSE-001 — DESIGN §§9, 10, 13, 14, 23
+- [ ] Test the baseline and report reproducible failures — DESIGN §§20, 23, 25
+- Owner: Muse
+- Status: assigned
+- Branch: `phase-0/muse-testing`
+- Purpose: act as the independent tester and Alex's phone-based QA contact. Codex owns implementation and fixes.
+- Scope: test `/`, `/verify`, `/sources`, and `/charter` on desktop and Android where available; check navigation, narrow-screen layout, input errors, loading/error recovery, and version labels. Exercise positive/negative PKCE claims, conflicts, irrelevant claims, repeated-input determinism, and invalid API bodies. Use DESIGN §23 and REVIEW.md as the starting checklist.
+- Environment: record exact commit/PR or deployment URL, test time, browser/device, and whether the build includes the proposed fix. Use local or preview/test environments for writes and synthetic source contributions; production checks are read-only unless separately authorized. Authenticated tests require an available test account and configured test environment; mark missing access as blocked, not passed.
+- Deliverable: `docs/QA.md` containing cases with expected vs actual behavior and pass/fail/blocked/not-run status. Each bug needs reproduction steps, input, observed output, impact, and supporting screenshot/log where available; redact credentials and personal data. Link existing BUG IDs instead of duplicating them; append newly confirmed bugs to Active bugs.
+- Acceptance: cover the listed flows or explicitly mark unavailable cases; distinguish static observations from executed tests. After Codex fixes a bug, retest the exact fix revision and report whether the reproduction and nearby cases pass. Do not mark a bug fixed merely because code changed.
+- Exclusions: no application fixes, scoring/methodology changes, dependency changes, migrations, merge, or deployment. Propose automated regression cases; coordinate test-code ownership with Codex before editing shared test files.
+- Handoff from Muse: pending — add tested revision/environment, QA report link, results, blockers, and bugs requiring Codex action.
+- Triage from Codex: pending.
+
+### CODEX-001 — Correctness design and QA triage
+
+- [ ] Prepare correctness decisions and triage MUSE-002 — DESIGN §§9, 10, 13, 14, 23
 - Owner: Codex
 - Status: assigned
-- Scope: review findings in `docs/REVIEW.md`; define canonical/community evidence isolation, demo evidence labeling, and negation regression expectations before assigning behavior changes. Review MUSE-001 against its acceptance criteria and reconcile proposals with DESIGN.md using explicit version changes.
-- Handoff: pending. No verification implementation files are assigned to Muse yet.
+- Scope: review findings in `docs/REVIEW.md`; define canonical/community evidence isolation, demo evidence labeling, and negation regression expectations before assigning behavior changes. Triage MUSE-002 findings against its acceptance criteria and reconcile proposals with DESIGN.md using explicit version changes.
+- Handoff: pending. Muse tests and reports; Codex implements fixes.
 
 ## Active bugs
 
