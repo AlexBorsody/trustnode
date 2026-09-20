@@ -154,12 +154,13 @@ Alex flagged the v1.1 charter as slop and wrongly scoped (it mixed in the Prove-
 ## Active bugs
 
 - [ ] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13.
-- [ ] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8.
 - [ ] BUG-006: `submitLink`/`submitUpload` lack catch/finally — a network failure leaves contribution controls stuck in loading state. Add error states + finally cleanup.
 
 - [ ] BUG-004: Zero-trust community sources can displace canonical seeds from top-six retrieval and change confidence (reproduced 100 → 0); isolate canonical scoring selection — DESIGN §§9, 13; REVIEW finding 1.
 
 ## Fixed bugs
+
+- [x] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8. Fixed 2026-09-20: runtime validation across verify/link/upload routes; 31 API regression checks, including no upstream calls for rejected inputs.
 
 - [x] BUG-000: Verify returned UNSUPPORTED 0/100 for the PKCE claim — seed stance patterns too narrow, community sources had no stances. Fixed 2026-09-19 (enriched seed patterns + mechanical text-overlap stance for community sources, labeled unreviewed).
 - [x] BUG-001: Stance engine has no negation handling — "PKCE does not protect against interception" can match support patterns. — DESIGN §4. Fixed 2026-09-19 (two-pass cue+token negation in matchStance: cue within ±4 raw words flips supports↔contradicts, sets negation flag + note).
@@ -218,3 +219,11 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 - Fixed bugs: move the line from Active to Fixed and append the fix date + one-line cause.
 - Use phase/task branches when useful; PRs are optional under the autonomous integration policy. If TASKS.md conflicts, keep both lines and reconcile — never delete a task line during a merge.
 - DESIGN.md is the contract; this file is the checklist. Disagreements update DESIGN.md first.
+
+## CODEX-003 — API input validation
+
+- Owner: Codex local, isolated checkout `/private/tmp/trustnode-api-validation`; branch `phase-0/api-validation`.
+- Status: ready for review/integration after CI.
+- Scope: BUG-005 and equivalent link/upload metadata crashes; malformed inputs return 400 with CORS before upstream side effects. Existing auth requirements remain intact.
+- Validation: 31 route tests pass; typecheck passes. All 26 existing regression cases and the production build also pass locally; both test suites now run in CI. Run `npm run test:api` in `app`.
+- Muse follow-up: after deployment, verify normal claim submission, link forms, and upload forms still behave as expected using the existing browser QA assignment; API malformed-body coverage is automated. Do not mark authenticated flows passed without a configured test account/environment.
