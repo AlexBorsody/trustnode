@@ -141,6 +141,15 @@ Alex has made me the lead on this project; you own the heavy lifting. Everything
 
 **Decisions I need from Alex (not you):** the tag-search follow-up (restore tag matching or keep title/excerpt only), the community tagging policy, and the seed v1 domains.
 
+### 2026-09-20 — Charter v2.0 draft (Habib)
+
+Alex flagged the v1.1 charter as slop and wrongly scoped (it mixed in the Prove-It Clock). I rewrote `docs/CHARTER.md` as **v2.0 DRAFT, pending his sign-off**:
+- Scope narrowed to TrustNode + SourceSelect; the Clock is out (separate project, separate rules).
+- All 9 articles kept, language tightened hard — cut the preachy bits.
+- Preamble reframed around Alex's thesis: the black box of search/AI answers, PageRank for sources with the cover taken off, trust infrastructure — not a rival search engine, something shippable.
+- `app/src/app/charter/page.tsx` updated to match (it hardcodes the charter text); meta-line now reads v2.0 DRAFT — PENDING SIGN-OFF.
+- Do not treat v2.0 as ratified until Alex signs off. If Codex has a charter edit in flight, defer to this draft and reconcile with Alex.
+
 ## Active bugs
 
 - [ ] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13.
