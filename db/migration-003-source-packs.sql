@@ -16,6 +16,7 @@ create table public.tn_pack_sources (
   source_id uuid not null references public.tn_sources(id),
   rank integer not null check (rank between 1 and 50),
   note text not null default '' check (length(note) <= 1000),
+  created_at timestamptz not null default now(),
   primary key (pack_id, source_id),
   unique (pack_id, rank)
 );

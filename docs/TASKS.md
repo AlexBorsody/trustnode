@@ -229,9 +229,11 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 
 ## PACKS-001 — Ranked source packs (Codex local)
 
-- Status: in progress; branch `feature/source-packs`, isolated checkout `/private/tmp/trustnode-source-packs`.
+- Status: implemented; database migration and browser QA pending; branch `feature/source-packs`, isolated checkout `/private/tmp/trustnode-source-packs`.
 - Direction: updated STRATEGY.md and IMPLEMENTATION_BRIEF.md; DESIGN §27 v2.2 records scope and deliberate follow-ups.
 - Deliverables: pack creation, ranked links with notes, category/tags, public/private visibility, share URLs, copy into own draft; caller-JWT API and atomic RLS migration; no canonical-confidence changes.
 - [ ] Apply `db/migration-003-source-packs.sql` in Supabase after code review. Assigned to Muse's existing browser SQL-editor workflow. Record applied time/result here; do not assume it ran from a successful application deploy. This migration adds pack tables/policies/function without changing existing source data.
 - [ ] Muse browser QA: open `/packs`, sign in via `/sources`, add two existing links, reorder, annotate, and save privately. Open that URL signed out: no pack data should be visible. Create a public copy: signed-out visitors should see the saved order and notes. Sign into a second test account and copy it: the new private draft belongs to that account and changes do not alter the original. Record account roles (not credentials), URLs/revisions, actual results, and blockers in QA.md.
 - Remaining follow-ups: editing/deletion, fork ancestry, pack comparison/merge, category trees, adoption-based retrieval, and profiles. Pack position is curator preference, not earned trust.
+
+- PACKS-001 validation: GitHub CI passed 72 application tests, typecheck, production build, and disposable PostgreSQL checks for public/private reads, cross-owner writes, anonymous writes, duplicate/file rejection, and atomic rollback. Vercel preview passed. This proves test-database behavior, not that migration 003 has been applied to production.

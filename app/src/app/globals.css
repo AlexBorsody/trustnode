@@ -66,7 +66,7 @@ a:hover { text-decoration: underline; }
 }
 .brand-name { font-weight: 700; letter-spacing: 0.04em; font-size: 17px; }
 .brand-name small { display: block; font-weight: 400; color: var(--text-dim); font-size: 11px; letter-spacing: 0.08em; }
-.nav { display: flex; gap: 4px; }
+.nav { display: flex; flex-wrap: wrap; gap: 4px; }
 .nav a {
   color: var(--text-dim); padding: 8px 14px; border-radius: 6px;
   font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
