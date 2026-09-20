@@ -43,9 +43,12 @@ Trust is per-domain. Gold on medicine can be garbage on crypto.
 
 ## Run it
 
+Use Node **22.23.2** (pinned in `.nvmrc`) and its bundled npm. With nvm,
+run `nvm install` and `nvm use` from the repository root.
+
 ```bash
 cd app
-npm install
+npm ci
 npm run dev        # UI at http://localhost:3000 — try /verify
 npm run typecheck
 npm run build
@@ -54,10 +57,26 @@ npm run build
 `POST /api/verify` with `{ "claim": "..." }` returns the full verification chain
 as JSON. The seed corpus covers OAuth/PKCE documentation (`app/data/sources.json`).
 
+No credentials are needed for the home, charter, or seeded verification pages.
+Without Supabase configuration, `/sources` shows an unconfigured state and its
+API returns 503. This is expected for the baseline build and CI.
+
+For the source commons, copy `app/.env.example` to `app/.env.local` and replace
+all four placeholders with a Supabase test project's URL and anon key. Apply
+`db/migration-001-sources.sql` to that test project and allow
+`http://localhost:3000/sources` as an Auth redirect URL. Restart the dev server
+after changing environment variables. Magic-link sign-in, link contributions,
+and uploads require this setup; no service-role key is used.
+
+CI runs a clean lockfile install, typecheck, and production build on PRs and
+pushes to `main`, without Supabase credentials. Run the same checks locally
+before integration. Build output, dependencies, and local environment files
+are ignored by Git.
+
 ## The commons
 
 TrustNode is built under the Trust Commons Charter — methodology, data, and
 code are public, versioned, and forkable; trust is never for sale. The network
 belongs to everyone; the interface and the labor are the product.
 
-See [CHARTER.md](./CHARTER.md) (v1.0, ratified 2026-09-19).
+See [CHARTER.md](./docs/CHARTER.md) (v1.1, ratified 2026-09-19).
