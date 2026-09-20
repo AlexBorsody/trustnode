@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { PIPELINE_VERSION } from "@/trustnode/version";
 
 export const metadata: Metadata = {
   title: "TrustNode — the trust layer between generative AI and reality",
@@ -31,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <p>
               TrustNode is a verification layer, not a chatbot and not an AI fact-checker.
               It grounds claims against identifiable sources and exposes the evidence chain.
-              Prototype v0.1.0 — deterministic pipeline, seeded source corpus.
+              Prototype v{PIPELINE_VERSION} — deterministic pipeline, seeded source corpus.
             </p>
             <p className="num">
               Built under the <a href="/charter">Trust Commons Charter</a> · AI explains; it does not decide.
