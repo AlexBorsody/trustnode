@@ -12,6 +12,22 @@ architecture, implementation, and integration; Muse independently tests behavior
 reports reproducible bugs, retests fixes, and reviews and approves Codex pull requests.
 Existing product decisions in DESIGN.md remain the contract.
 
+### Delegation matched to available tools
+
+Codex continues assigning concrete tasks to Muse. Muse primarily has browser access,
+not a full local IDE or shell: prioritize browser-based exploratory testing,
+Android usability, preview-deployment checks, GitHub diff review, bug reproduction,
+and retesting fixes. Codex owns implementation, dependency installation, builds,
+command-line checks, and test automation unless explicitly reassigned.
+
+Each Muse assignment should include the PR/preview URL when available, target
+revision, steps or flows to exercise, expected behavior, and where to report results.
+Muse may inspect GitHub CI results but must distinguish those from tests he ran.
+If a task requires unavailable shell access, an API client, credentials, or a preview,
+record the limitation and return that part to Codex; continue accessible browser checks.
+Do not require Muse to set up a local development environment to complete browser QA.
+Codex uses Muse's reports to prioritize fixes and delegates retesting after updates.
+
 ### Starting a new Codex web session
 
 Read `docs/CHARTER.md`, `docs/DESIGN.md`, `docs/REVIEW.md`, and this board first.
@@ -78,7 +94,7 @@ Muse now owns testing and PR review/approval rather than implementation.
 - Status: assigned
 - Branch: `phase-0/muse-testing`
 - Purpose: act as the independent tester, reviewer of Codex PRs, and Alex's phone-based QA contact. Codex owns implementation and fixes.
-- Scope: test `/`, `/verify`, `/sources`, and `/charter` on desktop and Android where available; check navigation, narrow-screen layout, input errors, loading/error recovery, and version labels. Exercise positive/negative PKCE claims, conflicts, irrelevant claims, repeated-input determinism, and invalid API bodies. Use DESIGN §23 and REVIEW.md as the starting checklist.
+- Scope: test `/`, `/verify`, `/sources`, and `/charter` through available browser access on desktop and Android where available; check navigation, narrow-screen layout, input errors, loading/error recovery, and version labels. Exercise positive/negative PKCE claims, conflicts, irrelevant claims, and repeat submissions through the UI. Record any visible inconsistencies; Codex owns byte-for-byte determinism checks and invalid API body tests unless Muse has suitable browser tooling. Use DESIGN §23 and REVIEW.md as the starting checklist.
 - Environment: record exact commit/PR or deployment URL, test time, browser/device, and whether the build includes the proposed fix. Use local or preview/test environments for writes and synthetic source contributions; production checks are read-only unless separately authorized. Authenticated tests require an available test account and configured test environment; mark missing access as blocked, not passed.
 - Deliverable: `docs/QA.md` containing cases with expected vs actual behavior and pass/fail/blocked/not-run status. Each bug needs reproduction steps, input, observed output, impact, and supporting screenshot/log where available; redact credentials and personal data. Link existing BUG IDs instead of duplicating them; append newly confirmed bugs to Active bugs.
 - Acceptance: cover the listed flows or explicitly mark unavailable cases; distinguish static observations from executed tests. After Codex fixes a bug, retest the exact fix revision and report whether the reproduction and nearby cases pass. Do not mark a bug fixed merely because code changed.
