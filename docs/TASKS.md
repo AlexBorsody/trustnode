@@ -225,3 +225,13 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 - Fixed bugs: move the line from Active to Fixed and append the fix date + one-line cause.
 - Use phase/task branches when useful; PRs are optional under the autonomous integration policy. If TASKS.md conflicts, keep both lines and reconcile — never delete a task line during a merge.
 - DESIGN.md is the contract; this file is the checklist. Disagreements update DESIGN.md first.
+
+
+## PACKS-001 — Ranked source packs (Codex local)
+
+- Status: in progress; branch `feature/source-packs`, isolated checkout `/private/tmp/trustnode-source-packs`.
+- Direction: updated STRATEGY.md and IMPLEMENTATION_BRIEF.md; DESIGN §27 v2.2 records scope and deliberate follow-ups.
+- Deliverables: pack creation, ranked links with notes, category/tags, public/private visibility, share URLs, copy into own draft; caller-JWT API and atomic RLS migration; no canonical-confidence changes.
+- [ ] Apply `db/migration-003-source-packs.sql` in Supabase after code review. Assigned to Muse's existing browser SQL-editor workflow. Record applied time/result here; do not assume it ran from a successful application deploy. This migration adds pack tables/policies/function without changing existing source data.
+- [ ] Muse browser QA: open `/packs`, sign in via `/sources`, add two existing links, reorder, annotate, and save privately. Open that URL signed out: no pack data should be visible. Create a public copy: signed-out visitors should see the saved order and notes. Sign into a second test account and copy it: the new private draft belongs to that account and changes do not alter the original. Record account roles (not credentials), URLs/revisions, actual results, and blockers in QA.md.
+- Remaining follow-ups: editing/deletion, fork ancestry, pack comparison/merge, category trees, adoption-based retrieval, and profiles. Pack position is curator preference, not earned trust.

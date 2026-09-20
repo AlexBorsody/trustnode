@@ -1,7 +1,7 @@
 # TrustNode Source Commons — Design Spec
 
-Version 2.1 (DRAFT; collaboration policy updated 2026-09-19) — 2026-09-19
-Status: **No build work until this spec is signed off.** This is the contract Codex and Habib build from.
+Version 2.2 (source-pack slice authorized 2026-09-20; remaining graph design DRAFT) — 2026-09-19
+Status: source-pack implementation authorized by Alex on 2026-09-20 via the updated strategy and implementation brief. The broader graph design remains draft.
 Working task + bug tracker: `docs/TASKS.md` (every task references a section here).
 
 ## 1. Thesis
@@ -279,3 +279,19 @@ Order matters: this ships only after the core engine is correct and the graph is
 4. **Spam/low-quality contributions** — no moderation until Phase 3; keep the shelf small and watched until then. Community sources can't move confidence, which bounds the damage.
 5. **Supabase free-tier limits** — row counts, egress on public bucket; monitor before any launch push.
 6. **Founder bottleneck** — seed approvals and moderation currently route through Alex (Art. VIII: design so the commons survives him — versioned data, forkable code, documented process).
+
+
+## 27. Source-pack MVP (v2.2, 2026-09-20)
+
+The updated STRATEGY.md and IMPLEMENTATION_BRIEF.md prioritize link-based source packs before further file work. This supersedes the earlier deferral of all community curation to Phase 3. Votes remain separate and deferred.
+
+First slice: signed-in users create packs of 1–50 existing link sources, ordered by curator preference, with title, description, topic/category, tags, and per-source notes. Packs default private; publication is explicit. Public packs can be read without signing in. Owners can read their own private packs. Readers can copy an accessible pack into a new, private-by-default draft, reorder it, and save under their own identity. This is copying, not tracked fork ancestry or pack merging.
+
+- Storage: migration 003 adds `tn_packs` and `tn_pack_sources`. `tn_create_pack` creates the parent and ranked entries atomically, running as the caller under RLS. No service-role key. Private pack metadata and entries are restricted in database policies, not only UI. Linked source records remain public.
+- Routes: `GET/POST /api/packs`, `GET /api/packs/:id`, `/packs`, `/packs/:id`. Reads use private/no-store response caching to prevent account-specific results being shared. Lists show the newest 50 visible packs; source search shows up to 100 shelf results.
+- Attribution: owner's account UUID is visible, never email. Display profiles are deferred.
+- Ranking: order is explicit curator preference. Pack adoption, votes, and ordering do not change canonical confidence in this slice. A later, versioned retrieval algorithm must label pack influence and isolate canonical scoring selection before enabling adoption weights.
+- Revision: UI saves new copies; editing/deletion, tracked forks, comparison/merge, category trees, adoption metrics, and retrieval integration remain follow-ups. Topic/category is a free-text label initially.
+- Controls: expose only controls backed by implemented behavior. Temperature/top-p are deferred until a downstream summarizer exists; they do nothing in today's deterministic pipeline.
+- Delivery: migration must be applied before authenticated pack flows work. Missing schema/configuration yields an explicit unavailable state, never a fabricated empty successful response.
+- Validation: model boundary tests, disposable PostgreSQL RLS/atomic-save tests, build/typecheck and existing regressions in CI. Muse checks browser creation, rank order, notes, public sharing, private access, and copying after migration deployment.
