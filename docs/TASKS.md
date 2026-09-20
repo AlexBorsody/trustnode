@@ -4,6 +4,68 @@ Working task and bug tracker for `docs/DESIGN.md`. Check items off as they land 
 update this file in the same commit/PR that completes a task or fixes a bug, so the tracker stays real-time.
 Legend: `- [ ]` open · `- [x]` done/fixed · `- [!]` blocked.
 
+## Codex ↔ Muse handoffs
+
+Alex has designated Codex as project lead and Muse as an implementation collaborator.
+This file is the shared assignment and review board. Codex owns prioritization,
+architecture, review, and integration; Muse owns explicitly assigned work below.
+Existing product decisions in DESIGN.md remain the contract.
+
+### Starting a new Codex web session
+
+Read `docs/CHARTER.md`, `docs/DESIGN.md`, `docs/REVIEW.md`, and this board first.
+Codex local and Codex web are separate workers: neither inherits the other's
+conversation, uncommitted files, or running processes. Record the execution
+environment (`Codex local`, `Codex web`, or `Muse`) when claiming work.
+Muse also serves as Alex's phone-based project check-in: summarize the board,
+record feedback, and distinguish proposed work from completed, verified work.
+Do not take over an assigned implementation task without recording reassignment.
+
+### WEB-001 — Independent review of the correctness handoff
+
+- [ ] Review the handoff and propose regression cases — DESIGN §§13, 14, 23
+- Owner: Codex web
+- Status: assigned
+- Branch: `phase-0/cloud-review` (create from the published handoff branch until that branch is merged)
+- Scope: independently check `docs/REVIEW.md` against the implementation; write `docs/CLOUD-REVIEW.md` with confirmed/disputed findings and concrete input/expected-behavior cases for community isolation, negation, and malformed requests. Separate current behavior from proposed behavior and identify unresolved product decisions.
+- Acceptance: cite relevant source locations; report exact commands/results for any executed checks; never call static reasoning an executed test. Include commit/PR and limitations in the handoff below.
+- Exclusions: no application, dependency, database, or methodology changes; leave MUSE-001 files to Muse. This is a review task, not approval of the draft design.
+- Handoff from Codex web: pending.
+- Review from Codex local: pending.
+
+### Coordination rules
+
+- Read this board and the latest upstream changes before starting. Claim an assignment by updating its Status and naming the branch before editing implementation files.
+- Assignment statuses: `assigned` → `in progress` → `ready for review` → `accepted`; use `blocked` with a concrete reason when necessary. Codex marks acceptance after review; check off the task when it lands.
+- Work on a task branch and open a PR against `main`. Keep changes within the assigned files/scope; post a blocker here if another owner's files must change.
+- On handoff, record commit/PR, files changed, exact checks and results, remaining limitations, and any decision needed. A claimed passing check must have actually run.
+- Update your own assignment block; preserve other assignments and the existing backlog. Keep both sides of tracker conflicts and reconcile them.
+- This file does not send notifications or synchronize itself. Publish changes through GitHub so the other collaborator can read them; each collaborator checks it at the start of work and before handoff. Local-only edits are not visible to the other collaborator.
+- Do not merge, deploy, change production settings, or apply database migrations as part of an implementation assignment unless explicitly included in its scope.
+
+### MUSE-001 — Reproducible development setup and baseline CI
+
+- [ ] Complete development setup and baseline CI — DESIGN §§10, 23, 25
+- Owner: Muse
+- Assigned by: Codex, 2026-09-19
+- Status: assigned
+- Branch: `phase-0/dev-setup` (record actual branch when claimed)
+- Purpose: make this GitHub-web-edited project reproducible locally and give every PR a typecheck/build baseline.
+- Scope: root `.gitignore`, `.github/workflows/`, README setup instructions, `app/.env.example`, a Node version declaration, and removal of tracked `app/tsconfig.tsbuildinfo`. Change `app/package.json` or its lockfile only if necessary for runtime declarations or setup, and explain why.
+- Deliverables: choose and document a Node version compatible with locked dependencies; use `npm ci` from `app`; ignore dependencies, build outputs, local env files (retain the example), and TypeScript build metadata; provide placeholder-only examples for the four Supabase variables in DESIGN §25; document seeded verification without credentials and what requires Supabase; fix the README Charter path/version; add PR CI for typecheck and production build.
+- Acceptance: from a clean checkout, `npm ci`, `npm run typecheck`, and `npm run build` succeed in `app`; CI uses the committed lockfile and documented Node version; no secrets are required for baseline CI; generated files remain untracked. Record any failure honestly instead of disabling checks.
+- Exclusions: no pipeline, corpus, confidence, UI behavior, database, dependency-upgrade campaign, or production changes. Regression suite implementation is a separate assignment. This setup task does not approve the draft feature spec.
+- Handoff from Muse: pending — add commit/PR, changed files, checks/results, limitations, and questions here.
+- Review from Codex: pending.
+
+### CODEX-001 — Correctness design and Muse integration review
+
+- [ ] Prepare correctness decisions and review MUSE-001 — DESIGN §§9, 10, 13, 14, 23
+- Owner: Codex
+- Status: assigned
+- Scope: review findings in `docs/REVIEW.md`; define canonical/community evidence isolation, demo evidence labeling, and negation regression expectations before assigning behavior changes. Review MUSE-001 against its acceptance criteria and reconcile proposals with DESIGN.md using explicit version changes.
+- Handoff: pending. No verification implementation files are assigned to Muse yet.
+
 ## Active bugs
 
 - [ ] BUG-001: Stance engine has no negation handling — "PKCE does not protect against interception" can match support patterns. — DESIGN §4
