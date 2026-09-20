@@ -58,7 +58,7 @@ function stanceOf(claim: string, sourceId: string, extra: SourceSeed[] = []) {
   return { verification: v, source: s };
 }
 
-/** Minimal synthetic seed for hermetic confidence/qualification tests.
+/** Minimal unreviewed source for hermetic isolation/qualification tests.
  *  Uses nonsense keywords so the real OAuth seeds never retrieve. */
 function synthSeed(
   id: string,
@@ -186,7 +186,7 @@ async function main(): Promise<void> {
       "PKCE protects OAuth public clients against authorization code interception attacks",
     );
     assert.equal(v.pipeline_version, PIPELINE_VERSION);
-    assert.equal(PIPELINE_VERSION, "0.2.0");
+    assert.equal(PIPELINE_VERSION, "0.3.0");
     assert.equal(v.confidence.value, 100);
     assert.equal(v.confidence.level, "well supported");
     const byId = Object.fromEntries(v.sources.map((s) => [s.id, s.stance]));
@@ -299,27 +299,22 @@ async function main(): Promise<void> {
     assert.equal(v.confidence.level, "unsupported");
   });
 
-  await test("confidence: two earned-10 supporters -> 100", () => {
-    const extra = [
-      synthSeed("syn-a", "supports", 10),
-      synthSeed("syn-b", "supports", 10, { pattern: ["zorbian", "quantum"] }),
-    ];
-    const v = verifyClaim("Zorbian flarnets require quantum pickles", 6, extra);
-    assert.equal(v.confidence.value, 100);
+  await test("confidence: canonical earned-10 and earned-9 supporters -> 95", () => {
+    const v = verifyClaim(
+      "PKCE protects OAuth public clients against authorization code interception attacks",
+      2,
+    );
+    assert.deepEqual(v.sources.map((s) => [s.id, s.trust.earned]), [
+      ["rfc7636", 10],
+      ["oauth-bcp", 9],
+    ]);
+    assert.equal(v.confidence.value, 95);
     assert.equal(v.confidence.level, "well supported");
   });
 
-  await test("confidence: stale penalty on superseded reliance", () => {
-    const extra = [
-      synthSeed("syn-c", "supports", 10, {
-        pattern: ["zorbian", "stale", "require"],
-        supersededBy: "syn-b",
-      }),
-    ];
-    const v = verifyClaim("Zorbian stale require", 6, extra);
-    // support = min(1, 1.0/2) = 0.5; stale = 0.2 -> 0.5 - 0.2 = 0.3 -> 30
-    assert.equal(v.confidence.value, 30);
-    assert.equal(v.confidence.level, "contested");
+  await test("confidence: superseded canonical reliance still incurs stale penalty", () => {
+    const v = verifyClaim("The implicit flow is fine for single-page apps");
+    assert.match(v.confidence.derivation, /staleness 0\.2/);
     assert.ok(v.conflicts.some((c) => c.type === "outdated"));
   });
 
@@ -329,7 +324,119 @@ async function main(): Promise<void> {
     assert.equal(v.confidence.level, "unsupported");
   });
 
+  // ---------------------------------------------------- community isolation
+  const protectedClaim =
+    "PKCE protects OAuth public clients against authorization code interception attacks";
+
+  function communityFixture(id: string, stance: Exclude<Stance, "unrelated"> = "supports") {
+    const src = synthSeed(id, stance, 10, { pattern: tokens(protectedClaim) });
+    src.title = protectedClaim;
+    src.text = protectedClaim;
+    return src;
+  }
+
+  await test("community isolation: flooding cannot displace canonical top-K or change conflicts", () => {
+    const extra = Array.from({ length: 40 }, (_, index) => {
+      const src = communityFixture(`flood-${String(index).padStart(2, "0")}`, index % 2 ? "supports" : "contradicts");
+      src.superseded_by = "newer-community-source";
+      src.trust.community = 10;
+      src.trust.community_votes = 1_000_000;
+      return src;
+    });
+    for (const topK of [1, 2, 6]) {
+      const baseline = verifyClaim(protectedClaim, topK);
+      const flooded = verifyClaim(protectedClaim, topK, extra);
+      assert.deepEqual(flooded.sources.filter((s) => s.origin === "seed"), baseline.sources);
+      assert.deepEqual(flooded.confidence, baseline.confidence);
+      assert.deepEqual(flooded.conflicts, baseline.conflicts);
+      assert.deepEqual(flooded.sources.slice(0, baseline.sources.length), baseline.sources);
+      const community = flooded.sources.filter((s) => s.origin === "community");
+      assert.equal(community.length, topK);
+      assert.ok(community.every((s) => s.trust.earned === 0));
+      assert.ok(community.every((s) => s.match_explain.startsWith("Supplemental community result")));
+    }
+  });
+
+  await test("community isolation: zero-weight stale contribution cannot incur a stale penalty", () => {
+    const baseline = verifyClaim(protectedClaim);
+    const stale = communityFixture("stale-community");
+    stale.superseded_by = "new-community";
+    stale.trust.earned = 0;
+    const v = verifyClaim(protectedClaim, 6, [stale]);
+    const supplemental = v.sources.find((s) => s.id === stale.id);
+    assert.equal(supplemental?.freshness, "superseded");
+    assert.equal(supplemental?.stance, "supports");
+    assert.deepEqual(v.confidence, baseline.confidence);
+    assert.deepEqual(v.conflicts, baseline.conflicts);
+  });
+
+  await test("community isolation: contradictory contribution cannot create a canonical conflict", () => {
+    const baseline = verifyClaim(protectedClaim);
+    const v = verifyClaim(protectedClaim, 6, [communityFixture("community-contra", "contradicts")]);
+    assert.equal(v.sources.find((s) => s.origin === "community")?.stance, "contradicts");
+    assert.deepEqual(v.confidence, baseline.confidence);
+    assert.deepEqual(v.conflicts, []);
+  });
+
+  await test("community isolation: caller-supplied earned trust cannot create canonical support", () => {
+    const extra = [synthSeed("syn-a", "supports", 10), synthSeed("syn-b", "supports", 1000)];
+    const claim = "Zorbian flarnets quantum pickles";
+    const baseline = verifyClaim(claim);
+    const v = verifyClaim(claim, 6, extra);
+    assert.equal(v.sources.length, 2);
+    assert.ok(v.sources.every((s) => s.origin === "community" && s.trust.earned === 0));
+    assert.ok(v.sources.every((s) => /Unreviewed/.test(s.trust.earned_rationale)));
+    assert.deepEqual(v.confidence, baseline.confidence);
+    assert.deepEqual(v.conflicts, baseline.conflicts);
+  });
+
+  await test("community isolation: editing text, stance, freshness and votes leaves canonical result unchanged", () => {
+    const src = communityFixture("editable-community");
+    const baseline = verifyClaim(protectedClaim);
+    for (const stance of ["supports", "contradicts", "qualifies"] as const) {
+      src.stances[0].stance = stance;
+      src.trust.earned += 100;
+      src.trust.community_votes += 10_000;
+      src.text += ` ${protectedClaim}`;
+      src.superseded_by = stance === "contradicts" ? "newer-source" : null;
+      const v = verifyClaim(protectedClaim, 6, [src]);
+      assert.deepEqual(v.sources.filter((s) => s.origin === "seed"), baseline.sources);
+      assert.deepEqual(v.confidence, baseline.confidence);
+      assert.deepEqual(v.conflicts, baseline.conflicts);
+    }
+  });
+
+  await test("community isolation: input is preserved and returned trust objects cannot mutate future results", () => {
+    const src = communityFixture("immutable-community");
+    const before = structuredClone(src);
+    Object.freeze(src.trust);
+    Object.freeze(src);
+    const baseline = verifyClaim(protectedClaim);
+    const v = verifyClaim(protectedClaim, 6, [src]);
+    assert.deepEqual(src, before);
+    v.sources.find((s) => s.origin === "seed")!.trust.earned = 0;
+    v.sources.find((s) => s.origin === "community")!.trust.community_votes = -1;
+    assert.deepEqual(src, before);
+    assert.deepEqual(verifyClaim(protectedClaim), baseline);
+  });
+
+  await test("community isolation: unrelated contributions are omitted and top-K zero returns no results", () => {
+    const unrelated = synthSeed("no-match", "supports", 10);
+    assert.deepEqual(verifyClaim(protectedClaim, 6, [unrelated]), verifyClaim(protectedClaim));
+    assert.deepEqual(verifyClaim(protectedClaim, 0, [communityFixture("zero-limit")]).sources, []);
+  });
+
   // -------------------------------------------------------------- determinism
+  await test("determinism: supplemental top-K ties use source IDs independent of input order", () => {
+    const extra = ["c", "a", "d", "b"].map((id) => communityFixture(`tie-${id}`));
+    const before = structuredClone(extra);
+    const a = verifyClaim(protectedClaim, 2, extra);
+    const b = verifyClaim(protectedClaim, 2, [...extra].reverse());
+    assert.deepEqual(a, b);
+    assert.deepEqual(a.sources.filter((s) => s.origin === "community").map((s) => s.id), ["tie-a", "tie-b"]);
+    assert.deepEqual(extra, before);
+  });
+
   await test("determinism: same claim twice -> byte-identical", () => {
     const claim =
       "PKCE protects OAuth public clients against authorization code interception attacks";

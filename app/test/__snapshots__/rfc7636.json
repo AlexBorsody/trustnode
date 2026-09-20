@@ -1,7 +1,7 @@
 {
   "claim": "PKCE protects OAuth public clients against authorization code interception attacks",
   "normalized": "pkce protect oauth public client against authorization code interception attack",
-  "pipeline_version": "0.2.0",
+  "pipeline_version": "0.3.0",
   "sources": [
     {
       "id": "rfc7636",
@@ -122,7 +122,7 @@
   "confidence": {
     "value": 100,
     "level": "well supported",
-    "derivation": "support 1.00 × (1 − 0.6 × contradiction 0.00) − staleness 0.0 = 1.00 → 100/100. Community votes shown per source are never merged into this number (Charter Art. V); community-contributed sources join retrieval with zero earned trust until it is measured (Charter Art. IX)."
+    "derivation": "support 1.00 × (1 − 0.6 × contradiction 0.00) − staleness 0.0 = 1.00 → 100/100. Community votes shown per source are never merged into this number (Charter Art. V); community-contributed sources are retrieved separately with zero earned trust and excluded from canonical confidence and conflicts (Charter Art. IX)."
   },
   "note": "Deterministic prototype pipeline. No model graded its own homework — claim extraction is keyword-based; an LLM extractor may plug in upstream later without touching these numbers."
 }

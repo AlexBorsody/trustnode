@@ -214,9 +214,8 @@ function matchStance(
 }
 
 /** Mechanical stance for an unreviewed community source: pure keyword overlap,
- *  labeled as unreviewed, never an analyst position. Carries zero weight in
- *  confidence until the source earns trust (Charter Art. IX) — it can surface
- *  relevant material visibly without moving the canonical number. */
+ *  labeled as unreviewed, never an analyst position. Supplemental retrieval is
+ *  isolated from canonical confidence and conflicts (Charter Art. IX). */
 export function communityTextStance(
   title: string,
   text: string,
@@ -252,54 +251,65 @@ export function verifyClaim(
   const claimToks = tokenize(claim);
   const claimTokens = claimToks.map((t) => t.text);
   const seeds = (sourcesDoc as { sources: SourceSeed[] }).sources;
-  // The commons shelf: analyst seeds plus ready community contributions.
-  // Community sources carry no earned trust until it is measured (Art. IX) —
-  // they participate in retrieval and are labeled, never silently merged.
-  const corpus: { src: SourceSeed; origin: "seed" | "community" }[] = [
-    ...seeds.map((src) => ({ src, origin: "seed" as const })),
-    ...extra.map((src) => ({ src, origin: "community" as const })),
-  ];
+  // --- retrieve independently: community results cannot displace seeds ---
+  // Keep the existing seed tie order; community ties use stable IDs so database
+  // return order does not decide which supplemental results are displayed.
+  const retrieve = (corpus: SourceSeed[], origin: SourceResult["origin"]): SourceResult[] => {
+    const ranked = corpus
+      .map((src, index) => {
+        const hay = tokens(
+          src.title + " " + src.keywords.join(" ") + " " + (src.text ?? ""),
+        ).concat(src.stances.flatMap((s) => tokens(s.claim_pattern.join(" "))));
+        const hits = [...new Set(hay.filter((t) => claimTokens.includes(t)))];
+        return { src, index, score: hits.length, hits };
+      })
+      .filter((r) => r.score > 0)
+      .sort((a, b) => b.score - a.score || (
+        origin === "community"
+          ? (a.src.id < b.src.id ? -1 : a.src.id > b.src.id ? 1 : 0)
+          : a.index - b.index
+      ))
+      .slice(0, topK);
 
-  // --- retrieve: rank sources by keyword overlap with the claim ---
-  const ranked = corpus
-    .map(({ src, origin }) => {
-      const hay = tokens(
-        src.title + " " + src.keywords.join(" ") + " " + (src.text ?? ""),
-      ).concat(src.stances.flatMap((s) => tokens(s.claim_pattern.join(" "))));
-      const hits = [...new Set(hay.filter((t) => claimTokens.includes(t)))];
-      return { src, origin, score: hits.length, hits };
-    })
-    .filter((r) => r.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
-
-  const sources: SourceResult[] = ranked.map(({ src, origin, hits }) => {
-    const m = matchStance(claim, claimToks, src.stances);
-    const f = freshnessOf(src);
-    return {
-      id: src.id,
-      origin,
-      title: src.title,
-      url: src.url,
-      publisher: src.publisher,
-      freshness: f.status,
-      freshness_detail: f.detail,
-      trust: src.trust,
-      stance: m.stance,
-      quote: m.quote,
-      stance_note: m.note,
-      ...(m.negation ? { negation: true as const } : {}),
-      match_explain:
+    return ranked.map(({ src, hits }) => {
+      const m = matchStance(claim, claimToks, src.stances);
+      const f = freshnessOf(src);
+      const matchExplain =
         m.stance === "unrelated"
           ? `Retrieved by keyword overlap (${hits.join(", ")}) but takes no analyzed position on this claim.`
-          : `Matched on: ${m.hits.join(", ")}.`,
-    };
-  });
+          : `Matched on: ${m.hits.join(", ")}.`;
+      return {
+        id: src.id,
+        origin,
+        title: src.title,
+        url: src.url,
+        publisher: src.publisher,
+        freshness: f.status,
+        freshness_detail: f.detail,
+        trust: origin === "community"
+          ? {
+            ...src.trust,
+            earned: 0,
+            earned_rationale: "Unreviewed community contribution; excluded from canonical confidence and conflicts.",
+          }
+          : { ...src.trust },
+        stance: m.stance,
+        quote: m.quote,
+        stance_note: m.note,
+        ...(m.negation ? { negation: true as const } : {}),
+        match_explain: origin === "community"
+          ? `Supplemental community result — excluded from canonical confidence and conflicts. ${matchExplain}`
+          : matchExplain,
+      };
+    });
+  };
+  const canonicalSources = retrieve(seeds, "seed");
+  const sources = [...canonicalSources, ...retrieve(extra, "community")];
 
-  // --- conflicts: contradictions between sources + outdated reliance ---
+  // --- conflicts: canonical contradictions + outdated canonical reliance ---
   const conflicts: Conflict[] = [];
-  const supporting = sources.filter((s) => s.stance === "supports");
-  const contradicting = sources.filter((s) => s.stance === "contradicts");
+  const supporting = canonicalSources.filter((s) => s.stance === "supports");
+  const contradicting = canonicalSources.filter((s) => s.stance === "contradicts");
   if (supporting.length && contradicting.length) {
     const rankedByTrust = [...supporting, ...contradicting].sort(
       (a, b) => b.trust.earned - a.trust.earned,
@@ -314,7 +324,7 @@ export function verifyClaim(
         `Read both quotes before deciding.`,
     });
   }
-  const reliedStale = sources.filter(
+  const reliedStale = canonicalSources.filter(
     (s) => s.stance !== "unrelated" && s.freshness !== "current",
   );
   for (const s of reliedStale) {
@@ -343,7 +353,7 @@ export function verifyClaim(
     `support ${support.toFixed(2)} × (1 − 0.6 × contradiction ${contra.toFixed(2)}) − staleness ${stale.toFixed(1)}` +
     ` = ${raw.toFixed(2)} → ${value}/100. ` +
     `Community votes shown per source are never merged into this number (Charter Art. V); ` +
-    `community-contributed sources join retrieval with zero earned trust until it is measured (Charter Art. IX).`;
+    `community-contributed sources are retrieved separately with zero earned trust and excluded from canonical confidence and conflicts (Charter Art. IX).`;
 
   return {
     claim,
