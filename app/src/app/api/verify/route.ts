@@ -21,13 +21,20 @@ export async function OPTIONS() {
 }
 
 export async function POST(req: Request) {
-  let body: { claim?: string };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return json({ error: "expected JSON body { claim }" }, 400);
   }
-  const claim = (body.claim ?? "").trim();
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    return json({ error: "expected JSON body { claim }" }, 400);
+  }
+  const value = (body as Record<string, unknown>).claim;
+  if (value != null && typeof value !== "string") {
+    return json({ error: "claim must be a string" }, 400);
+  }
+  const claim = (value ?? "").trim();
   if (!claim) {
     return json({ error: "claim is required" }, 400);
   }

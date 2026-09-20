@@ -200,18 +200,29 @@ export async function POST(req: Request) {
   const token = bearerToken(req);
   if (!token) return json({ error: "sign in to contribute" }, 401);
 
-  let body: {
-    url?: string;
-    title?: string;
-    category?: string;
-    tags?: unknown;
-    description?: string;
-  };
+  let input: unknown;
   try {
-    body = await req.json();
+    input = await req.json();
   } catch {
     return json({ error: "expected JSON body" }, 400);
   }
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return json({ error: "expected JSON object" }, 400);
+  }
+  const fields = input as Record<string, unknown>;
+  for (const key of ["url", "title", "category", "description"]) {
+    if (fields[key] != null && typeof fields[key] !== "string") {
+      return json({ error: `${key} must be a string` }, 400);
+    }
+  }
+  if (fields.tags != null && typeof fields.tags !== "string" &&
+      !(Array.isArray(fields.tags) && fields.tags.every((tag) => typeof tag === "string"))) {
+    return json({ error: "tags must be a string or an array of strings" }, 400);
+  }
+  const body = fields as {
+    url?: string; title?: string; category?: string;
+    description?: string; tags?: string | string[];
+  };
 
   const rawUrl = (body.url ?? "").trim();
   let parsed: URL;

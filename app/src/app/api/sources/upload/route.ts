@@ -94,6 +94,13 @@ export async function POST(req: Request) {
     );
   }
 
+  // Reject file-valued metadata before authentication or storage side effects.
+  for (const key of ["file_name", "title", "description", "category", "tags"]) {
+    if (form.getAll(key).some((value) => typeof value !== "string")) {
+      return json({ error: `${key} must be text` }, 400);
+    }
+  }
+
   const sb = supabaseFor(token);
   const { data: userData, error: userErr } = await sb.auth.getUser();
   if (userErr || !userData.user) return json({ error: "sign in to contribute" }, 401);
