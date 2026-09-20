@@ -112,9 +112,40 @@ Muse now owns frontend testing and post-merge review rather than implementation.
 - Scope: review findings in `docs/REVIEW.md`; define canonical/community evidence isolation, demo evidence labeling, and negation regression expectations before assigning behavior changes. Triage MUSE-002 findings against its acceptance criteria and reconcile proposals with DESIGN.md using explicit version changes.
 - Handoff: pending. Muse tests, reports, and reviews merged changes; Codex implements fixes.
 
+### 2026-09-20 — Lead handoff from Habib to Codex: Phase 0 accepted, what I did, what's next
+
+Alex has made me the lead on this project; you own the heavy lifting. Everything below is what I did tonight, verified where I could, and the direction I'm setting. Nothing here asks you to redo finished work.
+
+**1. What I did — database.** I signed into Supabase and applied both pending migrations on the live `trustnode` project in the SQL editor: `db/migration-001b-extracted-text.sql` (`extracted_text` + `extract_error` columns) and `db/migration-001c-sources-trgm.sql` (`pg_trgm` extension, title/excerpt trigram indexes). Both returned "Success. No rows returned", no errors. The migration checkbox in Phase 0 is now flipped.
+
+**2. What I did — frontend verification (read-only, nothing created or modified).** I tested `https://trustnode-lemon.vercel.app` myself:
+- Homepage meta-line reads `PROTOTYPE v0.2.0` — consistent with the pipeline, no version mismatch.
+- Positive claim "PKCE (RFC 7636) protects OAuth public clients against authorization code interception attacks" → WELL SUPPORTED, 100/100, 6 sources labeled SUPPORTS.
+- Negated claim "PKCE does not protect against authorization code interception" → UNSUPPORTED, 0/100, with the note "Negation detected in claim — stance mechanically inverted; analyst review advised." The contradiction behavior is correct — this is not BUG-003.
+- `/sources` loads; searching "PKCE" filters to the 2 matching sources; `/charter` renders v1.1, Articles I–IX.
+- Two observations, no action required: no pagination controls are visible on the `/sources` UI (backend limit/offset shipped); the sources page meta-line is labeled `v0.1` — that reads as the section's own label, not the pipeline version.
+
+**3. What I did — repo hygiene.** This local checkout was stuck at `161d8e3` with untracked working-tree files blocking the pull. I moved them aside, confirmed they were byte-identical to the remote versions, fast-forwarded to `bcd1f38`, and removed the copies. Local is now clean at the tip of main.
+
+**4. What I did — read every doc end to end** (CHARTER, DESIGN in full, TASKS, REVIEW) and triaged REVIEW.md's 8 findings against the current code:
+- Finding 3 (illustrative evidence in real results): **resolved, not filed** — the corpus is now 6 real sources with earned trust + rationales; the `example.invalid` entries are gone.
+- Finding 1 (community retrieval moves canonical confidence): **still open** — filed as BUG-004. In `verifyClaim`, seeds and community extras are pooled *before* the topK=6 truncation (pipeline.ts). A keyword-rich unreviewed source can displace a seed from the top 6, which changes the confidence number indirectly — this contradicts the "cannot move the canonical number" comment in the code. This is the most important open correctness hole. Fix: separate canonical evidence selection (seeds only) from community display selection, plus a regression test asserting unreviewed sources cannot change canonical confidence.
+- Finding 4 (malformed JSON throws instead of 400): **still open** — filed as BUG-005.
+- Finding 8 (network failures leave contribution controls stuck): **still open** — filed as BUG-006.
+- Finding 7 (fetch size cap applied too late / SSRF): stays in the Later hardening backlog per the prior deferral — no change.
+- Finding 5 (cross-owner tag writes): **not a unilateral fix** — it's a policy decision for Alex (what are the community tagging rules?). I've left it for him.
+
+**Phase 0 verdict: accepted.** Every Phase 0 item is checked. The one acceptance item I could not verify from my environment is the regression suite being green in CI (GitHub CLI isn't authenticated here) — I've added a task for you to confirm it.
+
+**Direction for Phase 1.** Before implementing: settle REVIEW.md's "Design decisions before Phase 1" in DESIGN.md with explicit version changes — (a) a run identifier for `tn_trust_scores` (the current PK can't retain multiple recomputations under one algorithm version), (b) table-specific write policies for seeds/stances/edges, (c) edge direction, dangling-node behavior, domain membership, deterministic ordering, and the exact supersession transfer rule, (d) terminology — graph authority is not measured factual track record, and the UI must say so, (e) whether personal weight overrides get separate confidence or fixed canonical evidence. Then: migration-002 + `trustrank-1.0` with the fixture-graph exactness test. Reminder from DESIGN §26: seed v1 must add at least two new domains or the graph math is theater — the domain picks need Alex's approval, so surface that early rather than at the end.
+
+**Decisions I need from Alex (not you):** the tag-search follow-up (restore tag matching or keep title/excerpt only), the community tagging policy, and the seed v1 domains.
+
 ## Active bugs
 
-(none — BUG-001/002/003 fixed in Phase 0, 2026-09-19)
+- [ ] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13.
+- [ ] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8.
+- [ ] BUG-006: `submitLink`/`submitUpload` lack catch/finally — a network failure leaves contribution controls stuck in loading state. Add error states + finally cleanup.
 
 ## Fixed bugs
 
@@ -131,8 +162,10 @@ Muse now owns frontend testing and post-merge review rather than implementation.
 - [x] RFC 7636 claim pinned as a permanent regression case — DESIGN §4
 - [x] Move `GET /api/sources` category/tag/q filtering into PostgREST + `pg_trgm` index + limit/offset pagination (currently filters in memory after limit) — DESIGN §§8, 19
 - [x] `PATCH`/`DELETE /api/sources/:id` (owner only; PATCH is how a `pending` source becomes `ready` — no update path exists today) — DESIGN §8
-- [ ] Apply db/migration-001b-extracted-text.sql and db/migration-001c-sources-trgm.sql in the Supabase SQL editor (upload insert + trigram search depend on them)
+- [x] Apply db/migration-001b-extracted-text.sql and db/migration-001c-sources-trgm.sql in the Supabase SQL editor (upload insert + trigram search depend on them)
 - [ ] Follow-up: `GET /api/sources` q no longer matches tag labels (was in-memory; trigram index covers title/excerpt per DESIGN §19) — decide whether to restore via a tag-slug lookup
+- [ ] Confirm regression suite is green in CI (acceptance criterion, DESIGN §12) — could not verify from Muse's environment
+- [ ] Fix README link to removed root CHARTER.md (now docs/CHARTER.md v1.1)
 
 ## Phase 1 — trust graph v1
 
