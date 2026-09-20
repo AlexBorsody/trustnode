@@ -7,13 +7,15 @@ Strategy is locked. This brief is the implementation plan and delivery record; c
 - [x] Link contribution, searchable source shelf, signed-in ownership operations.
 - [x] Source-pack creation, explicit order/notes, topic/tags, public/private access, sharing, and independent copies (PR #4).
 - [ ] Confirm migration 003 applied in production and complete Muse's authenticated pack QA. Code deployment alone does not complete this item.
-- [x] Implement initial transparent retrieval ranking and an Explorer workflow (current delivery; final validation below).
+- [x] Implement initial transparent retrieval ranking and an Explorer workflow ([PR #5](https://github.com/AlexBorsody/trustnode/pull/5), merged and deployed; validation below).
 - [x] Isolate canonical verification from community retrieval and session controls (BUG-004; pipeline 0.3.0).
 - [ ] Pack editing/deletion and explicit fork ancestry; category trees and pack comparison/merge.
 - [ ] Evidence graph edges and recorded corroboration/directness inputs; measured historical reliability.
 - [ ] Downstream summarization controls when a summarizer exists. Do not expose temperature/top-p controls before they have an effect.
 
-Current delivery: `/explore`, `POST /api/retrieve`, and the “Explore these sources” action on a pack. The session controls are source scope, result count, and public pack influence. Canonical evidence remains independently inspectable with its derivation and conflicts.
+Shipped at `cb3f19b` on 2026-09-20: `/explore`, `POST /api/retrieve`, and the “Explore these sources” action on a pack. The session controls are source scope, result count, and public pack influence. Canonical evidence remains independently inspectable with its derivation and conflicts.
+
+Production read-only verification: Explorer and retrieval return 200; the community shelf is available; changing result count/public influence preserves canonical verification. Pack reads return 503, so adoption signals and selected-pack flows still need the migration 003 activation check. The Explorer reports that limitation and continues using available sources.
 
 ### Retrieval v1 contract
 
@@ -305,7 +307,9 @@ This layer should be intuitive and transparent.
 It should not hide the underlying logic.
 It should not pretend to be the trust engine itself.
 
-### MVP controls
+### Planned controls beyond the shipped retrieval subset
+
+The active controls are `limit`, `use_pack_signals`, and `pack_id` in the Retrieval v1 contract above. The following list is the planned controls scope; temperature/top-p and summarization settings remain deferred until their downstream behavior exists.
 
 - Retrieval depth
 - Top-k
@@ -322,9 +326,9 @@ It should not pretend to be the trust engine itself.
 - Changes are session-specific unless explicitly saved.
 - Interface should clearly label these as tuning controls, not canonical trust values.
 
-### Response contract
+### Future response example
 
-When controls are active, the system should expose metadata like:
+When downstream generation controls are implemented, the system should expose metadata like the example below. This is not the current `/api/retrieve` schema; use the Retrieval v1 contract above for shipped behavior.
 {
   "session_controls": {
     "top_k": 6,
@@ -374,4 +378,4 @@ The MVP should be simple, visible, and focused on delivered trust value.
 - 121 application checks pass: 34 pipeline/extraction (including community isolation), 31 API validation, 15 pack validation, and 41 ranking/retrieval tests. Typecheck passes.
 - Independent Chrome smoke: desktop results and control invariance, empty results, verification deep-link, request-failure recovery, and 390px mobile layout without horizontal overflow; no browser runtime errors. No database credentials were used in browser smoke. Authenticated and production pack QA remains assigned to Muse.
 - Topic queries with no analyzed seed stance use “No analyzed claim match” wording; they are not presented as a prominent unsupported verdict.
-- Hosted build and PostgreSQL policy validation must pass before integration; report links/results in TASKS.md.
+- [Hosted CI](https://github.com/AlexBorsody/trustnode/actions/runs/35544778312) passed all application suites, typecheck, production build, and PostgreSQL policy/atomic-save checks before PR #5 merged. Vercel deployed merge revision `cb3f19b`; read-only production smoke passed with the explicitly reported pack-storage limitation above.

@@ -10,7 +10,7 @@ Alex has designated Codex as project lead and implementer, and Muse as the front
 This file is the shared assignment and review board. Codex owns prioritization,
 architecture, implementation, and integration; Muse independently tests behavior,
 reports reproducible bugs, retests fixes, and reviews merged changes without blocking routine integration.
-Existing product decisions in DESIGN.md remain the contract.
+Strategy is locked; IMPLEMENTATION_BRIEF.md is the current execution order and delivery record. DESIGN.md records technical contracts. The historical phase lists below remain backlog references, not an instruction to restart or reorder the current implementation queue.
 
 ### Delegation matched to available tools
 
@@ -76,17 +76,17 @@ Alex authorized this workflow in place of mandatory Muse approval, 2026-09-19.
 Reassigned from the original MUSE-001 to Codex local at Alex's request, 2026-09-19;
 Muse now owns frontend testing and post-merge review rather than implementation.
 
-- [ ] Complete development setup and baseline CI — DESIGN §§10, 23, 25
+- [x] Complete development setup and baseline CI — DESIGN §§10, 23, 25
 - Owner: Codex local
 - Assigned by: Codex, 2026-09-19
-- Status: assigned
-- Branch: `phase-0/dev-setup` (record actual branch when claimed)
+- Status: accepted; merged in [PR #2](https://github.com/AlexBorsody/trustnode/pull/2).
+- Branch: `phase-0/dev-setup`
 - Purpose: make this GitHub-web-edited project reproducible locally and give every PR a typecheck/build baseline.
 - Scope: root `.gitignore`, `.github/workflows/`, README setup instructions, `app/.env.example`, a Node version declaration, and removal of tracked `app/tsconfig.tsbuildinfo`. Change `app/package.json` or its lockfile only if necessary for runtime declarations or setup, and explain why.
 - Deliverables: choose and document a Node version compatible with locked dependencies; use `npm ci` from `app`; ignore dependencies, build outputs, local env files (retain the example), and TypeScript build metadata; provide placeholder-only examples for the four Supabase variables in DESIGN §25; document seeded verification without credentials and what requires Supabase; fix the README Charter path/version; add PR CI for typecheck and production build.
 - Acceptance: from a clean checkout, `npm ci`, `npm run typecheck`, and `npm run build` succeed in `app`; CI uses the committed lockfile and documented Node version; no secrets are required for baseline CI; generated files remain untracked. Record any failure honestly instead of disabling checks.
 - Exclusions: no pipeline, corpus, confidence, UI behavior, database, dependency-upgrade campaign, or production changes. Regression suite implementation is a separate assignment. This setup task does not approve the draft feature spec.
-- Handoff from Codex local: pending — add commit/PR, changed files, checks/results, limitations, and questions here.
+- Handoff from Codex local: `32bacb1`, merged as `2741632` in PR #2. Node 22.23.2 setup, lockfile, ignore rules, placeholder environment example, README setup/Charter link, and baseline CI delivered. Clean `npm ci`, typecheck, and production build passed without live credentials. Generated TypeScript build metadata removed from tracking.
 - Post-merge review from Muse: pending (non-blocking).
 
 ### MUSE-002 — Baseline testing, regression verification, and post-merge review
@@ -101,8 +101,8 @@ Muse now owns frontend testing and post-merge review rather than implementation.
 - Deliverable: `docs/QA.md` containing cases with expected vs actual behavior and pass/fail/blocked/not-run status. Each bug needs reproduction steps, input, observed output, impact, and supporting screenshot/log where available; redact credentials and personal data. Link existing BUG IDs instead of duplicating them; append newly confirmed bugs to Active bugs.
 - Acceptance: cover the listed flows or explicitly mark unavailable cases; distinguish static observations from executed tests. After Codex fixes a bug, retest the exact fix revision and report whether the reproduction and nearby cases pass. Do not mark a bug fixed merely because code changed.
 - Exclusions: no application fixes, scoring/methodology changes, dependency changes, migrations, merge, or deployment. Propose automated regression cases; coordinate test-code ownership with Codex before editing shared test files.
-- Handoff from Muse: pending — add tested revision/environment, QA report link, results, blockers, and bugs requiring Codex action.
-- Triage from Codex: pending.
+- Handoff from Muse: [QA.md](QA.md), 2026-09-20 production desktop Chromium, deployed pipeline 0.2.0: eight passes, one pass with note, one mobile/tooling block. Read-only baseline; authenticated writes and contribution network-failure recovery were not exercised. This does not cover the later Explorer deployment.
+- Triage from Codex: BUG-007 restored below; BUG-006 remains open. Android and authenticated coverage remain pending.
 
 ### CODEX-001 — Correctness design and QA triage
 
@@ -137,6 +137,8 @@ Alex has made me the lead on this project; you own the heavy lifting. Everything
 
 **Phase 0 verdict: accepted.** Every Phase 0 item is checked. The one acceptance item I could not verify from my environment is the regression suite being green in CI (GitHub CLI isn't authenticated here) — I've added a task for you to confirm it.
 
+**Codex correction, 2026-09-20:** the historical “six real sources / example.invalid entries are gone” statement above does not match the current corpus: two illustrative `.invalid` sources and sample votes remain in canonical verification. Explorer excludes those placeholder URLs and labels the canonical prototype accordingly. Hosted regression checks are now confirmed below; this note preserves the original handoff while correcting its evidence claim.
+
 **Direction for Phase 1.** Before implementing: settle REVIEW.md's "Design decisions before Phase 1" in DESIGN.md with explicit version changes — (a) a run identifier for `tn_trust_scores` (the current PK can't retain multiple recomputations under one algorithm version), (b) table-specific write policies for seeds/stances/edges, (c) edge direction, dangling-node behavior, domain membership, deterministic ordering, and the exact supersession transfer rule, (d) terminology — graph authority is not measured factual track record, and the UI must say so, (e) whether personal weight overrides get separate confidence or fixed canonical evidence. Then: migration-002 + `trustrank-1.0` with the fixture-graph exactness test. Reminder from DESIGN §26: seed v1 must add at least two new domains or the graph math is theater — the domain picks need Alex's approval, so surface that early rather than at the end.
 
 **Decisions I need from Alex (not you):** the tag-search follow-up (restore tag matching or keep title/excerpt only), the community tagging policy, and the seed v1 domains.
@@ -162,10 +164,12 @@ Alex flagged that Codex Mac needs Supabase access. Facts and arrangement:
 
 ## Active bugs (continued)
 
-- [ ] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8.
 - [ ] BUG-006: `submitLink`/`submitUpload` lack catch/finally — a network failure leaves contribution controls stuck in loading state. Add error states + finally cleanup.
+- [ ] BUG-007: Empty verification input silently leaves the previous result visible. Show an inline validation hint; reported by Muse in QA.md, still open.
 
 ## Fixed bugs
+
+- [x] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8. Fixed 2026-09-20 in `fe4ec96`, [PR #3](https://github.com/AlexBorsody/trustnode/pull/3): runtime request validation with 31 API checks. Restored here after a later tracker edit regressed its status.
 
 - [x] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13. Fixed 2026-09-20: pipeline 0.3.0 isolates seed confidence/conflicts from supplemental retrieval, with flooding/staleness/forged-trust regressions.
 
@@ -184,8 +188,10 @@ Alex flagged that Codex Mac needs Supabase access. Facts and arrangement:
 - [x] `PATCH`/`DELETE /api/sources/:id` (owner only; PATCH is how a `pending` source becomes `ready` — no update path exists today) — DESIGN §8
 - [x] Apply db/migration-001b-extracted-text.sql and db/migration-001c-sources-trgm.sql in the Supabase SQL editor (upload insert + trigram search depend on them)
 - [ ] Follow-up: `GET /api/sources` q no longer matches tag labels (was in-memory; trigram index covers title/excerpt per DESIGN §19) — decide whether to restore via a tag-slug lookup
-- [ ] Confirm regression suite is green in CI (acceptance criterion, DESIGN §12) — could not verify from Muse's environment
-- [ ] Fix README link to removed root CHARTER.md (now docs/CHARTER.md v1.1)
+- [x] Confirm regression suite is green in CI (acceptance criterion, DESIGN §12) — could not verify from Muse's environment
+- [x] Fix README link to removed root CHARTER.md (now docs/CHARTER.md v1.1)
+
+Codex verification: README link fixed in `32bacb1`; [PR #5 CI](https://github.com/AlexBorsody/trustnode/actions/runs/35544778312) passed 121 application checks, typecheck/build, and database policy checks. The historical Charter version in the task text is not a statement of current ratification.
 
 ## Phase 1 — trust graph v1
 
@@ -235,7 +241,7 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 - Deliverables: pack creation, ranked links with notes, category/tags, public/private visibility, share URLs, copy into own draft; caller-JWT API and atomic RLS migration; no canonical-confidence changes.
 - [ ] Apply `db/migration-003-source-packs.sql` in Supabase after code review. Assigned to Muse's existing browser SQL-editor workflow. Record applied time/result here; do not assume it ran from a successful application deploy. This migration adds pack tables/policies/function without changing existing source data.
 - [ ] Muse browser QA: open `/packs`, sign in via `/sources`, add two existing links, reorder, annotate, and save privately. Open that URL signed out: no pack data should be visible. Create a public copy: signed-out visitors should see the saved order and notes. Sign into a second test account and copy it: the new private draft belongs to that account and changes do not alter the original. Record account roles (not credentials), URLs/revisions, actual results, and blockers in QA.md.
-- Remaining follow-ups: editing/deletion, fork ancestry, pack comparison/merge, category trees, adoption-based retrieval, and profiles. Pack position is curator preference, not earned trust.
+- Remaining follow-ups: editing/deletion, fork ancestry, pack comparison/merge, category trees, and profiles. Adoption-based retrieval shipped in RETRIEVAL-001; production signals still need pack storage activated. Pack position is curator preference, not earned trust.
 
 - PACKS-001 validation: GitHub CI passed 72 application tests, typecheck, production build, and disposable PostgreSQL checks for public/private reads, cross-owner writes, anonymous writes, duplicate/file rejection, and atomic rollback. Vercel preview passed. This proves test-database behavior, not that migration 003 has been applied to production.
 
@@ -243,10 +249,11 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 ## RETRIEVAL-001 — Source-pack retrieval and transparent ranking
 
 - Owner: Codex local; parallel implementation by ranking and canonical-isolation agents, independent integration review. Branch `feature/trust-ranked-retrieval`; isolated checkout `/private/tmp/trustnode-ranking`.
-- Status: implemented, final validation/integration in progress.
+- Status: accepted; [PR #5](https://github.com/AlexBorsody/trustnode/pull/5) merged as `cb3f19b` and deployed 2026-09-20. Muse's post-merge QA remains pending.
 - Strategy remains locked. IMPLEMENTATION_BRIEF.md now records shipped scope, exact formula and API contracts, limits, and the remaining implementation queue.
 - Delivery: source Explorer, public-pack adoption with per-curator contribution cap, source scope/result controls, factor derivations and pack provenance; canonical confidence independently computed; BUG-004 closed.
-- Validation: dedicated deterministic ranker, corpus assembly, auth/privacy/fallback/API tests plus pipeline isolation regressions. Counts/results recorded at handoff; never substitute hosted checks for Muse's production browser verification.
-- Muse: after deployment, open `/explore`, search the PKCE example, toggle public pack influence and result count, and verify canonical confidence remains unchanged. Open a public pack's “Explore these sources” action and verify results stay within its ready links. Verify private pack scope signed in, then signed out (generic not-found response). If migration 003 is missing, confirm the visible warning and functioning seed fallback. Record actual deployment/revision and results in QA.md. No production write required for the initial Explorer smoke.
+- Validation: [GitHub CI](https://github.com/AlexBorsody/trustnode/actions/runs/35544778312) passed 121 application checks, typecheck, production build, and PostgreSQL policy/atomic-save checks. Includes deterministic ranker, corpus assembly, auth/privacy/fallback/API tests and pipeline isolation regressions. Vercel deployment passed; these checks do not replace Muse's production browser verification.
+- Muse: test [production Explorer](https://trustnode-lemon.vercel.app/explore), revision `cb3f19b`: search the PKCE example, toggle public pack influence and result count, and verify canonical confidence remains unchanged. After pack activation, open a public pack's “Explore these sources” action and verify results stay within its ready links. Verify private pack scope signed in, then signed out (generic not-found response). While pack storage is unavailable, confirm the visible warning and functioning source fallback. Record actual deployment/revision and results in QA.md. No production write required for the initial Explorer smoke.
 
 - RETRIEVAL-001 browser handoff: independent headless Chrome passed desktop and 390px mobile exploration, result-limit/adoption-toggle canonical invariance, empty state, verify deep-link, and network-failure retry; no JS errors. Topic-query wording refined to avoid implying that an unmatched topic is false. Local suites total 121 passing checks. Production/private-pack browser flows remain unverified.
+- RETRIEVAL-001 production read-only smoke: `/explore` and `POST /api/retrieve` return 200. PKCE retrieval returns two results at limit 2 and five at limit 6; canonical verification remains identical at 100/100 with public influence off/on. Shelf reads are available; public pack reads are unavailable and explicitly warned. `GET /api/packs` returns 503 “Source packs are unavailable. Check database setup.” This establishes unavailable storage, not its exact root cause. Muse: complete the existing migration 003 activation check and authenticated pack QA; record the result instead of inferring activation from deployment.
