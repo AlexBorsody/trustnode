@@ -22,7 +22,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/run.ts",
-    "test:api": "node --import tsx --test test/api-validation.test.ts"
+    "test:api": "node --import tsx --test test/api-validation.test.ts",
+    "test:packs": "node --import tsx --test test/packs.test.ts"
   },
   "version": "0.1.0"
 }

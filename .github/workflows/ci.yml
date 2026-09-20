@@ -26,5 +26,26 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run test:api
+      - run: npm run test:packs
       - run: npm run typecheck
       - run: npm run build
+
+  pack-database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check pack permissions and atomic saves
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d postgres -f db/tests/source-packs.sql
