@@ -6,10 +6,10 @@ Legend: `- [ ]` open · `- [x]` done/fixed · `- [!]` blocked.
 
 ## Codex ↔ Muse handoffs
 
-Alex has designated Codex as project lead and implementer, and Muse as the tester.
+Alex has designated Codex as project lead and implementer, and Muse as the tester and PR reviewer.
 This file is the shared assignment and review board. Codex owns prioritization,
-architecture, implementation, review, and integration; Muse independently tests
-behavior, reports reproducible bugs, and retests fixes.
+architecture, implementation, and integration; Muse independently tests behavior,
+reports reproducible bugs, retests fixes, and reviews and approves Codex pull requests.
 Existing product decisions in DESIGN.md remain the contract.
 
 ### Starting a new Codex web session
@@ -32,22 +32,31 @@ Do not take over an assigned implementation task without recording reassignment.
 - Acceptance: cite relevant source locations; report exact commands/results for any executed checks; never call static reasoning an executed test. Include commit/PR and limitations in the handoff below.
 - Exclusions: no application, dependency, database, or methodology changes; leave development setup files to CODEX-002. This is a review task, not approval of the draft design.
 - Handoff from Codex web: pending.
-- Review from Codex local: pending.
+- Review and approval from Muse: pending.
 
 ### Coordination rules
 
 - Read this board and the latest upstream changes before starting. Claim an assignment by updating its Status and naming the branch before editing implementation files.
-- Assignment statuses: `assigned` → `in progress` → `ready for review` → `accepted`; use `blocked` with a concrete reason when necessary. Codex marks acceptance after review; check off the task when it lands.
+- Assignment statuses: `assigned` → `in progress` → `ready for review` → `accepted`; use `blocked` with a concrete reason when necessary. Muse records approval of Codex-authored work before acceptance; Codex triages QA reports. Check off implementation tasks when they land after review.
 - Work on a task branch and open a PR against `main`. Keep changes within the assigned files/scope; post a blocker here if another owner's files must change.
 - On handoff, record commit/PR, files changed, exact checks and results, remaining limitations, and any decision needed. A claimed passing check must have actually run.
 - Update your own assignment block; preserve other assignments and the existing backlog. Keep both sides of tracker conflicts and reconcile them.
 - This file does not send notifications or synchronize itself. Publish changes through GitHub so the other collaborator can read them; each collaborator checks it at the start of work and before handoff. Local-only edits are not visible to the other collaborator.
 - Do not merge, deploy, change production settings, or apply database migrations as part of an implementation assignment unless explicitly included in its scope.
 
+### Pull request review and approval — Muse
+
+- Muse reviews all Codex-authored PRs, including PR #1 (the project handoff), against the assigned scope, design, diff, and available test evidence.
+- Codex supplies a clear PR description, checks/results, and known limitations, then addresses Muse's findings. Codex does not approve its own work or merge it before Muse's approval.
+- Muse records `approved` or `changes requested`, the reviewed commit SHA, findings, and test evidence in the PR review and the task handoff. Missing checks remain explicitly blocked or not run.
+- New commits after approval require Muse to review the changes and renew approval for the new head SHA before merge.
+- Use GitHub's formal review when available. If Muse shares the PR author's GitHub identity, record the review decision and SHA explicitly in the handoff; do not represent it as a formal GitHub approval. Repository protection may still require a separate eligible reviewer.
+- Review approval does not itself authorize deployments, database migrations, or merge actions outside the assigned scope. These are coordination rules, not configured GitHub branch protection.
+
 ### CODEX-002 — Reproducible development setup and baseline CI
 
 Reassigned from the original MUSE-001 to Codex local at Alex's request, 2026-09-19;
-Muse now owns testing rather than implementation.
+Muse now owns testing and PR review/approval rather than implementation.
 
 - [ ] Complete development setup and baseline CI — DESIGN §§10, 23, 25
 - Owner: Codex local
@@ -60,15 +69,15 @@ Muse now owns testing rather than implementation.
 - Acceptance: from a clean checkout, `npm ci`, `npm run typecheck`, and `npm run build` succeed in `app`; CI uses the committed lockfile and documented Node version; no secrets are required for baseline CI; generated files remain untracked. Record any failure honestly instead of disabling checks.
 - Exclusions: no pipeline, corpus, confidence, UI behavior, database, dependency-upgrade campaign, or production changes. Regression suite implementation is a separate assignment. This setup task does not approve the draft feature spec.
 - Handoff from Codex local: pending — add commit/PR, changed files, checks/results, limitations, and questions here.
-- Review from Codex: pending.
+- Review and approval from Muse: pending.
 
-### MUSE-002 — Baseline testing and regression verification
+### MUSE-002 — Baseline testing, regression verification, and PR review
 
 - [ ] Test the baseline and report reproducible failures — DESIGN §§20, 23, 25
 - Owner: Muse
 - Status: assigned
 - Branch: `phase-0/muse-testing`
-- Purpose: act as the independent tester and Alex's phone-based QA contact. Codex owns implementation and fixes.
+- Purpose: act as the independent tester, reviewer of Codex PRs, and Alex's phone-based QA contact. Codex owns implementation and fixes.
 - Scope: test `/`, `/verify`, `/sources`, and `/charter` on desktop and Android where available; check navigation, narrow-screen layout, input errors, loading/error recovery, and version labels. Exercise positive/negative PKCE claims, conflicts, irrelevant claims, repeated-input determinism, and invalid API bodies. Use DESIGN §23 and REVIEW.md as the starting checklist.
 - Environment: record exact commit/PR or deployment URL, test time, browser/device, and whether the build includes the proposed fix. Use local or preview/test environments for writes and synthetic source contributions; production checks are read-only unless separately authorized. Authenticated tests require an available test account and configured test environment; mark missing access as blocked, not passed.
 - Deliverable: `docs/QA.md` containing cases with expected vs actual behavior and pass/fail/blocked/not-run status. Each bug needs reproduction steps, input, observed output, impact, and supporting screenshot/log where available; redact credentials and personal data. Link existing BUG IDs instead of duplicating them; append newly confirmed bugs to Active bugs.
@@ -83,7 +92,7 @@ Muse now owns testing rather than implementation.
 - Owner: Codex
 - Status: assigned
 - Scope: review findings in `docs/REVIEW.md`; define canonical/community evidence isolation, demo evidence labeling, and negation regression expectations before assigning behavior changes. Triage MUSE-002 findings against its acceptance criteria and reconcile proposals with DESIGN.md using explicit version changes.
-- Handoff: pending. Muse tests and reports; Codex implements fixes.
+- Handoff: pending. Muse tests, reports, and reviews/approves PRs; Codex implements fixes.
 
 ## Active bugs
 
