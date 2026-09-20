@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Verification } from "@/trustnode/pipeline";
+import { PIPELINE_VERSION } from "@/trustnode/version";
 
 const DEMOS = [
   "This configuration requires OAuth PKCE",
@@ -46,7 +47,7 @@ export default function VerifyPage() {
   return (
     <>
       <div className="meta-line">
-        CLAIM VERIFICATION <b>v0.1.0</b> · DETERMINISTIC · NO MODEL GRADES ITS OWN HOMEWORK
+        CLAIM VERIFICATION <b>v{PIPELINE_VERSION}</b> · DETERMINISTIC · NO MODEL GRADES ITS OWN HOMEWORK
       </div>
       <h1 className="page-title">Verify a claim</h1>
       <p className="page-sub">
