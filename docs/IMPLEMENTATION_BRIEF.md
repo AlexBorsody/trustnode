@@ -1,5 +1,54 @@
 # TrustNode Implementation Brief
 
+## Execution status — 2026-09-20
+
+Strategy is locked. This brief is the implementation plan and delivery record; changes below refine contracts and sequencing, not product direction.
+
+- [x] Link contribution, searchable source shelf, signed-in ownership operations.
+- [x] Source-pack creation, explicit order/notes, topic/tags, public/private access, sharing, and independent copies (PR #4).
+- [ ] Confirm migration 003 applied in production and complete Muse's authenticated pack QA. Code deployment alone does not complete this item.
+- [x] Implement initial transparent retrieval ranking and an Explorer workflow (current delivery; final validation below).
+- [x] Isolate canonical verification from community retrieval and session controls (BUG-004; pipeline 0.3.0).
+- [ ] Pack editing/deletion and explicit fork ancestry; category trees and pack comparison/merge.
+- [ ] Evidence graph edges and recorded corroboration/directness inputs; measured historical reliability.
+- [ ] Downstream summarization controls when a summarizer exists. Do not expose temperature/top-p controls before they have an effect.
+
+Current delivery: `/explore`, `POST /api/retrieve`, and the “Explore these sources” action on a pack. The session controls are source scope, result count, and public pack influence. Canonical evidence remains independently inspectable with its derivation and conflicts.
+
+### Retrieval v1 contract
+
+Request: `{query: string (1–500), limit?: integer (1–20, default 6), use_pack_signals?: boolean (default true), pack_id?: uuid}`. Invalid inputs return 400; an inaccessible selected pack returns generic 404, an invalid token for private selection returns 401, and unavailable selected-pack storage returns 503. Public corpus exploration remains usable if the optional database layers are unavailable; responses label which layers are missing.
+
+Candidate eligibility requires at least one normalized query-term overlap. For each eligible source:
+
+```
+relevance = 5 × distinct matched query terms / distinct query terms
+seeded trust = 2 × clamp(analyst seed weight, 0, 10) / 10; community sources = 0
+pack influence = min(2, sum over distinct public curators of best(1 / rank))
+supersession penalty = 1 if explicitly superseded, else 0
+retrieval score = relevance + seeded trust + pack influence − supersession penalty
+```
+
+Algorithm version `retrieval-v1`; factors and totals rounded to four decimals. Stable ID tie-breaks and ordered floating-point summation make the same corpus/query/control inputs reproducible. Repeated words do not inflate overlap; copying many packs under one curator cannot inflate that curator's contribution. This is a bounded curation signal, not a claim of Sybil resistance or measured factual reliability. No unimplemented corroboration, evidence-directness, or freshness bonus is invented.
+
+Public signals read through an anonymous client with an explicit public filter. Private packs can restrict the caller's candidate set but never add to public adoption. Exact stored URL equality links shelf entries to seed provenance; otherwise they remain separate sources. Duplicate URL candidates collapse to a stable representative, preferring the known seed. Illustrative `.invalid` source URLs are excluded from the Explorer.
+
+Corpus scan limits: newest 200 ready community links, newest 200 public packs, and up to 50 entries in a selected pack. Scans use ID tie-breaks; limits, read status, counts, and warnings are returned. This is a bounded corpus snapshot, not a claim to search the entire web or every pack. Pack matching and relevance are keyword-based, without semantic inference.
+
+Response: ranking version, controls, selected-pack metadata, corpus status/limits, ranked results (numeric factors, matched terms, derivation, public pack provenance), and independent `canonical_verification`. Retrieval is navigation, not factual confidence. Canonical verification is still the OAuth/PKCE prototype, includes historical demo fixtures, and is explicitly labeled accordingly.
+
+### Canonical isolation contract
+
+Pipeline 0.3.0 selects up to `topK` canonical seeds independently, then appends up to `topK` labeled supplemental community sources. Therefore `/api/verify` may return up to 12 sources at its default of six per lane. Only canonical seeds affect confidence, conflicts, and staleness penalties. Community trust weights are forced to zero. Source-pack adoption, result limits, and selected packs never change the canonical verification returned by `/api/retrieve`.
+
+### Next implementation queue
+
+1. Activate and verify pack persistence in production (Muse migration/browser handoff).
+2. Complete pack lifecycle: owner edits/deletion and attributable fork ancestry.
+3. Add category hierarchy and pack comparison; define versioned graph evidence edges.
+4. Add graph-backed ranking factors only when their evidence/provenance is recorded.
+5. Continue frontend error recovery and broader corpus coverage without changing the settled strategy.
+
 ## Objective
 
 Ship the MVP around the narrow, painful workflow:
@@ -158,7 +207,7 @@ A source score should be derived from:
 - domain relevance
 - evidence quality / directness
 
-### Example formula (MVP)
+### Target formula (future graph inputs; implemented subset specified above)
 
 score = retrieval_overlap
       + earned_trust_weight
@@ -318,3 +367,11 @@ The controls panel is a front-end tuning layer.
 Community influence is a separate signal, not the source of truth.
 
 The MVP should be simple, visible, and focused on delivered trust value.
+
+
+## Retrieval milestone validation
+
+- 121 application checks pass: 34 pipeline/extraction (including community isolation), 31 API validation, 15 pack validation, and 41 ranking/retrieval tests. Typecheck passes.
+- Independent Chrome smoke: desktop results and control invariance, empty results, verification deep-link, request-failure recovery, and 390px mobile layout without horizontal overflow; no browser runtime errors. No database credentials were used in browser smoke. Authenticated and production pack QA remains assigned to Muse.
+- Topic queries with no analyzed seed stance use “No analyzed claim match” wording; they are not presented as a prominent unsupported verdict.
+- Hosted build and PostgreSQL policy validation must pass before integration; report links/results in TASKS.md.

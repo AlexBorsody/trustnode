@@ -135,6 +135,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
         {e.note && <p>{e.note}</p>}
         <small>Curator rank {e.rank} · {e.tn_sources?.status ?? "unavailable"}</small>
       </li>)}</ol>
+      <p><a className="btn" href={`/explore?pack=${pack.id}`}>Explore these sources →</a></p>
       {pack.is_public && <button className="btn" onClick={share}>Copy share link</button>}{" "}
       {session && <button className="chip" onClick={copyPack}>Make my own copy</button>}
       {!pack.is_public && <p>Only your signed-in account can open this pack. Source links themselves remain public.</p>}

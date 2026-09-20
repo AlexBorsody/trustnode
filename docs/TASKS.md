@@ -162,11 +162,12 @@ Alex flagged that Codex Mac needs Supabase access. Facts and arrangement:
 
 ## Active bugs (continued)
 
-- [ ] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13.
 - [ ] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8.
 - [ ] BUG-006: `submitLink`/`submitUpload` lack catch/finally — a network failure leaves contribution controls stuck in loading state. Add error states + finally cleanup.
 
 ## Fixed bugs
+
+- [x] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13. Fixed 2026-09-20: pipeline 0.3.0 isolates seed confidence/conflicts from supplemental retrieval, with flooding/staleness/forged-trust regressions.
 
 - [x] BUG-000: Verify returned UNSUPPORTED 0/100 for the PKCE claim — seed stance patterns too narrow, community sources had no stances. Fixed 2026-09-19 (enriched seed patterns + mechanical text-overlap stance for community sources, labeled unreviewed).
 - [x] BUG-001: Stance engine has no negation handling — "PKCE does not protect against interception" can match support patterns. — DESIGN §4. Fixed 2026-09-19 (two-pass cue+token negation in matchStance: cue within ±4 raw words flips supports↔contradicts, sets negation flag + note).
@@ -237,3 +238,15 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 - Remaining follow-ups: editing/deletion, fork ancestry, pack comparison/merge, category trees, adoption-based retrieval, and profiles. Pack position is curator preference, not earned trust.
 
 - PACKS-001 validation: GitHub CI passed 72 application tests, typecheck, production build, and disposable PostgreSQL checks for public/private reads, cross-owner writes, anonymous writes, duplicate/file rejection, and atomic rollback. Vercel preview passed. This proves test-database behavior, not that migration 003 has been applied to production.
+
+
+## RETRIEVAL-001 — Source-pack retrieval and transparent ranking
+
+- Owner: Codex local; parallel implementation by ranking and canonical-isolation agents, independent integration review. Branch `feature/trust-ranked-retrieval`; isolated checkout `/private/tmp/trustnode-ranking`.
+- Status: implemented, final validation/integration in progress.
+- Strategy remains locked. IMPLEMENTATION_BRIEF.md now records shipped scope, exact formula and API contracts, limits, and the remaining implementation queue.
+- Delivery: source Explorer, public-pack adoption with per-curator contribution cap, source scope/result controls, factor derivations and pack provenance; canonical confidence independently computed; BUG-004 closed.
+- Validation: dedicated deterministic ranker, corpus assembly, auth/privacy/fallback/API tests plus pipeline isolation regressions. Counts/results recorded at handoff; never substitute hosted checks for Muse's production browser verification.
+- Muse: after deployment, open `/explore`, search the PKCE example, toggle public pack influence and result count, and verify canonical confidence remains unchanged. Open a public pack's “Explore these sources” action and verify results stay within its ready links. Verify private pack scope signed in, then signed out (generic not-found response). If migration 003 is missing, confirm the visible warning and functioning seed fallback. Record actual deployment/revision and results in QA.md. No production write required for the initial Explorer smoke.
+
+- RETRIEVAL-001 browser handoff: independent headless Chrome passed desktop and 390px mobile exploration, result-limit/adoption-toggle canonical invariance, empty state, verify deep-link, and network-failure retry; no JS errors. Topic-query wording refined to avoid implying that an unmatched topic is false. Local suites total 121 passing checks. Production/private-pack browser flows remain unverified.

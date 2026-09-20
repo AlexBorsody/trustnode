@@ -1,6 +1,6 @@
 # TrustNode Source Commons — Design Spec
 
-Version 2.2 (source-pack slice authorized 2026-09-20; remaining graph design DRAFT) — 2026-09-19
+Version 2.3 (pack-aware retrieval and canonical isolation, 2026-09-20; remaining graph design DRAFT) — 2026-09-19
 Status: source-pack implementation authorized by Alex on 2026-09-20 via the updated strategy and implementation brief. The broader graph design remains draft.
 Working task + bug tracker: `docs/TASKS.md` (every task references a section here).
 
@@ -295,3 +295,13 @@ First slice: signed-in users create packs of 1–50 existing link sources, order
 - Controls: expose only controls backed by implemented behavior. Temperature/top-p are deferred until a downstream summarizer exists; they do nothing in today's deterministic pipeline.
 - Delivery: migration must be applied before authenticated pack flows work. Missing schema/configuration yields an explicit unavailable state, never a fabricated empty successful response.
 - Validation: model boundary tests, disposable PostgreSQL RLS/atomic-save tests, build/typecheck and existing regressions in CI. Muse checks browser creation, rank order, notes, public sharing, private access, and copying after migration deployment.
+
+
+## 28. Pack-aware retrieval v1 and canonical isolation (v2.3)
+
+IMPLEMENTATION_BRIEF.md is now the execution plan for the locked strategy. Its Retrieval v1 and Canonical isolation contracts define the implemented formula, limits, privacy, and separate score semantics.
+
+- `/explore` and `POST /api/retrieve` rank candidate sources using explicit overlap, analyst-seeded weight, bounded public curator adoption, and recorded supersession. This is `retrieval-v1`, not the future graph algorithm `trustrank-1.0`.
+- Pipeline 0.3.0 supersedes §13's pooled topK selection: canonical seeds and community supplemental results have independent limits; only seeds calculate confidence/conflicts/staleness. Input community earned values cannot influence canonical output. Results may contain up to twice topK sources.
+- Pack scope, result count, and the public influence toggle are implemented session controls. They never mutate canonical confidence. Temperature/top-p and absent graph factors remain unimplemented rather than offering controls with no effect.
+- Source graph PageRank remains a later version requiring recorded edges and provenance; the new retrieval formula does not claim to replace that algorithm or establish factual truth from popularity.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Verification } from "@/trustnode/pipeline";
 import { PIPELINE_VERSION } from "@/trustnode/version";
 
@@ -22,6 +22,11 @@ export default function VerifyPage() {
   const [result, setResult] = useState<Verification | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const linkedClaim = new URL(window.location.href).searchParams.get("claim");
+    if (linkedClaim) setClaim(linkedClaim.slice(0, 500));
+  }, []);
 
   async function run(text: string) {
     const c = text.trim();
