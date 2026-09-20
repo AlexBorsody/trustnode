@@ -59,6 +59,7 @@ export default function ExplorePage() {
     finally { if (!ctrl.signal.aborted) setLoading(false); }
   }
   const canonical = result?.canonical_verification;
+  const hasAnalyzedClaim = canonical?.sources.some(source => source.origin === "seed" && source.stance !== "unrelated");
   return <>
     <div className="meta-line">SOURCE EXPLORER · EVERY RANK SHOWS ITS WORK</div>
     <h1 className="page-title">Find sources worth examining</h1>
@@ -91,7 +92,9 @@ export default function ExplorePage() {
         <h2>Independent seed-based check</h2>
         <p className="panel-sub">OAuth/PKCE prototype corpus, including demo fixtures. This check does not use your selected pack or retrieval controls. Analyst-assigned weights are not measured factual accuracy.</p>
         {canonical.conflicts.length > 0 && <div><h3>Conflicts to inspect</h3>{canonical.conflicts.map((c, i) => <p key={i}>{c.detail}</p>)}</div>}
-        <p><strong>{canonical.confidence.value}/100 — {canonical.confidence.level}</strong></p>
+        {hasAnalyzedClaim
+          ? <p><strong>{canonical.confidence.value}/100 — {canonical.confidence.level}</strong></p>
+          : <p><strong>No analyzed claim match in the seed corpus.</strong> Matching research terms do not by themselves establish a claim to verify.</p>}
         <div className="formula">{canonical.confidence.derivation}</div>
         <a href={`/verify?claim=${encodeURIComponent(result.query)}`}>Inspect the canonical quotes and evidence chain →</a>
       </section>}

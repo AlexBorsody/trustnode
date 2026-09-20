@@ -367,3 +367,11 @@ The controls panel is a front-end tuning layer.
 Community influence is a separate signal, not the source of truth.
 
 The MVP should be simple, visible, and focused on delivered trust value.
+
+
+## Retrieval milestone validation
+
+- 121 application checks pass: 34 pipeline/extraction (including community isolation), 31 API validation, 15 pack validation, and 41 ranking/retrieval tests. Typecheck passes.
+- Independent Chrome smoke: desktop results and control invariance, empty results, verification deep-link, request-failure recovery, and 390px mobile layout without horizontal overflow; no browser runtime errors. No database credentials were used in browser smoke. Authenticated and production pack QA remains assigned to Muse.
+- Topic queries with no analyzed seed stance use “No analyzed claim match” wording; they are not presented as a prominent unsupported verdict.
+- Hosted build and PostgreSQL policy validation must pass before integration; report links/results in TASKS.md.
