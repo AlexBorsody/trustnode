@@ -1,5 +1,6 @@
 /**
- * TrustNode prototype pipeline v0.1.0 — claim verification.
+ * TrustNode prototype pipeline — claim verification.
+ * (Pipeline version: PIPELINE_VERSION in ./version — single source of truth.)
  *
  *   claim -> normalize -> retrieve -> stance -> conflicts -> confidence
  *
@@ -13,6 +14,7 @@
  *    merged into scores.
  */
 import sourcesDoc from "../../data/sources.json";
+import { PIPELINE_VERSION } from "./version";
 
 export type Stance = "supports" | "contradicts" | "qualifies" | "unrelated";
 export type Freshness = "current" | "stale" | "superseded";
@@ -52,6 +54,8 @@ export interface SourceResult {
   quote: string | null;
   stance_note: string | null;
   match_explain: string;
+  /** DESIGN §14: set when a negation cue in the claim mechanically inverted the stance. */
+  negation?: boolean;
 }
 
 export interface Conflict {
@@ -85,34 +89,128 @@ function stem(t: string): string {
   return t;
 }
 
-export function tokens(text: string): string[] {  const out: string[] = [];
-  for (const raw of text.toLowerCase().replace(/[^a-z0-9\s-]/g, " ").split(/\s+/)) {
-    if (!raw) continue;
-    // keep hyphen-joined form too ("single-page" -> "singlepage") for matching
-    const forms = raw.includes("-") ? [raw.replace(/-/g, ""), ...raw.split("-")] : [raw];
-    for (const f of forms) {
-      const s = stem(f);
-      if (s.length > 1 && !STOP.has(s)) out.push(s);
+export function tokens(text: string): string[] {
+  return tokenize(text).map((t) => t.text);
+}
+
+/**
+ * A normalized token plus the index of the raw word it came from.
+ * DESIGN §14: the tokenizer records each surviving token's raw word index
+ * (parallel array) so the negation pass can locate cues relative to matched
+ * keywords without re-parsing the claim.
+ */
+export interface Token {
+  text: string;
+  word: number;
+}
+
+export function tokenize(text: string): Token[] {
+  const out: Token[] = [];
+  const words = text.toLowerCase().trim().split(/\s+/);
+  words.forEach((rawWord, wi) => {
+    if (!rawWord) return;
+    for (const raw of rawWord.replace(/[^a-z0-9\s-]/g, " ").split(/\s+/)) {
+      if (!raw) continue;
+      // keep hyphen-joined form too ("single-page" -> "singlepage") for matching
+      const forms = raw.includes("-") ? [raw.replace(/-/g, ""), ...raw.split("-")] : [raw];
+      for (const f of forms) {
+        const s = stem(f);
+        if (s.length > 1 && !STOP.has(s)) out.push({ text: s, word: wi });
+      }
     }
+  });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// DESIGN §14 — negation handling (BUG-001). Deterministic, no model.
+// Two passes, because one pass is not enough: stemming and stop-word removal
+// destroy contractions ("doesn't" -> "doesn"+"t"), so cues must be caught on
+// the raw claim before normalization.
+// ---------------------------------------------------------------------------
+
+const NEGATION_CUES =
+  "not|no|never|without|cannot|fails?|failed|don't|doesn't|does not|isn't|aren't|can't|won't|couldn't";
+
+export const NEGATION_NOTE =
+  "Negation detected in claim — stance mechanically inverted; analyst review advised.";
+
+/** Word indexes (into the raw whitespace-split claim) of every negation cue. */
+function negationCueWords(rawClaim: string): number[] {
+  // Normalize Unicode apostrophes (U+2019 etc., common from mobile keyboards)
+  // to ASCII so "doesn’t" cues like "doesn't" — same cue, different encoding.
+  const lower = rawClaim.toLowerCase().replace(/[’‘‚‛]/g, "'");
+  const re = new RegExp(`\\b(${NEGATION_CUES})\\b`, "g");
+  const out: number[] = [];
+  for (const m of lower.matchAll(re)) {
+    const before = lower.slice(0, m.index).trim();
+    out.push(before === "" ? 0 : before.split(/\s+/).length);
   }
   return out;
 }
 
 /** Stance matches when enough of its pattern keywords appear in the claim. */
 function matchStance(
-  claimTokens: string[],
+  rawClaim: string,
+  claimToks: Token[],
   stances: SourceSeed["stances"],
-): { stance: Stance; quote: string | null; note: string | null; hits: string[] } {
-  let best: { stance: Stance; quote: string; note: string | null; hits: string[] } | null = null;
+): { stance: Stance; quote: string | null; note: string | null; hits: string[]; negation: boolean } {
+  const claimTexts = claimToks.map((t) => t.text);
+  const cueWords = negationCueWords(rawClaim);
+  const wordOf = (keyword: string): number =>
+    claimToks.find((t) => t.text === keyword)?.word ?? -1;
+  // A matched keyword counts as negated when a cue sits within ±4 raw words.
+  const isNegated = (keyword: string): boolean => {
+    const w = wordOf(keyword);
+    return w >= 0 && cueWords.some((c) => Math.abs(c - w) <= 4);
+  };
+
+  let best: {
+    stance: Exclude<Stance, "unrelated">;
+    quote: string;
+    note: string | null;
+    hits: string[];
+    negated: boolean;
+  } | null = null;
   for (const s of stances) {
     const patternTokens = tokens(s.claim_pattern.join(" "));
-    const hits = [...new Set(patternTokens.filter((k) => claimTokens.includes(k)))];
+    const hits = [...new Set(patternTokens.filter((k) => claimTexts.includes(k)))];
     const need = Math.min(2, s.claim_pattern.length);
     if (hits.length >= need && (!best || hits.length > best.hits.length)) {
-      best = { stance: s.stance, quote: s.quote, note: s.note, hits };
+      best = {
+        stance: s.stance,
+        quote: s.quote,
+        note: s.note,
+        hits,
+        negated: hits.some(isNegated),
+      };
     }
   }
-  return best ?? { stance: "unrelated", quote: null, note: null, hits: [] };
+  if (!best) {
+    return { stance: "unrelated", quote: null, note: null, hits: [], negation: false };
+  }
+  if (best.negated) {
+    const flipped =
+      best.stance === "supports"
+        ? "contradicts"
+        : best.stance === "contradicts"
+          ? "supports"
+          : best.stance; // qualifies: left as-is, still flagged
+    return {
+      stance: flipped,
+      quote: best.quote,
+      note: NEGATION_NOTE,
+      hits: best.hits,
+      negation: true,
+    };
+  }
+  return {
+    stance: best.stance,
+    quote: best.quote,
+    note: best.note,
+    hits: best.hits,
+    negation: false,
+  };
 }
 
 /** Mechanical stance for an unreviewed community source: pure keyword overlap,
@@ -151,7 +249,8 @@ export function verifyClaim(
   extra: SourceSeed[] = [],
 ): Verification {
   const claim = rawClaim.trim();
-  const claimTokens = tokens(claim);
+  const claimToks = tokenize(claim);
+  const claimTokens = claimToks.map((t) => t.text);
   const seeds = (sourcesDoc as { sources: SourceSeed[] }).sources;
   // The commons shelf: analyst seeds plus ready community contributions.
   // Community sources carry no earned trust until it is measured (Art. IX) —
@@ -175,7 +274,7 @@ export function verifyClaim(
     .slice(0, topK);
 
   const sources: SourceResult[] = ranked.map(({ src, origin, hits }) => {
-    const m = matchStance(claimTokens, src.stances);
+    const m = matchStance(claim, claimToks, src.stances);
     const f = freshnessOf(src);
     return {
       id: src.id,
@@ -189,6 +288,7 @@ export function verifyClaim(
       stance: m.stance,
       quote: m.quote,
       stance_note: m.note,
+      ...(m.negation ? { negation: true as const } : {}),
       match_explain:
         m.stance === "unrelated"
           ? `Retrieved by keyword overlap (${hits.join(", ")}) but takes no analyzed position on this claim.`
@@ -248,7 +348,7 @@ export function verifyClaim(
   return {
     claim,
     normalized: claimTokens.join(" "),
-    pipeline_version: "0.2.0",
+    pipeline_version: PIPELINE_VERSION,
     sources,
     conflicts,
     confidence: { value, level, derivation },
