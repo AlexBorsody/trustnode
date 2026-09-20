@@ -79,14 +79,14 @@ Muse now owns frontend testing and post-merge review rather than implementation.
 - [ ] Complete development setup and baseline CI — DESIGN §§10, 23, 25
 - Owner: Codex local
 - Assigned by: Codex, 2026-09-19
-- Status: in progress
+- Status: assigned
 - Branch: `phase-0/dev-setup` (record actual branch when claimed)
 - Purpose: make this GitHub-web-edited project reproducible locally and give every PR a typecheck/build baseline.
 - Scope: root `.gitignore`, `.github/workflows/`, README setup instructions, `app/.env.example`, a Node version declaration, and removal of tracked `app/tsconfig.tsbuildinfo`. Change `app/package.json` or its lockfile only if necessary for runtime declarations or setup, and explain why.
 - Deliverables: choose and document a Node version compatible with locked dependencies; use `npm ci` from `app`; ignore dependencies, build outputs, local env files (retain the example), and TypeScript build metadata; provide placeholder-only examples for the four Supabase variables in DESIGN §25; document seeded verification without credentials and what requires Supabase; fix the README Charter path/version; add PR CI for typecheck and production build.
 - Acceptance: from a clean checkout, `npm ci`, `npm run typecheck`, and `npm run build` succeed in `app`; CI uses the committed lockfile and documented Node version; no secrets are required for baseline CI; generated files remain untracked. Record any failure honestly instead of disabling checks.
 - Exclusions: no pipeline, corpus, confidence, UI behavior, database, dependency-upgrade campaign, or production changes. Regression suite implementation is a separate assignment. This setup task does not approve the draft feature spec.
-- Handoff from Codex local: Node 22.23.2 installed; clean npm ci, typecheck, and production build passed locally. Added setup docs, environment template, ignore rules, and baseline CI; repaired missing optional compiler entries in the lockfile without upgrading the app dependencies. Ready for integration; concurrent application edits are excluded from this setup commit. Hosted CI not yet verified.
+- Handoff from Codex local: pending — add commit/PR, changed files, checks/results, limitations, and questions here.
 - Post-merge review from Muse: pending (non-blocking).
 
 ### MUSE-002 — Baseline testing, regression verification, and post-merge review
@@ -102,8 +102,7 @@ Muse now owns frontend testing and post-merge review rather than implementation.
 - Acceptance: cover the listed flows or explicitly mark unavailable cases; distinguish static observations from executed tests. After Codex fixes a bug, retest the exact fix revision and report whether the reproduction and nearby cases pass. Do not mark a bug fixed merely because code changed.
 - Exclusions: no application fixes, scoring/methodology changes, dependency changes, migrations, merge, or deployment. Propose automated regression cases; coordinate test-code ownership with Codex before editing shared test files.
 - Handoff from Muse: pending — add tested revision/environment, QA report link, results, blockers, and bugs requiring Codex action.
-- First browser assignment from Codex: open `https://trustnode-lemon.vercel.app/verify` on Android; submit “PKCE protects OAuth public clients against authorization code interception attacks”, then “PKCE does not protect OAuth public clients against authorization code interception attacks”. Record both displayed scores, stances, and pipeline versions in `docs/QA.md`; the local baseline currently returns 100 for both (BUG-001). Check that the evidence and derivation remain readable without horizontal scrolling. Expected product behavior: the negative claim must not inherit the positive claim's supporting verdict. This is a baseline reproduction, not a deployed fix; no sign-in or source writes needed.
-- Triage from Codex: BUG-001 and BUG-004 reproduced locally; browser baseline requested, no QA result assumed.
+- Triage from Codex: pending.
 
 ### CODEX-001 — Correctness design and QA triage
 
@@ -153,14 +152,21 @@ Alex flagged the v1.1 charter as slop and wrongly scoped (it mixed in the Prove-
 
 ## Active bugs
 
+### 2026-09-20 — Supabase access for Codex Mac (Habib)
+
+Alex flagged that Codex Mac needs Supabase access. Facts and arrangement:
+- Alex's Supabase dashboard login is saved in my vault from last night (I used it to apply 001b/001c). I cannot read the password out of the vault or relay it to Codex Mac — that's a hard boundary, not a choice.
+- Arrangement that needs nothing new: Codex commits migration SQL to `db/`; I apply it in the Supabase SQL editor on the live `trustnode` project and record it here, same as 001b/001c. This is the established pattern — keep using it.
+- For read-only dev queries the anon key is sufficient (PostgREST, RLS applies). Baseline dev/CI must not require live Supabase at all (CODEX-002).
+- If Codex needs direct live-DB write access beyond migrations, Alex has to hand over the DB password himself (Supabase dashboard → Project Settings → Database) on his Mac. I can't do that step for him.
+
+## Active bugs (continued)
+
 - [ ] BUG-004: Community sources can change canonical confidence. `verifyClaim` pools seeds + community extras before the topK=6 truncation (pipeline.ts) — a keyword-rich unreviewed source can displace a seed from the top 6, changing the confidence number indirectly. Fix: separate canonical evidence selection (seeds only) from community display selection; add regression asserting unreviewed sources cannot change canonical confidence — DESIGN §§9, 13.
+- [ ] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8.
 - [ ] BUG-006: `submitLink`/`submitUpload` lack catch/finally — a network failure leaves contribution controls stuck in loading state. Add error states + finally cleanup.
 
-- [ ] BUG-004: Zero-trust community sources can displace canonical seeds from top-six retrieval and change confidence (reproduced 100 → 0); isolate canonical scoring selection — DESIGN §§9, 13; REVIEW finding 1.
-
 ## Fixed bugs
-
-- [x] BUG-005: `POST /api/verify` throws on valid JSON with wrong field types (e.g. `{"claim":42}`) instead of returning the documented 400. Validate runtime shapes; test malformed inputs — DESIGN §8. Fixed 2026-09-20: runtime validation across verify/link/upload routes; 31 API regression checks, including no upstream calls for rejected inputs.
 
 - [x] BUG-000: Verify returned UNSUPPORTED 0/100 for the PKCE claim — seed stance patterns too narrow, community sources had no stances. Fixed 2026-09-19 (enriched seed patterns + mechanical text-overlap stance for community sources, labeled unreviewed).
 - [x] BUG-001: Stance engine has no negation handling — "PKCE does not protect against interception" can match support patterns. — DESIGN §4. Fixed 2026-09-19 (two-pass cue+token negation in matchStance: cue within ±4 raw words flips supports↔contradicts, sets negation flag + note).
@@ -219,11 +225,3 @@ Upload/security hardening, deferred per 2026-09-19 — functionality first.
 - Fixed bugs: move the line from Active to Fixed and append the fix date + one-line cause.
 - Use phase/task branches when useful; PRs are optional under the autonomous integration policy. If TASKS.md conflicts, keep both lines and reconcile — never delete a task line during a merge.
 - DESIGN.md is the contract; this file is the checklist. Disagreements update DESIGN.md first.
-
-## CODEX-003 — API input validation
-
-- Owner: Codex local, isolated checkout `/private/tmp/trustnode-api-validation`; branch `phase-0/api-validation`.
-- Status: ready for review/integration after CI.
-- Scope: BUG-005 and equivalent link/upload metadata crashes; malformed inputs return 400 with CORS before upstream side effects. Existing auth requirements remain intact.
-- Validation: 31 route tests pass; typecheck passes. All 26 existing regression cases and the production build also pass locally; both test suites now run in CI. Run `npm run test:api` in `app`.
-- Muse follow-up: after deployment, verify normal claim submission, link forms, and upload forms still behave as expected using the existing browser QA assignment; API malformed-body coverage is automated. Do not mark authenticated flows passed without a configured test account/environment.
