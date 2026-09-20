@@ -1,10 +1,12 @@
 export const dynamic = "force-dynamic";
 
+import { PIPELINE_VERSION } from "@/trustnode/version";
+
 export default function Home() {
   return (
     <>
       <div className="meta-line">
-        PROTOTYPE <b>v0.1.0</b> · DETERMINISTIC PIPELINE · SEEDED CORPUS (OAUTH/PKCE)
+        PROTOTYPE <b>v{PIPELINE_VERSION}</b> · DETERMINISTIC PIPELINE · SEEDED CORPUS (OAUTH/PKCE)
       </div>
       <h1 className="page-title">TrustNode</h1>
       <p className="page-sub">
