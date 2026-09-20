@@ -1,6 +1,6 @@
 # TrustNode Source Commons — Design Spec
 
-Version 2.0 (DRAFT) — 2026-09-19
+Version 2.1 (DRAFT; collaboration policy updated 2026-09-19) — 2026-09-19
 Status: **No build work until this spec is signed off.** This is the contract Codex and Habib build from.
 Working task + bug tracker: `docs/TASKS.md` (every task references a section here).
 
@@ -121,8 +121,8 @@ When built, it's an additive menu/page exposing the granular controls (seed weig
 ## 10. How Codex and Habib work together
 
 - This spec is the contract. Disagreements → update the spec first, then code. Spec version bumps are explicit, never silent (Charter Art. IV).
-- One branch per phase (`phase-0/negation`, `phase-1/graph`, …); PRs against `main`.
-- PR checklist: `npx tsc --noEmit` green; regression suite green; TASKS.md checkbox flipped in the same PR; no secrets/keys in code or logs; Charter articles cited where behavior touches them.
+- Use phase/task branches for substantial or concurrent work. PRs are optional; Codex may integrate routine validated changes without waiting for Muse approval. Muse primarily tests the frontend and reviews merged code, per the autonomous integration policy in TASKS.md (Alex, 2026-09-19).
+- Integration checklist (checks appropriate to the change; documentation-only edits need no application build): `npx tsc --noEmit` green; regression suite green; TASKS.md checkbox flipped in the same PR; no secrets/keys in code or logs; Charter articles cited where behavior touches them.
 - Determinism is non-negotiable: any new pipeline logic must be a pure function with fixture tests. If it needs randomness or a model, it doesn't go in the pipeline.
 - Merge conflicts on `docs/TASKS.md`: keep both lines, reconcile, never delete a task line in a merge.
 
@@ -269,7 +269,7 @@ Order matters: this ships only after the core engine is correct and the graph is
 - **App:** Vercel, `trustnode-lemon.vercel.app` (production). Preview deploys per PR. Env: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`. No service-role key anywhere.
 - **Data:** Supabase `trustnode` project (US East, free tier). Migrations in `db/` numbered sequentially, each runnable once via SQL editor; every migration recorded in TASKS.md when applied.
 - **Auth config:** magic-link redirect URLs must include every Vercel deployment URL pattern in use.
-- **Release:** `main` deploys. Phase branches merge via PR with the §10 checklist. Tags for pipeline/algorithm version bumps.
+- **Release:** `main` deploys. Codex integrates validated work under §10; PRs and pre-merge Muse approval are not mandatory. Tags for pipeline/algorithm version bumps.
 
 ## 26. Risks
 
