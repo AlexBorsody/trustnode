@@ -5,6 +5,7 @@ import {
   supabaseConfigured,
   supabaseFor,
 } from "@/lib/supabase";
+import { extractText } from "@/trustnode/extract";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
@@ -57,8 +58,12 @@ async function attachTags(sb: SupabaseClient, sourceId: string, tags: unknown) {
 
 /**
  * POST /api/sources/upload — multipart form: file, title?, category?, tags?,
- * description?. Signed in. Files land in the `source-files` bucket; the row
- * is `ready` when it carries an excerpt (your description), else `pending`.
+ * description?. Signed in. Files land in the `source-files` bucket; their
+ * bytes are then extracted deterministically (DESIGN §18, BUG-002).
+ *
+ * Status: `ready` iff extracted_text or a contributor description is present;
+ * `pending` if neither; `failed` with a reason if extraction throws and no
+ * description carries the source.
  */
 export async function POST(req: Request) {
   if (!supabaseConfigured()) {
@@ -113,6 +118,24 @@ export async function POST(req: Request) {
     .eq("slug", categorySlug)
     .single();
 
+  // BUG-002: parse the file bytes deterministically. Extraction is pure —
+  // same bytes, same text — and capped at 200KB (DESIGN §18).
+  let extractedText: string | null = null;
+  let extractError: string | null = null;
+  try {
+    extractedText = await extractText(new Uint8Array(await file.arrayBuffer()), mime);
+    if (!extractedText.trim()) extractedText = null;
+  } catch (e) {
+    extractError = e instanceof Error ? e.message : "extraction failed";
+    extractedText = null;
+  }
+
+  const status = extractError && !description
+    ? "failed"
+    : extractedText || description
+      ? "ready"
+      : "pending";
+
   const { data: inserted, error } = await sb
     .from("tn_sources")
     .insert({
@@ -123,8 +146,10 @@ export async function POST(req: Request) {
       file_name: cleanName,
       mime_type: mime,
       category_id: (cat as { id: string } | null)?.id ?? null,
-      status: description ? "ready" : "pending",
+      status,
       excerpt: description || null,
+      extracted_text: extractedText,
+      extract_error: extractError,
     })
     .select("id")
     .single();
@@ -137,5 +162,13 @@ export async function POST(req: Request) {
   const sourceId = (inserted as { id: string }).id;
   await attachTags(sb, sourceId, form.get("tags"));
 
-  return json({ id: sourceId, status: description ? "ready" : "pending" }, 201);
+  return json(
+    {
+      id: sourceId,
+      status,
+      extracted_chars: extractedText?.length ?? 0,
+      ...(extractError ? { extract_error: extractError } : {}),
+    },
+    201,
+  );
 }
