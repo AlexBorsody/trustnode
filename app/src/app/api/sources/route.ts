@@ -64,14 +64,15 @@ function mapRow(r: SourceRow) {
   };
 }
 
-const SOURCE_SELECT = `
+const BASE_SELECT = `
   id, kind, title, url, file_path, file_name, mime_type, status, excerpt, created_at,
-  tn_categories ( slug, name ),
-  tn_source_tags ( tn_tags ( slug, label ) )
 `;
 
 // ---------------------------------------------------------------------------
 // GET /api/sources — the public commons shelf
+//
+// DESIGN §§8, 19: category/tag/q filter inside PostgREST (never in memory
+// after limit), pg_trgm-backed q on title/excerpt, limit/offset pagination.
 // ---------------------------------------------------------------------------
 
 export async function GET(req: Request) {
@@ -80,30 +81,42 @@ export async function GET(req: Request) {
   }
   const sp = new URL(req.url).searchParams;
   const limit = Math.min(100, Math.max(1, parseInt(sp.get("limit") ?? "50", 10) || 50));
+  const offset = Math.max(0, parseInt(sp.get("offset") ?? "0", 10) || 0);
   const category = sp.get("category");
   const tag = sp.get("tag");
-  const q = (sp.get("q") ?? "").toLowerCase().trim();
+  const q = (sp.get("q") ?? "").trim();
+
+  // Inner-join hints only when the corresponding filter is active, so
+  // unfiltered reads keep the cheap outer-join shape.
+  const select =
+    BASE_SELECT +
+    (category ? "tn_categories!inner ( slug, name )," : "tn_categories ( slug, name ),") +
+    (tag
+      ? "tn_source_tags!inner ( tn_tags!inner ( slug, label ) )"
+      : "tn_source_tags ( tn_tags ( slug, label ) )");
 
   const sb = supabaseFor();
-  const { data, error } = await sb
-    .from("tn_sources")
-    .select(SOURCE_SELECT)
-    .order("created_at", { ascending: false })
-    .limit(limit);
+  let query = sb.from("tn_sources").select(select, { count: "exact" });
+  if (category) query = query.eq("tn_categories.slug", category);
+  if (tag) query = query.eq("tn_source_tags.tn_tags.slug", tag);
+  if (q) {
+    // Substring search on title + excerpt, served by the pg_trgm GIN indexes
+    // (db/migration-001c-sources-trgm.sql). Escape LIKE wildcards; commas
+    // would break the .or() list syntax.
+    const esc = q
+      .replace(/,/g, " ")
+      .replace(/\\/g, "\\\\")
+      .replace(/%/g, "\\%")
+      .replace(/_/g, "\\_");
+    query = query.or(`title.ilike.%${esc}%,excerpt.ilike.%${esc}%`);
+  }
+  query = query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
 
+  const { data, error, count } = await query;
   if (error) return json({ error: error.message }, 500);
 
-  let rows = ((data ?? []) as unknown as SourceRow[]).map(mapRow);
-  if (category) rows = rows.filter((r) => r.category?.slug === category);
-  if (tag) rows = rows.filter((r) => r.tags.some((t) => t.slug === tag));
-  if (q) {
-    rows = rows.filter((r) =>
-      `${r.title} ${r.excerpt ?? ""} ${r.tags.map((t) => t.label).join(" ")}`
-        .toLowerCase()
-        .includes(q),
-    );
-  }
-  return json({ sources: rows });
+  const rows = ((data ?? []) as unknown as SourceRow[]).map(mapRow);
+  return json({ sources: rows, limit, offset, total: count ?? rows.length });
 }
 
 // ---------------------------------------------------------------------------
