@@ -50,3 +50,13 @@ Keep phase branches, PRs, and TASKS.md updates together. Account for concurrent 
 - UI/footer and pipeline versions disagree (BUG-003).
 - No `.gitignore`, environment template, or license file is checked in; `app/tsconfig.tsbuildinfo` is tracked. Add development setup guidance and choose an explicit license to support the charter's reuse intent.
 - DESIGN v2.0 is still marked DRAFT with explicit sign-off in §12. This review does not silently amend that status or change settled product rules.
+
+## Executed follow-up — development setup
+
+With Node 22.23.2 installed, executed the actual pipeline through `node --import tsx` using a synthetic in-memory corpus (no production writes):
+
+- “PKCE protects OAuth public clients against authorization code interception attacks”: confidence 100.
+- “PKCE does not protect OAuth public clients against authorization code interception attacks”: confidence 100, with the same supporting seed stances. Confirms BUG-001.
+- Original positive claim plus six zero-earned-trust community fixtures whose titles/text repeat the claim: confidence 0; all six selected sources are community fixtures. Confirms finding 1's retrieval displacement path.
+
+These are diagnostic reproductions, not a regression suite or correctness fixes.
