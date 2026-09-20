@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       const sb = supabaseFor();
       const { data } = await sb
         .from("tn_sources")
-        .select("id, kind, title, url, file_path, excerpt, created_at")
+        .select("id, kind, title, url, file_path, excerpt, extracted_text, created_at")
         .eq("status", "ready")
         .order("created_at", { ascending: false })
         .limit(200);
@@ -54,11 +54,13 @@ export async function POST(req: Request) {
         url: string | null;
         file_path: string | null;
         excerpt: string | null;
+        extracted_text: string | null;
         created_at: string;
       }[]).map((r) => {
         // Unreviewed community material: a labeled mechanical keyword stance,
         // zero earned trust, so it surfaces visibly but never moves confidence.
-        const text = r.excerpt ?? "";
+        // Retrieval text = contributor excerpt + extracted file text (DESIGN §18).
+        const text = [r.excerpt, r.extracted_text].filter(Boolean).join("\n\n");
         return {
           id: `community:${r.id}`,
           title: r.title,
