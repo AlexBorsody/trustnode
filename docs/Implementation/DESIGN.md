@@ -51,7 +51,7 @@ these functions from silently overwriting each other: stale revision returns 409
 missing/non-owned pack returns generic 404. Metadata and direct entry writes advance
 revision, an opaque concurrency token; caller updates cannot change identity or ownership.
 The editor retains failed drafts, offers explicit discard/reload after a conflict,
-and confirms permanent deletion. Before migration 004, existing pack reads/copies
+and confirms permanent deletion. Before migration 004, existing pack reads
 remain supported and owner editing is labeled unavailable.
 
 ## Fork ancestry (migration 005)

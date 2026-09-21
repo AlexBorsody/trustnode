@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
-import type { PackInput } from "./model";
+import type { ForkOrigin, PackInput } from "./model";
 
 type Source = { id: string; title: string; url: string | null; kind: string; status: string };
 type Pack = Omit<PackInput, "entries"> & { id: string; owner_id: string; created_at: string; revision?: number; updated_at?: string;
+  ancestry_available?: boolean;
+  origin?: { parent_revision: number; forked_at: string; parent: { id: string; title: string; owner_id: string } } | null;
   tn_pack_sources?: { source_id: string; rank: number; note: string; tn_sources: Source | null }[] };
 type Entry = { source: Source; note: string };
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -29,6 +31,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
   // Capture the saved revision when a draft/confirmation opens. Background pack
   // refreshes must not advance it and accidentally authorize a stale overwrite.
   const [editRevision, setEditRevision] = useState<number | null>(null);
+  const [forkOrigin, setForkOrigin] = useState<ForkOrigin | null>(null);
   const [deleteRevision, setDeleteRevision] = useState<number | null>(null);
   const [conflict, setConflict] = useState(false);
   const [error, setError] = useState("");
@@ -88,7 +91,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
     mutation.current?.abort();
     setEntries([]); setTitle(""); setDescription(""); setCategory(""); setTags("");
     setIsPublic(false); setEditing(!id); setNotice(""); setSaving(false);
-    setEditRevision(null); setDeleteRevision(null); setConflict(false);
+    setEditRevision(null); setForkOrigin(null); setDeleteRevision(null); setConflict(false);
     return () => mutation.current?.abort();
   }, [session?.user.id, id]);
   const visiblePack = pack && (pack.is_public || pack.owner_id === session?.user.id) ? pack : null;
@@ -102,8 +105,9 @@ export default function PackWorkspace({ id }: { id?: string }) {
   function beginDraft(copy: boolean) {
     if (!pack) return;
     if (!copy && (!pack.revision || pack.owner_id !== session?.user.id)) return;
-    // null selects POST/create. Copies are independent today; ancestry is the
-    // next task and must be persisted/validated by the API, not inferred here.
+    if (copy && (!pack.revision || !pack.ancestry_available)) return;
+    // Capture once: background refreshes cannot rebase the copy's provenance.
+    setForkOrigin(copy ? { id: pack.id, revision: pack.revision! } : null);
     setEditRevision(copy ? null : pack.revision!); setDeleteRevision(null); setConflict(false); setError("");
     setTitle(copy ? `${pack.title} (copy)`.slice(0, 120) : pack.title); setDescription(pack.description);
     setCategory(pack.category); setTags(pack.tags.join(", ")); setIsPublic(copy ? false : pack.is_public);
@@ -111,7 +115,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
     setEditing(true); setNotice(copy ? "Your copy starts private. Adjust the order, then save a new pack." : "Editing this pack. Saved changes will appear at the same address.");
   }
   function discardDraft() {
-    setEditing(false); setEditRevision(null); setEntries([]); setError(""); setNotice(""); setConflict(false);
+    setEditing(false); setEditRevision(null); setForkOrigin(null); setEntries([]); setError(""); setNotice(""); setConflict(false);
   }
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!token) return;
@@ -122,7 +126,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
       const res = await fetch(updating ? `/api/packs/${id}` : "/api/packs", {
         method: updating ? "PATCH" : "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title, description, category, tags: tags.split(",").map(t => t.trim()).filter(Boolean), is_public: isPublic,
-          ...(updating ? { revision: editRevision } : {}),
+          ...(updating ? { revision: editRevision } : forkOrigin ? { fork_of: forkOrigin } : {}),
           entries: entries.map(e => ({ source_id: e.source.id, note: e.note })) }),
       });
       const data = await res.json();
@@ -172,6 +176,11 @@ export default function PackWorkspace({ id }: { id?: string }) {
       <p>{pack.description}</p>
       <p className="panel-sub">{pack.category} · {pack.tags.map(t => `#${t}`).join(" ")}</p>
       <p className="panel-sub" style={{ overflowWrap: "anywhere" }}>Curator: {pack.owner_id} · {new Date(pack.created_at).toLocaleDateString()}</p>
+      {pack.origin && <div className="gate" aria-label="Copy attribution">
+        <p>Based on <a href={`/packs/${pack.origin.parent.id}`}>{pack.origin.parent.title}</a>, revision {pack.origin.parent_revision}.</p>
+        <p className="panel-sub" style={{ overflowWrap: "anywhere" }}>Original curator: {pack.origin.parent.owner_id}. Copied {new Date(pack.origin.forked_at).toLocaleDateString()}. Parent details reflect its current visible record.</p>
+        <p className="panel-sub">This copy is independent. Changes to either pack do not update the other.</p>
+      </div>}
       <ol style={{ paddingLeft: 24 }}>{pack.tn_pack_sources?.map(e => <li key={e.source_id} style={{ marginBottom: 18, overflowWrap: "anywhere" }}>
         {e.tn_sources?.url && /^https?:\/\//i.test(e.tn_sources.url)
           ? <a href={e.tn_sources.url} target="_blank" rel="noreferrer">{e.tn_sources.title}</a>
@@ -181,12 +190,13 @@ export default function PackWorkspace({ id }: { id?: string }) {
       </li>)}</ol>
       <p><a className="btn" href={`/explore?pack=${pack.id}`}>Explore these sources →</a></p>
       {pack.is_public && <button className="btn" onClick={share}>Copy share link</button>}{" "}
-      {session && !editing && <button className="chip" disabled={saving || deleteRevision !== null} onClick={() => beginDraft(true)}>Make my own copy</button>}
+      {session && !editing && <button className="chip" disabled={saving || deleteRevision !== null || !pack.ancestry_available || !pack.revision} onClick={() => beginDraft(true)}>Make my own copy</button>}
+      {session && (!pack.ancestry_available || !pack.revision) && <p>Attributed copying is not available yet. Existing packs remain readable.</p>}
       {pack.owner_id === session?.user.id && !editing && pack.revision && <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
         <button className="btn" disabled={saving || deleteRevision !== null} onClick={() => beginDraft(false)}>Edit pack</button>
         <button className="chip" disabled={saving || deleteRevision !== null} onClick={() => { setDeleteRevision(pack.revision!); setError(""); setNotice(""); setConflict(false); }}>Delete pack</button>
       </div>}
-      {pack.owner_id === session?.user.id && !pack.revision && <p>Editing is not available for this pack yet. You can still make a copy.</p>}
+      {pack.owner_id === session?.user.id && !pack.revision && <p>Editing is not available for this pack yet.</p>}
       {deleteRevision !== null && pack.owner_id === session?.user.id && <div role="group" aria-label="Confirm pack deletion" style={{ marginTop: 16 }}>
         <p>Delete “{pack.title}” permanently? Its order and notes will be removed. Shared source records and other people’s copies will remain.</p>
         <button className="btn" disabled={saving || conflict} onClick={deletePack}>{saving ? "Deleting…" : "Permanently delete this pack"}</button>{" "}
@@ -209,6 +219,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
       <label style={style}>Tags (comma-separated)<input className="claim-input" value={tags} onChange={e => setTags(e.target.value)} /></label>
       <label style={style}><input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} /> Publish this pack for anyone to read and copy</label>
       <p className="panel-sub">{editRevision !== null ? "Saving updates this pack’s shared address. Existing copies remain independent." : "Saving creates an independent pack."} Private packs are visible only to your account; their linked sources are still public.</p>
+      {forkOrigin && <p className="panel-sub">Based on the original pack at revision {forkOrigin.revision}. Attribution is visible only to readers who can also access the original. Your order and notes remain independent.</p>}
       <h3>Your ranking ({entries.length}/50)</h3>
       <ol style={{ paddingLeft: 24 }}>{entries.map((entry, i) => <li key={entry.source.id} style={{ marginBottom: 16 }}>
         <strong>{entry.source.title}</strong>
