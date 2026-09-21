@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
-import { parsePack, parseRevision } from "../src/packs/model";
+import { parsePack, parseRevision, parseForkOrigin } from "../src/packs/model";
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const valid = { title: " OAuth ", description: " Evidence ", category: "security", tags: ["PKCE", "PKCE"], is_public: false,
   entries: [{ source_id: id, note: " Primary standard " }] };
@@ -28,6 +28,9 @@ test("mutations require an integer revision captured from the saved pack", () =>
 process.env.SUPABASE_URL = "https://test.invalid";
 process.env.SUPABASE_ANON_KEY = "fake-public-anon-key-for-tests";
 let route: typeof import("../src/app/api/packs/[id]/route");
+let createRoute: typeof import("../src/app/api/packs/route");
+let ancestry: unknown[] = [];
+let ancestryError: string | null = null;
 let calls: { path: string; auth: string | null; body: Record<string, unknown> }[] = [];
 let rpcError: string | null = null, invalidToken = false;
 const originalFetch = globalThis.fetch;
@@ -37,13 +40,15 @@ before(async () => {
     calls.push({ path, auth: req.headers.get("Authorization"), body: req.method === "POST" ? await req.json() : {} });
     const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
     if (path === "/auth/v1/user") return invalidToken ? reply({ message: "Expired" }, 401) : reply({ id, aud: "authenticated", role: "authenticated" });
-    if (path.includes("/rpc/")) return rpcError ? reply({ code: rpcError, message: "internal detail must not leak" }, 400) : reply(path.endsWith("tn_delete_pack") ? id : 11);
+    if (path.includes("/rpc/")) return rpcError ? reply({ code: rpcError, message: "internal detail must not leak" }, 400) : reply((path.endsWith("tn_delete_pack") || path.endsWith("tn_fork_pack") || path.endsWith("tn_create_pack")) ? id : 11);
+    if (path.endsWith("/tn_pack_origins")) return ancestryError ? reply({ code: ancestryError }, 404) : reply(ancestry);
     if (path.endsWith("/tn_packs")) return reply([{ id, revision: 7, tn_pack_sources: [{ rank: 2 }, { rank: 1 }] }]);
     throw new Error(`Unexpected request: ${path}`);
   };
   route = await import("../src/app/api/packs/[id]/route");
+  createRoute = await import("../src/app/api/packs/route");
 });
-beforeEach(() => { calls = []; rpcError = null; invalidToken = false; });
+beforeEach(() => { calls = []; rpcError = null; invalidToken = false; ancestry = []; ancestryError = null; });
 after(() => { globalThis.fetch = originalFetch; });
 const context = { params: Promise.resolve({ id }) };
 function mutation(body: unknown, method = "PATCH", token = "owner-token") {
@@ -99,3 +104,57 @@ for (const [code, status] of [["PT409", 409], ["PT404", 404], ["23505", 400], ["
     }
   });
 }
+
+
+test("fork input requires both a parent UUID and captured revision", () => {
+  assert.equal(parseForkOrigin(valid), null);
+  assert.deepEqual(parseForkOrigin({ fork_of: { id: id.toUpperCase(), revision: 3 } }), { id, revision: 3 });
+  for (const fork_of of [null, [], {}, { id }, { id: "bad", revision: 3 }, { id, revision: 0 }]) {
+    assert.throws(() => parseForkOrigin({ fork_of }));
+  }
+});
+test("creation chooses the atomic fork RPC and never accepts client owner attribution", async () => {
+  const res = await createRoute.POST(mutation({ ...valid, fork_of: { id, revision: 7 }, owner_id: "spoof" }, "POST"));
+  assert.equal(res.status, 201);
+  assert.deepEqual(await res.json(), { id });
+  const rpc = calls.find(c => c.path.endsWith("tn_fork_pack"))!;
+  assert.equal(rpc.auth, "Bearer owner-token");
+  assert.equal(rpc.body.p_parent_id, id); assert.equal(rpc.body.p_parent_revision, 7);
+  assert.equal(rpc.body.p_is_public, false); assert(!("owner_id" in rpc.body));
+  assert(!calls.some(c => c.path.endsWith("tn_create_pack")));
+});
+test("ordinary creation remains independent and invalid origins fail before writes", async () => {
+  assert.equal((await createRoute.POST(mutation({ ...valid, fork_of: null }, "POST"))).status, 400);
+  assert.equal(calls.length, 0);
+  assert.equal((await createRoute.POST(mutation(valid, "POST"))).status, 201);
+  assert(calls.some(c => c.path.endsWith("tn_create_pack")));
+});
+test("fork failures preserve status without leaking database details or falling back", async () => {
+  for (const [code, status] of [["PT404", 404], ["PT409", 409], ["PGRST202", 503], ["22023", 400]] as const) {
+    rpcError = code;
+    const res = await createRoute.POST(mutation({ ...valid, fork_of: { id, revision: 7 } }, "POST"));
+    assert.equal(res.status, status); assert(!JSON.stringify(await res.json()).includes("internal detail"));
+  }
+  assert(!calls.some(c => c.path.endsWith("tn_create_pack")));
+});
+test("attribution is resolved under the caller and absent/private/deleted origins expose no linkage", async () => {
+  ancestry = [{ parent_revision: 3, forked_at: "2026-09-21", parent: { id, title: "Visible parent", owner_id: id } }];
+  const request = new Request(`http://localhost/api/packs/${id}`, { headers: { Authorization: "Bearer reader-token" } });
+  let res = await route.GET(request, context);
+  assert.equal((await res.json()).pack.origin.parent.title, "Visible parent");
+  assert.equal(calls.find(c => c.path.endsWith("tn_pack_origins"))?.auth, "Bearer reader-token");
+  for (const invisible of [[], [{ parent: null, parent_revision: 3 }]]) {
+    ancestry = invisible;
+    res = await route.GET(request, context);
+    assert.equal((await res.json()).pack.origin, null);
+  }
+});
+test("pre-005 reads label copying unavailable and unexpected ancestry failures remain errors", async () => {
+  ancestryError = "PGRST205";
+  let res = await route.GET(new Request(`http://localhost/api/packs/${id}`), context);
+  const data = await res.json();
+  assert.equal(res.status, 200); assert.equal(data.pack.ancestry_available, false); assert.equal(data.pack.origin, null);
+  ancestryError = "42501";
+  res = await route.GET(new Request(`http://localhost/api/packs/${id}`), context);
+  assert.equal(res.status, 503);
+});

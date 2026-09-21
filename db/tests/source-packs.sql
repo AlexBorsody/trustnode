@@ -164,3 +164,95 @@ end $$;
 reset role;
 select test_assert((select count(*)=1 from tn_packs where title='Copy'),'editing/deletion preserves independent copies');
 select 'Source pack RLS and transaction checks passed' as result;
+
+-- Attributed forks: immutable origins, readable public parents, private-link isolation.
+\ir ../migration-005-pack-ancestry.sql
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+insert into tn_packs(id,owner_id,title,category,is_public) values
+ ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',auth.uid(),'Fork parent','security',true),
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',auth.uid(),'Secret parent','security',false);
+insert into tn_pack_sources(pack_id,source_id,rank,note) values
+ ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,'Original'),
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1,'Private');
+select tn_fork_pack(id,revision,'Public child of private parent','','security','{}',true,
+ '[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","note":"Independent"}]') from tn_packs where title='Secret parent';
+select test_assert((select count(*)=1 from tn_pack_origins),'owner sees own private-parent attribution');
+set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+select test_assert((select count(*)=0 from tn_pack_origins),'public child does not expose private parent to another account');
+do $$ declare parent uuid := 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'; rev integer; child uuid; before_count integer; begin
+  -- Public read permission does not authorize an invoker row lock under owner RLS.
+  perform id from tn_packs where id=parent for share;
+  perform test_assert(not found,'public-parent lock does not broaden owner RLS');
+  select revision into rev from tn_packs where id=parent;
+  child := tn_fork_pack(parent,rev,'Attributed child','','security','{}',true,
+    '[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","note":"My version"}]');
+  perform test_assert((select owner_id=auth.uid() from tn_packs where id=child),'fork belongs to caller');
+  perform test_assert((select parent_id=parent and parent_revision=rev from tn_pack_origins where pack_id=child),'fork captures exact parent and revision');
+  update tn_packs set title='My independent copy' where id=child;
+  perform test_assert((select title='Fork parent' and revision=rev from tn_packs where id=parent),'child editing preserves parent');
+  select count(*) into before_count from tn_packs;
+  begin
+    perform tn_fork_pack(parent,rev-1,'Stale','','security','{}',false,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'stale fork accepted';
+  exception when sqlstate 'PT409' then null; end;
+  begin
+    perform tn_fork_pack('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',2,'Leaked','','security','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'private fork accepted';
+  exception when sqlstate 'PT404' then null; end;
+  begin
+    perform tn_fork_pack('ffffffff-ffff-4fff-8fff-ffffffffffff',2,'Missing','','security','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'missing parent accepted';
+  exception when sqlstate 'PT404' then null; end;
+  begin
+    perform tn_fork_pack(parent,rev,'File','','security','{}',false,'[{"source_id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}]');
+    raise exception 'file fork accepted';
+  exception when invalid_parameter_value then null; end;
+  begin
+    perform tn_fork_pack(parent,rev,'Duplicate','','security','{}',false,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"},{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'duplicate fork accepted';
+  exception when unique_violation then null; end;
+  perform test_assert((select count(*)=before_count from tn_packs),'failed forks roll back child creation');
+  perform test_assert((select count(*)=1 from tn_pack_origins),'failed forks create no origins');
+  begin
+    update tn_pack_origins set parent_revision=999 where pack_id=child;
+    raise exception 'origin update accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    delete from tn_pack_origins where pack_id=child;
+    raise exception 'origin deletion accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    insert into tn_pack_origins(pack_id,parent_id,parent_revision) values(child,parent,rev);
+    raise exception 'origin spoof accepted';
+  exception when insufficient_privilege then null; end;
+end $$;
+select tn_fork_pack(id,revision,'Private attributed child','','security','{}',false,
+ '[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]') from tn_packs where title='Fork parent';
+set role anon;
+set request.jwt.claim.sub = '';
+select test_assert((select count(*)=1 from tn_pack_origins),'anonymous only reads ancestry between public packs');
+do $$ begin
+  begin
+    perform tn_fork_pack('dddddddd-dddd-4ddd-8ddd-dddddddddddd',2,'Anon','','security','{}',true,'[]');
+    raise exception 'anonymous fork accepted';
+  exception when insufficient_privilege then null; end;
+end $$;
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+update tn_packs set is_public=false,title='Now private' where id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+select test_assert((select count(*)=0 from tn_pack_origins),'child owner cannot read now-private parent linkage');
+select test_assert(exists(select 1 from tn_packs where title='My independent copy'),'privacy change preserves copy');
+set role anon;
+set request.jwt.claim.sub = '';
+select test_assert((select count(*)=0 from tn_pack_origins),'privacy change hides attribution through direct DB reads');
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+update tn_packs set is_public=true where id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+select test_assert((select parent_revision=2 from tn_pack_origins where parent_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),'parent edits never rewrite captured revision');
+delete from tn_packs where id in ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee');
+reset role;
+select test_assert((select count(*)=0 from tn_pack_origins),'deletion removes ancestry linkage');
+select test_assert((select count(*)=2 from tn_packs where title in ('My independent copy','Public child of private parent')),'parent deletion preserves independent children');
+select 'Fork attribution privacy and independence checks passed' as result;

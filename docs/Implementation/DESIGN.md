@@ -38,7 +38,7 @@ Migration 003 creates `tn_packs`, `tn_pack_sources`, and `tn_create_pack`.
 Creation is atomic, SECURITY INVOKER, and governed by caller RLS. Packs default
 private. Anonymous users see public packs only; owners also see their private packs.
 Source records themselves remain public. Copies create independent packs, private
-by default; tracked ancestry and category trees are not yet implemented.
+by default. Fork ancestry is specified below; category trees remain deferred.
 Lists return up to 50 visible packs; source selection searches up to 100 shelf rows.
 Production migration activation is tracked separately from code deployment.
 
@@ -53,6 +53,31 @@ revision, an opaque concurrency token; caller updates cannot change identity or 
 The editor retains failed drafts, offers explicit discard/reload after a conflict,
 and confirms permanent deletion. Before migration 004, existing pack reads/copies
 remain supported and owner editing is labeled unavailable.
+
+## Fork ancestry (migration 005)
+
+POST `/api/packs` optionally accepts `fork_of: {id, revision}`. New drafts/copies
+remain independent and private by default. Revision is captured when copying,
+never silently refreshed while the draft is open. Hidden/deleted parent returns
+generic 404; changed parent returns 409 and preserves the draft. Before 005,
+ordinary creation/reads remain usable; attributed copies report unavailable rather
+than silently saving without ancestry. Legacy copies cannot gain invented ancestry.
+
+`tn_pack_origins` stores child, parent, captured revision and fork time, without
+snapshot titles/owners. No caller writes; origin is immutable. RLS reveals the row
+only if the viewer can currently read both packs. Parent deletion cascades only to
+this origin row, not the child. Detail responses resolve current parent title/owner
+under caller RLS; private, deleted, and absent ancestry all return `origin: null`.
+Current parent metadata is labeled as such, not a historical content snapshot.
+
+`tn_fork_pack` atomically validates/locks the visible parent, checks revision,
+creates the caller-owned child and origin, and validates link-only entries. This
+narrow SECURITY DEFINER function is needed to lock another owner's public pack
+without broadening owner-update RLS. It has a fixed search path, authenticated-only
+execution, explicit auth/visibility checks, and no caller-supplied child owner/ID.
+It cannot edit the parent or an existing child. Invalid entries roll back both
+child and origin. Ancestry is provenance of the starting pack, not an assertion
+that the edited copy agrees with it, and never affects ranking/confidence.
 
 ## Retrieval
 

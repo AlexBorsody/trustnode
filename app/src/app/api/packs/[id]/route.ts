@@ -17,7 +17,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (error) return json({ error: "Source packs are unavailable. Check database setup." }, 503);
   if (!data) return json({ error: "Pack not found or private." }, 404);
   data.tn_pack_sources.sort((a: { rank: number }, b: { rank: number }) => a.rank - b.rank);
-  return json({ pack: data });
+  const { data: ancestry, error: ancestryError } = await sb.from("tn_pack_origins")
+    .select("parent_revision,forked_at,parent:tn_packs!tn_pack_origins_parent_id_fkey(id,title,owner_id)")
+    .eq("pack_id", id).maybeSingle();
+  // Keep existing installations readable before migration 005. Other read errors
+  // must not be misrepresented as successful absence of ancestry.
+  const missingAncestry = ancestryError && ["PGRST205", "42P01", "PGRST200"].includes(ancestryError.code);
+  if (ancestryError && !missingAncestry) return json({ error: "Could not load pack attribution. Try again." }, 503);
+  const origin = ancestry?.parent ? ancestry : null;
+  return json({ pack: { ...data, origin, ancestry_available: !missingAncestry } });
 }
 
 async function mutate(req: Request, id: string, deleting: boolean) {

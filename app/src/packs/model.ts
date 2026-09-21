@@ -41,3 +41,14 @@ export function parsePack(input: unknown): PackInput {
   });
   return { title, description, category, tags: [...new Set((body.tags as string[]).map(t => t.trim()))], is_public: body.is_public, entries };
 }
+
+export interface ForkOrigin { id: string; revision: number }
+export function parseForkOrigin(input: unknown): ForkOrigin | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const value = (input as Record<string, unknown>).fork_of;
+  if (value === undefined) return null;
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Choose an accessible parent pack.");
+  const parent = value as Record<string, unknown>;
+  if (typeof parent.id !== "string" || !UUID.test(parent.id)) throw new Error("Choose an accessible parent pack.");
+  return { id: parent.id.toLowerCase(), revision: parseRevision(parent) };
+}
