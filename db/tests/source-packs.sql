@@ -22,6 +22,10 @@ create function public.test_assert(value boolean, message text) returns void lan
 begin if value is distinct from true then raise exception '%',message; end if; end $$;
 set role authenticated;
 set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+select test_assert(not exists (
+  select 1 from unnest(array['id','owner_id','created_at','revision','updated_at']) c
+  where has_column_privilege('authenticated','public.tn_packs',c,'UPDATE')
+),'Supabase default grants cannot leave identity or revision caller-editable');
 select public.tn_create_pack('Private','Reason','security','{}',false,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","note":"standard"}]');
 select public.tn_create_pack('Public','Reason','security','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","note":"standard"}]');
 select test_assert((select count(*) = 2 from tn_packs),'owner reads own private pack');
