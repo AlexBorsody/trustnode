@@ -8,3 +8,7 @@ coverage/
 .DS_Store
 .vercel/
 npm-debug.log*
+
+# Local recovery archives and editor preferences
+.recovery/
+.vscode/
