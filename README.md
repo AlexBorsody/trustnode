@@ -16,7 +16,7 @@ work before editing. Retired branches and agent handoffs are not active assignme
 ## App
 
 - `/sources`: contribute links and browse the source shelf.
-- `/packs`: curate, share, copy, edit, and delete ordered source packs.
+- `/packs`: browse topics, compare, curate, share, copy, edit, and delete source packs.
 - `/explore`: retrieve sources with visible ranking factors and pack controls.
 - `/verify`: inspect the seeded claim/evidence/confidence workflow.
 
@@ -36,7 +36,7 @@ npm run dev
 Open `http://localhost:3000`. Home, seeded verification, and seed-backed exploration
 work without credentials. Database-backed contribution and pack flows need Supabase.
 Copy `app/.env.example` to `app/.env.local`, supply the four public-project values,
-and apply the source migrations (001, 001b, 001c) and pack migrations (003, then 004)
+and apply the source migrations (001, 001b, 001c) and pack migrations (003, then 004, then 005)
 in `db/`. Configure `/sources` as an allowed auth redirect and restart the server.
 Writes use the signed-in user's JWT and RLS; no service-role key is used.
 

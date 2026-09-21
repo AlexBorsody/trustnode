@@ -20,6 +20,8 @@ and update this queue instead of creating more handoff documents.
   recoverable drafts, and explicit deletion confirmation. Requires migration 004.
 - Attributed forks: captured parent revision, independent copies, immutable origin
   records and visibility-aware attribution. Requires migration 005.
+- Nested topic browsing, pack search and side-by-side comparison of source membership,
+  ranks and notes. Read-only comparison uses caller visibility; no new migration.
 - Explorer and retrieval API with visible ranking factors and pack scope (PR #5).
 - Canonical verification isolated from community ranking; pipeline 0.3.0.
 - Node setup, API input validation, existing regression checks and CI.
@@ -49,16 +51,22 @@ Product work resumed in the desktop workspace after consolidation.
    001b/001c were previously reported applied. Do not infer DB state from deployment.
    After activation: verify private/public reads, owner edits and deletion, two-tab
    stale-save recovery, and second-account ownership isolation in an authorized test account.
-2. Add category hierarchy and pack comparison, then evidence graph relationships.
+2. Add deliberate pack merge: choose sources/order/notes and save an independent
+   private draft, with attribution to both visible parents and stale-parent checks.
+   Do not silently represent a two-parent merge as a single-parent fork.
+3. Record inspectable evidence relationships, with explicit contributor/provenance;
+   keep community relationships separate from canonical authority. Resolve the
+   remaining graph/seed decisions before claiming graph-derived trust.
+4. Finish the release workflow: source provenance cleanup, charter alignment,
+   missing ownership UI, and the launch hardening listed below. Target this week's
+   usable core workflow; downstream summaries and discretionary controls stay deferred.
 
 ## Latest delivery check — 2026-09-21
 
-Fork ancestry: 32 pack/API checks, typecheck and production build pass. Disposable
-PGlite ran migrations 003→004→005 and the SQL suite: public-parent copying across
-owners, immutable origins, stale revisions, rollback, private child/parent read
-isolation, and parent deletion preserving copies. Existing CI runs the same SQL
-on PostgreSQL. Local browser fixtures confirm private-by-default copies, captured
-revision, stale-draft preservation/reload, saved attribution and hidden-parent behavior.
+Topic browsing/comparison: 34 pack/API checks and typecheck pass; production build
+and local browser checks cover nested-topic filtering, parent counts, comparison
+membership/rank/note differences and refresh after access loss. Fork ancestry's
+hosted application/build and PostgreSQL CI passed at `0b99c27`.
 No production data or migrations were changed. Live readiness remains item 1.
 
 ## Resumption context
@@ -66,6 +74,9 @@ No production data or migrations were changed. Live readiness remains item 1.
 Continue in this checkout on `main`; Strategy is locked. Routine commits/pushes
 are authorized, with proportional checks. No separate agent owns unfinished work.
 
+- Topic/compare helpers are in `packs/browse.ts`; comparison UI is in
+  `PackComparison.tsx`, opened from `PackWorkspace.tsx`. Topics use `>` paths within
+  the existing category field. Browse and comparison choices are capped at 50 packs.
 - Ancestry is in migration 005, pack creation/detail routes, `packs/model.ts`, and
   `PackWorkspace.tsx`. DESIGN records storage, privacy and locking choices.
 - Copies before migration 005 have no inferred ancestry. Parent attribution uses

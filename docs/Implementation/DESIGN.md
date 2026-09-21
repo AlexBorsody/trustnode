@@ -38,7 +38,7 @@ Migration 003 creates `tn_packs`, `tn_pack_sources`, and `tn_create_pack`.
 Creation is atomic, SECURITY INVOKER, and governed by caller RLS. Packs default
 private. Anonymous users see public packs only; owners also see their private packs.
 Source records themselves remain public. Copies create independent packs, private
-by default. Fork ancestry is specified below; category trees remain deferred.
+by default. Fork ancestry is specified below; topic browsing and comparison use the same visible records.
 Lists return up to 50 visible packs; source selection searches up to 100 shelf rows.
 Production migration activation is tracked separately from code deployment.
 
@@ -78,6 +78,23 @@ execution, explicit auth/visibility checks, and no caller-supplied child owner/I
 It cannot edit the parent or an existing child. Invalid entries roll back both
 child and origin. Ancestry is provenance of the starting pack, not an assertion
 that the edited copy agrees with it, and never affects ranking/confidence.
+
+## Topic browsing and pack comparison
+
+Pack topics may be curator-defined paths separated by `>`, for example
+`Security > OAuth > PKCE`. Existing flat labels remain valid. Browsing normalizes
+case/whitespace for matching and includes descendants when selecting a parent;
+this is a navigation convention, not a centrally governed authority taxonomy.
+Search matches pack title, description, topic and tags. Filters/counts cover only
+the newest 50 caller-visible packs returned by the existing list API.
+
+Comparison loads both details afresh through caller RLS and displays shared/unique
+source records, each curator's rank and notes, owner, visibility and revision.
+Source identity is the source record ID, not a fuzzy title/URL match. A differences
+filter highlights membership, rank and note differences. Refresh rechecks access;
+failed/hidden pack reads clear the previous comparison. Account/token changes
+remount the comparison so private results cannot persist into another session.
+This is read-only: no merged saves, ancestry changes or confidence calculations.
 
 ## Retrieval
 

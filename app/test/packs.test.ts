@@ -158,3 +158,24 @@ test("pre-005 reads label copying unavailable and unexpected ancestry failures r
   res = await route.GET(new Request(`http://localhost/api/packs/${id}`), context);
   assert.equal(res.status, 503);
 });
+
+test("topic browsing includes descendants without matching sibling prefixes or changing legacy labels", async () => {
+  const { inTopic, topicOptions, topicParts } = await import("../src/packs/browse");
+  const topics = topicOptions([{ category: "Security > OAuth" }, { category: "security > OAuth > PKCE" }, { category: "Security tools" }]);
+  assert.equal(topics.find(t => t.key === "security")?.count, 2);
+  assert.equal(topics.find(t => t.key === "security > oauth")?.count, 2);
+  assert(inTopic("SECURITY > OAuth > PKCE", "security > oauth"));
+  assert(!inTopic("Security tools", "security"));
+  assert.deepEqual(topicParts("OAuth/OIDC"), ["OAuth/OIDC"]);
+});
+
+test("comparison exposes independent rank/note changes and missing sources without conflating records", async () => {
+  const { compareEntries } = await import("../src/packs/browse");
+  const entry = (source_id: string, rank: number, note: string) => ({ source_id, rank, note, tn_sources: null });
+  const rows = compareEntries([entry("a", 2, "original"), entry("b", 1, "same")], [entry("a", 1, "changed"), entry("c", 2, "added")]);
+  assert.deepEqual(rows.map(r => r.id), ["b", "a", "c"]);
+  assert.equal(rows[0].right, undefined);
+  assert.equal(rows[1].rankChanged, true); assert.equal(rows[1].noteChanged, true);
+  assert.equal(rows[2].left, undefined);
+  assert.deepEqual(compareEntries([], []), []);
+});

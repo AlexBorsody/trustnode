@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
 import type { ForkOrigin, PackInput } from "./model";
+import { inTopic, topicOptions } from "./browse";
+import PackComparison from "./PackComparison";
 
 type Source = { id: string; title: string; url: string | null; kind: string; status: string };
 type Pack = Omit<PackInput, "entries"> & { id: string; owner_id: string; created_at: string; revision?: number; updated_at?: string;
@@ -18,6 +20,9 @@ const style = { display: "block", marginBottom: 14 };
 export default function PackWorkspace({ id }: { id?: string }) {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!configured);
+  const [topic, setTopic] = useState("");
+  const [packSearch, setPackSearch] = useState("");
+  const [comparing, setComparing] = useState(false);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [pack, setPack] = useState<Pack | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
@@ -89,12 +94,17 @@ export default function PackWorkspace({ id }: { id?: string }) {
   useEffect(() => {
     // Abort suppresses late UI responses; it cannot undo a committed DB mutation.
     mutation.current?.abort();
+    setComparing(false); setTopic(""); setPackSearch("");
     setEntries([]); setTitle(""); setDescription(""); setCategory(""); setTags("");
     setIsPublic(false); setEditing(!id); setNotice(""); setSaving(false);
     setEditRevision(null); setForkOrigin(null); setDeleteRevision(null); setConflict(false);
     return () => mutation.current?.abort();
   }, [session?.user.id, id]);
   const visiblePack = pack && (pack.is_public || pack.owner_id === session?.user.id) ? pack : null;
+  const readablePacks = packs.filter(p => p.is_public || p.owner_id === session?.user.id);
+  const topics = topicOptions(readablePacks);
+  const filteredPacks = readablePacks.filter(p => inTopic(p.category, topic)
+    && [p.title, p.description, p.category, ...p.tags].join(" ").toLowerCase().includes(packSearch.trim().toLowerCase()));
   function move(index: number, direction: number) {
     setEntries(current => {
       const next = [...current];
@@ -204,10 +214,23 @@ export default function PackWorkspace({ id }: { id?: string }) {
       </div>}
       {!pack.is_public && <p>Only your signed-in account can open this pack. Source links themselves remain public.</p>}
     </section>}
+    {!loading && (visiblePack || readablePacks.length > 0) && <p><button className="chip" aria-expanded={comparing} onClick={() => setComparing(open => !open)}>{comparing ? "Close comparison" : "Compare packs"}</button></p>}
+    {comparing && authReady && <PackComparison key={`${id ?? "list"}:${token ?? "anonymous"}`} token={token} initialId={id} />}
     {!id && !loading && <section aria-label="Available source packs">
       <h2>Public packs and your private packs</h2>
       {!packs.length && !error && <p>No packs yet. Create the first source map for your topic.</p>}
-      {packs.filter(p => p.is_public || p.owner_id === session?.user.id).map(p => <article className="panel" key={p.id}><h3><a href={`/packs/${p.id}`}>{p.title}</a> <span className="tag">{p.is_public ? "Public" : "Private"}</span></h3><p>{p.description}</p><small>{p.category}</small></article>)}
+      {readablePacks.length > 0 && <>
+        <div className="score-grid" style={{ marginBottom: 16 }}>
+          <label>Search packs<input className="claim-input" value={packSearch} onChange={e => setPackSearch(e.target.value)} placeholder="Title, description, topic, or tag" /></label>
+          <label>Browse topics<select className="claim-input" value={topic} onChange={e => setTopic(e.target.value)}>
+            <option value="">All topics ({readablePacks.length})</option>
+            {topics.map(item => <option key={item.key} value={item.key}>{item.label} ({item.count})</option>)}
+          </select></label>
+        </div>
+        <p className="panel-sub">{filteredPacks.length} matching packs among the newest {readablePacks.length} visible packs (maximum 50). Parent topics include their subtopics.</p>
+        {!filteredPacks.length && <p>No packs match these filters. <button className="chip" onClick={() => { setTopic(""); setPackSearch(""); }}>Clear filters</button></p>}
+      </>}
+      {filteredPacks.map(p => <article className="panel" key={p.id}><h3><a href={`/packs/${p.id}`}>{p.title}</a> <span className="tag">{p.is_public ? "Public" : "Private"}</span></h3><p>{p.description}</p><small>{p.category}</small></article>)}
     </section>}
     {!session && authReady && <p><a href="/sources">Sign in on the source shelf</a> to create a pack or save your own copy.</p>}
     {session && editing && <form className="panel" onSubmit={save}>
@@ -215,7 +238,8 @@ export default function PackWorkspace({ id }: { id?: string }) {
       <h2>{editRevision !== null ? "Edit your source pack" : id ? "Save your own copy" : "Create a ranked source pack"}</h2>
       <label style={style}>Title<input className="claim-input" required maxLength={120} value={title} onChange={e => setTitle(e.target.value)} /></label>
       <label style={style}>Description<textarea className="claim-input" maxLength={2000} value={description} onChange={e => setDescription(e.target.value)} /></label>
-      <label style={style}>Topic or category<input className="claim-input" required maxLength={80} placeholder="e.g. OAuth security" value={category} onChange={e => setCategory(e.target.value)} /></label>
+      <label style={style}>Topic or category<input className="claim-input" required maxLength={80} placeholder="e.g. Security > OAuth > PKCE" value={category} onChange={e => setCategory(e.target.value)} /></label>
+      <p className="panel-sub">Use &gt; to nest a topic, such as Security &gt; OAuth. Topics are curator-defined; existing flat topics still work.</p>
       <label style={style}>Tags (comma-separated)<input className="claim-input" value={tags} onChange={e => setTags(e.target.value)} /></label>
       <label style={style}><input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} /> Publish this pack for anyone to read and copy</label>
       <p className="panel-sub">{editRevision !== null ? "Saving updates this pack’s shared address. Existing copies remain independent." : "Saving creates an independent pack."} Private packs are visible only to your account; their linked sources are still public.</p>
