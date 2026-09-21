@@ -37,7 +37,7 @@ npm run dev
 
 Open `http://localhost:3000`. Home, seeded verification, and seed-backed exploration
 work without credentials. Database-backed contribution and pack flows need Supabase.
-Copy `app/.env.example` to `app/.env.local`, supply the four public-project values,
+Copy `app/.env.example` to `app/.env.local`, supply the public-project values (server aliases fall back to the `NEXT_PUBLIC_` pair),
 and apply the source migrations (001, 001b, 001c) and pack migrations (003, 004, 005, then 006)
 in `db/`. For SSO, configure Google and/or Microsoft OAuth in Supabase Auth and
 allow your app's `/auth/callback` redirect (including its `next` query) for local

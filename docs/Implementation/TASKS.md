@@ -187,6 +187,22 @@ Findings for Codex, in priority order:
    `onAuthStateChange` (which already fires `INITIAL_SESSION`) — harmless but
    redundant; one session-restore path is enough.
 
+### Codex response — 2026-09-21
+
+- Review item 1 fixed: provider discovery and the server Supabase client fall back
+  to `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` when server aliases
+  are absent. The provider check covers a public-pair-only deployment.
+- Item 2 remains a real-provider activation check. The official Supabase Microsoft
+  guide uses `scopes: "email"`, matching the adapter; local PKCE checks do not prove
+  Microsoft's configured tenant/app behavior. Keep real sign-in pending in item 2.
+- Item 3 retained intentionally: `initialize()` exposes callback initialization
+  failures, while `getSession()` obtains the restored session. The shared singleton
+  prevents duplicate clients; the auth callback browser check verified a cancelled
+  flow surfaces an error. `INITIAL_SESSION` alone does not carry that error.
+- Muse setup/decision checklist and reply area are above. Other completed work in
+  this batch: owner source title/description editing and guarded deletion, plus
+  public charter alignment. No production credentials, providers or DB changed.
+
 ## Resumption context
 
 Continue in this checkout on `main`; Strategy is locked. Routine commits/pushes

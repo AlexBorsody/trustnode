@@ -85,6 +85,18 @@ test("SSO availability exposes only enabled supported providers and signup readi
     let response = await GET();
     assert.deepEqual(await response.json(), { providers: ["google"], signupEnabled: true });
     assert.equal(response.headers.get("Cache-Control"), "no-store");
+    const saved = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_ANON_KEY, publicUrl: process.env.NEXT_PUBLIC_SUPABASE_URL, publicKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY };
+    try {
+      delete process.env.SUPABASE_URL; delete process.env.SUPABASE_ANON_KEY;
+      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://public-config.invalid";
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "public-test-anon-key";
+      response = await GET();
+      assert.deepEqual(await response.json(), { providers: ["google"], signupEnabled: true });
+    } finally {
+      for (const [key, value] of Object.entries({ SUPABASE_URL: saved.url, SUPABASE_ANON_KEY: saved.key, NEXT_PUBLIC_SUPABASE_URL: saved.publicUrl, NEXT_PUBLIC_SUPABASE_ANON_KEY: saved.publicKey })) {
+        if (value === undefined) delete process.env[key]; else process.env[key] = value;
+      }
+    }
     globalThis.fetch = async () => new Response("unavailable", { status: 503 });
     response = await GET();
     assert.equal(response.status, 503);

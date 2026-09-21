@@ -22,7 +22,8 @@ separate password or email-link signup form. Existing sessions remain compatible
 Enterprise SAML/domain SSO is not implemented by these OAuth adapters.
 
 `GET /api/auth/providers` reads public Supabase Auth settings with a five-second
-timeout and returns only enabled supported providers and signup readiness. No
+timeout and returns only enabled supported providers and signup readiness. Server Supabase clients and provider discovery fall back to the public env pair
+when the server aliases are absent. No
 management/service-role credentials, configuration secrets, or user records are
 returned. Disabled providers are not presented as working buttons. Actual provider
 credentials and redirect allowlists must be configured outside the app.
