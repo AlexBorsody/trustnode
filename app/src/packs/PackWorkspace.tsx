@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient, type Session } from "@supabase/supabase-js";
+import { useAuth } from "@/auth/useAuth";
 import type { ForkOrigin, PackInput, PackSource } from "./model";
 import { inTopic, topicOptions } from "./browse";
 import PackComparison, { type MergeDraft } from "./PackComparison";
@@ -13,14 +13,10 @@ type Pack = Omit<PackInput, "entries"> & { id: string; owner_id: string; created
   origin?: Origin | null; origins?: Origin[];
   tn_pack_sources?: { source_id: string; rank: number; note: string; tn_sources: Source | null }[] };
 type Entry = { source: Source; note: string };
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const SUPA_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const configured = SUPA_URL.startsWith("http") && SUPA_KEY.length > 20;
 const style = { display: "block", marginBottom: 14 };
 
 export default function PackWorkspace({ id }: { id?: string }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [authReady, setAuthReady] = useState(!configured);
+  const { session, ready: authReady, error: authError } = useAuth();
   const [topic, setTopic] = useState("");
   const [packSearch, setPackSearch] = useState("");
   const [comparing, setComparing] = useState(false);
@@ -49,18 +45,6 @@ export default function PackWorkspace({ id }: { id?: string }) {
   const [reload, setReload] = useState(0);
   const token = session?.access_token;
   const mutation = useRef<AbortController | null>(null);
-  useEffect(() => {
-    if (!configured) return;
-    const sb = createClient(SUPA_URL, SUPA_KEY);
-    let active = true;
-    sb.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      setSession(data.session); setAuthReady(true);
-      if (error) setError("Could not restore sign-in. Sign in again from Sources.");
-    }).catch(() => { if (active) { setAuthReady(true); setError("Could not restore sign-in."); } });
-    const { data } = sb.auth.onAuthStateChange((_event, next) => { if (active) setSession(next); });
-    return () => { active = false; data.subscription.unsubscribe(); };
-  }, []);
   useEffect(() => {
     if (!authReady) return;
     const ctrl = new AbortController();
@@ -186,7 +170,8 @@ export default function PackWorkspace({ id }: { id?: string }) {
     <div className="meta-line">SOURCE PACKS · CURATED ORDER · VISIBLE REASONS</div>
     <h1 className="page-title">{id ? "A curator’s source map" : "Build a source map"}</h1>
     <p className="page-sub">Collect links for a topic, put them in the order you trust, and explain why. Pack order is curator preference; it does not change canonical confidence.</p>
-    <p><a href="/packs">Browse packs</a> · <a href="/sources">Contribute a source or sign in</a></p>
+    <p><a href="/packs">Browse packs</a> · <a href="/sources">Contribute a source</a></p>
+    {authError && <p role="alert">{authError} <a href="/login">Sign in</a></p>}
     {error && <div className="panel" role="alert"><p>{error}</p>{conflict
       ? <button className="chip" disabled={saving} onClick={() => window.location.reload()}>Discard draft and reload latest pack</button>
       : <button className="chip" disabled={saving} onClick={() => setReload(r => r + 1)}>Retry loading packs</button>}</div>}
@@ -244,7 +229,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
       </>}
       {filteredPacks.map(p => <article className="panel" key={p.id}><h3><a href={`/packs/${p.id}`}>{p.title}</a> <span className="tag">{p.is_public ? "Public" : "Private"}</span></h3><p>{p.description}</p><small>{p.category}</small></article>)}
     </section>}
-    {!session && authReady && <p><a href="/sources">Sign in on the source shelf</a> to create a pack or save your own copy.</p>}
+    {!session && authReady && <p><a href={`/login?next=${encodeURIComponent(id ? `/packs/${id}` : "/packs")}`}>Sign in</a> to create a pack or save your own copy.</p>}
     {session && editing && <form id="pack-editor" className="panel" onSubmit={save}>
       <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <h2>{editRevision !== null ? "Edit your source pack" : mergeOrigins ? "Review your merged source pack" : id ? "Save your own copy" : "Create a ranked source pack"}</h2>

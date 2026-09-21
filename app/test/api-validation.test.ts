@@ -67,3 +67,26 @@ for (const key of ["file_name", "title", "description", "category", "tags"]) {
     })));
   });
 }
+
+test("authentication return paths stay within known application pages", async () => {
+  const { safeReturnTo } = await import("../src/auth/returnTo");
+  assert.equal(safeReturnTo("/sources"), "/sources");
+  assert.equal(safeReturnTo("/explore?pack=example"), "/explore?pack=example");
+  for (const value of ["https://attacker.invalid", "//attacker.invalid", "/\\attacker.invalid", "/auth/callback", "/account", "/api/packs", "/%2f%2fattacker.invalid", "javascript:alert(1)"]) {
+    assert.equal(safeReturnTo(value), "/packs");
+  }
+});
+
+test("SSO availability exposes only enabled supported providers and signup readiness", async () => {
+  const trappedFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ external: { google: true, azure: false, email: true }, disable_signup: false, unrelated: "not-public" }));
+    const { GET } = await import("../src/app/api/auth/providers/route");
+    let response = await GET();
+    assert.deepEqual(await response.json(), { providers: ["google"], signupEnabled: true });
+    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    globalThis.fetch = async () => new Response("unavailable", { status: 503 });
+    response = await GET();
+    assert.equal(response.status, 503);
+  } finally { globalThis.fetch = trappedFetch; }
+});

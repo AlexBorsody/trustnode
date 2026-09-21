@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { createClient, type Session } from "@supabase/supabase-js";
+import { useAuth } from "@/auth/useAuth";
 import type { RankingResult } from "@/trustnode/ranking";
 import type { Verification } from "@/trustnode/pipeline";
 interface Pack { id: string; title: string; is_public: boolean }
@@ -12,10 +12,8 @@ interface Result {
     limits: { community_sources: number; public_packs: number; results: number } };
   canonical_verification: Verification;
 }
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 export default function ExplorePage() {
-  const [session, setSession] = useState<Session | null>(null);
+  const { session } = useAuth();
   const [query, setQuery] = useState("PKCE protects OAuth public clients against authorization code interception attacks");
   const [packs, setPacks] = useState<Pack[]>([]);
   const [packId, setPackId] = useState("");
@@ -31,11 +29,6 @@ export default function ExplorePage() {
     const params = new URL(window.location.href).searchParams;
     setPackId(params.get("pack") ?? "");
     if (params.get("query")) setQuery(params.get("query")!.slice(0, 500));
-    if (!url.startsWith("http") || key.length <= 20) return;
-    const sb = createClient(url, key); let active = true;
-    sb.auth.getSession().then(({ data }) => { if (active) setSession(data.session); }).catch(() => {});
-    const { data } = sb.auth.onAuthStateChange((_event, next) => { if (active) setSession(next); });
-    return () => { active = false; data.subscription.unsubscribe(); };
   }, []);
   useEffect(() => {
     const ctrl = new AbortController();

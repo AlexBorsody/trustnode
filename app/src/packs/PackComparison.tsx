@@ -107,7 +107,7 @@ export default function PackComparison({ token, initialId = "", onMerge, canMerg
         {!pair.every(p => p.revision && p.ancestry_available) && <p>These packs are not ready for attributed merging yet.</p>}
         <button className="btn" disabled={!canMerge || !Object.keys(selection).length || !pair.every(p => p.revision && p.ancestry_available)} onClick={prepareMerge}>Review merged draft</button>
       </div>}
-      {!token && <p><a href="/sources">Sign in</a> to build a merged draft.</p>}
+      {!token && <p><a href={`/login?next=${encodeURIComponent(initialId ? `/packs/${initialId}` : "/packs")}`}>Sign in</a> to build a merged draft.</p>}
       <p>{shared} shared · {rows.filter(row => !row.right).length} only in first · {rows.filter(row => !row.left).length} only in second · {rows.filter(row => row.rankChanged).length} rank differences · {rows.filter(row => row.noteChanged).length} note differences</p>
       <label><input type="checkbox" checked={differences} onChange={e => setDifferences(e.target.checked)} /> Show differences only</label>
       <p className="panel-sub">Compared when loaded. <button className="chip" onClick={() => setReload(n => n + 1)}>Refresh both packs</button></p>

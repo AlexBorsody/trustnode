@@ -15,6 +15,8 @@ work before editing. Retired branches and agent handoffs are not active assignme
 
 ## App
 
+- `/login` and `/signup`: SSO with automatic first-login account creation.
+- `/account`: onboarding, account details, and sign-out.
 - `/sources`: contribute links and browse the source shelf.
 - `/packs`: browse topics, compare, merge, curate, share, copy, edit, and delete source packs.
 - `/explore`: retrieve sources with visible ranking factors and pack controls.
@@ -37,7 +39,12 @@ Open `http://localhost:3000`. Home, seeded verification, and seed-backed explora
 work without credentials. Database-backed contribution and pack flows need Supabase.
 Copy `app/.env.example` to `app/.env.local`, supply the four public-project values,
 and apply the source migrations (001, 001b, 001c) and pack migrations (003, 004, 005, then 006)
-in `db/`. Configure `/sources` as an allowed auth redirect and restart the server.
+in `db/`. For SSO, configure Google and/or Microsoft OAuth in Supabase Auth and
+allow your app's `/auth/callback` redirect (including its `next` query) for local
+and production origins. Enable new-user signup for JIT account creation. Provider
+client secrets stay in Supabase's provider configuration, never in browser env vars.
+The app displays only providers confirmed enabled by public Auth settings. Restart
+the server after changing app environment values.
 Writes use the signed-in user's JWT and RLS; no service-role key is used.
 
 For a quick code check: `npm run typecheck`. Existing CI also runs the application

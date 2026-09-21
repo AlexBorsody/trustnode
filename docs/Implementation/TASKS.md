@@ -13,6 +13,10 @@ and update this queue instead of creating more handoff documents.
 
 ## Built
 
+- SSO account flow: Google/Microsoft adapters, JIT creation through Supabase Auth,
+  PKCE callback, dedicated login/signup, first-login onboarding, account profile
+  and sign-out. Buttons reflect enabled project providers; live SSO is not activated.
+
 - Link contribution, source shelf/search, owner source API operations, file extraction.
 - Source packs: ordered links and notes, topics/tags, private/public visibility,
   public sharing, and independent copies (PR #4).
@@ -53,9 +57,13 @@ Product work resumed in the desktop workspace after consolidation.
    001b/001c were previously reported applied. Do not infer DB state from deployment.
    After activation: verify private/public reads, owner edits and deletion, two-tab
    stale-save recovery, and second-account ownership isolation in an authorized test account.
-2. Build dedicated signup/login, account navigation and first-time onboarding.
-   Supabase email-link auth/session/ownership enforcement exists, but sign-in is
-   currently embedded in Sources and production auth remains unverified.
+2. Activate SSO providers and verify real first/returning-user sign-in. Public Auth
+   settings checked on 2026-09-21: email enabled, Google/Microsoft disabled, signup
+   allowed, SAML disabled. Google/Microsoft OAuth credentials and callback allowlists
+   need an authorized project session. App wiring uses existing Supabase ownership;
+   no identity provider configuration or real user account was changed here.
+   Google/Microsoft are the current default pending Alex's provider preference;
+   enterprise SAML organization SSO would be a separate integration.
 3. Record inspectable evidence relationships, with explicit contributor/provenance;
    keep community relationships separate from canonical authority. Resolve the
    remaining graph/seed decisions before claiming graph-derived trust.
@@ -70,7 +78,11 @@ engine checks pass, including two captured revisions, atomic rejection, private
 child/parent visibility and deletion preserving the other origin and child. Local
 browser fixtures verify source/note selection, reorder, stale-draft recovery,
 private saved merges and independent parent attribution.
-Topic browsing/comparison hosted CI passed at `ada0210`.
+Hosted application/build and PostgreSQL CI passed for merge at `effe83d`.
+SSO: 33 focused API/redirect checks and production build pass. Disposable browser
+fixtures verify PKCE exchange for Google and Microsoft adapters, first-login
+onboarding/profile save, local sign-out and returning-user routing. No real provider
+login was attempted; live activation remains item 2.
 No production data or migrations were changed. Live readiness remains item 1.
 
 ## Resumption context
@@ -78,6 +90,9 @@ No production data or migrations were changed. Live readiness remains item 1.
 Continue in this checkout on `main`; Strategy is locked. Routine commits/pushes
 are authorized, with proportional checks. No separate agent owns unfinished work.
 
+- SSO UI/session helpers are in `src/auth`, provider availability in
+  `/api/auth/providers`, and callback/onboarding in `/auth/callback` and `/account`.
+  Public settings must confirm enabled providers; do not claim live SSO from a fixture.
 - Topic/compare helpers are in `packs/browse.ts`; comparison UI is in
   `PackComparison.tsx`, opened from `PackWorkspace.tsx`. Topics use `>` paths within
   the existing category field. Browse and comparison choices are capped at 50 packs.

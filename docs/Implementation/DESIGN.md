@@ -6,10 +6,40 @@ Current methods: pipeline `0.3.0`, ranking `retrieval-v1`.
 ## Application
 
 Next.js App Router on Vercel; Supabase Postgres, Auth, and Storage.
-Pages: `/`, `/sources`, `/packs`, `/packs/:id`, `/explore`, `/verify`, `/charter`.
+Pages: `/`, `/sources`, `/packs`, `/packs/:id`, `/explore`, `/verify`, `/charter`,
+`/login`, `/signup`, `/account`, and `/auth/callback`.
 Writes use the caller's bearer token and RLS. No app service-role key.
 Private responses use `Cache-Control: private, no-store` and vary by authorization.
 Missing database configuration/schema produces an explicit unavailable state.
+
+## Authentication and user creation
+
+User-facing authentication is SSO, with Google and Microsoft OAuth adapters.
+Supabase Auth is the backend identity/session store. OAuth creates the user on
+first successful sign-in (JIT) when project signup is enabled; returning identities
+reuse their account. `/login` and `/signup` use the same provider flow; there is no
+separate password or email-link signup form. Existing sessions remain compatible.
+Enterprise SAML/domain SSO is not implemented by these OAuth adapters.
+
+`GET /api/auth/providers` reads public Supabase Auth settings with a five-second
+timeout and returns only enabled supported providers and signup readiness. No
+management/service-role credentials, configuration secrets, or user records are
+returned. Disabled providers are not presented as working buttons. Actual provider
+credentials and redirect allowlists must be configured outside the app.
+
+All browser surfaces share one Supabase client and session hook. OAuth uses PKCE
+with automatic code exchange at `/auth/callback`; Microsoft requests the email
+scope. Post-auth return destinations are restricted to known same-origin app pages.
+Errors/cancelled flows return to sign-in. A first sign-in opens account onboarding;
+optional display name and `onboarded` live in the user's auth metadata, never in an
+authorization decision. Subsequent sign-ins return to the requested workflow.
+Account sign-out revokes the local browser session; existing bearer-token/RLS
+checks remain the authority for writes and private reads. Public pack attribution
+continues to use account UUID, never email or mutable display name.
+
+Provider setup references: [Google](https://supabase.com/docs/guides/auth/social-login/auth-google),
+[Microsoft](https://supabase.com/docs/guides/auth/social-login/auth-azure),
+[PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow).
 
 ## Sources
 

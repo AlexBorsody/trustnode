@@ -1,11 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createClient, type SupabaseClient, type Session } from "@supabase/supabase-js";
-
-const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-const SUPA_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-const configured = SUPA_URL.startsWith("http") && SUPA_ANON.length > 20;
+import { authClient as sb, authConfigured as configured } from "@/auth/client";
+import { useAuth } from "@/auth/useAuth";
 
 interface Category { slug: string; name: string }
 interface Tag { slug: string; label: string }
@@ -23,12 +20,6 @@ interface CommonsSource {
   tags: Tag[];
 }
 
-let browserClient: SupabaseClient | null = null;
-function sb(): SupabaseClient {
-  if (!browserClient) browserClient = createClient(SUPA_URL, SUPA_ANON);
-  return browserClient;
-}
-
 const inputStyle: React.CSSProperties = {
   width: "100%", background: "#0d1117", border: "1px solid var(--border)",
   borderRadius: 8, color: "var(--text)", padding: "10px 12px",
@@ -36,15 +27,12 @@ const inputStyle: React.CSSProperties = {
 };
 
 export default function SourcesPage() {
-  const [session, setSession] = useState<Session | null>(null);
-  const [email, setEmail] = useState("");
-  const [authMsg, setAuthMsg] = useState<string | null>(null);
+  const { session, ready: authReady, error: authError } = useAuth();
   const [sources, setSources] = useState<CommonsSource[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("");
   const [loading, setLoading] = useState(false);
-  const [sendingLink, setSendingLink] = useState(false);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const pageSize = 25;
@@ -69,11 +57,8 @@ export default function SourcesPage() {
 
   useEffect(() => {
     if (!configured) return;
-    sb().auth.getSession().then(({ data }) => setSession(data.session)).catch(() => setAuthMsg("Could not restore sign-in. Try signing in again."));
-    const { data: sub } = sb().auth.onAuthStateChange((_e, s) => setSession(s));
     sb().from("tn_categories").select("slug,name").order("name")
       .then(({ data }) => setCategories((data ?? []) as Category[]));
-    return () => sub.subscription.unsubscribe();
   }, []);
 
   const load = useCallback(async () => {
@@ -105,22 +90,6 @@ export default function SourcesPage() {
     if (configured) void load();
     return () => { requestId.current += 1; };
   }, [load]);
-
-  async function sendMagicLink() {
-    setAuthMsg(null);
-    const em = email.trim();
-    if (!em) { setAuthMsg("Enter your email address."); return; }
-    setSendingLink(true);
-    try {
-      const { error } = await sb().auth.signInWithOtp({
-        email: em,
-        options: { emailRedirectTo: `${window.location.origin}/sources` },
-      });
-      setAuthMsg(error ? error.message : "Check your email for the sign-in link.");
-    } catch {
-      setAuthMsg("Could not send the sign-in link. Check your connection and try again.");
-    } finally { setSendingLink(false); }
-  }
 
   async function authed(path: string, body: BodyInit, isForm = false) {
     const token = session?.access_token;
@@ -198,23 +167,11 @@ export default function SourcesPage() {
       {msg && <div className="panel" role="status"><p style={{ margin: 0 }}>{msg}</p></div>}
 
       <div className="panel">
-        <h2>{session ? "Signed in" : "Sign in to contribute"}</h2>
-        {session ? (
-          <p className="panel-sub" style={{ marginBottom: 0 }}>
-            {session.user.email}{" "}
-            <button className="chip" onClick={() => sb().auth.signOut()}>sign out</button>
-          </p>
-        ) : (
-          <>
-            <p className="panel-sub">One-click email magic link. No password.</p>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input className="claim-input" style={{ marginBottom: 0 }} placeholder="you@example.com"
-                value={email} onChange={(e) => setEmail(e.target.value)} />
-              <button className="btn" disabled={sendingLink} onClick={sendMagicLink}>{sendingLink ? "Sending…" : "Send link"}</button>
-            </div>
-            {authMsg && <p role="status" className="panel-sub" style={{ marginTop: 8 }}>{authMsg}</p>}
-          </>
-        )}
+        <h2>{session ? "Your contributions" : "Contribute to the source commons"}</h2>
+        {!authReady ? <p role="status">Checking your session…</p> : session
+          ? <p>Signed in as {session.user.email}. <a href="/account">Manage account or sign out</a></p>
+          : <p><a className="btn" href="/login?next=%2Fsources">Sign in</a> · <a href="/signup?next=%2Fsources">Create account</a> to contribute links or files.</p>}
+        {authError && <p role="alert">{authError}</p>}
       </div>
 
       {session && (

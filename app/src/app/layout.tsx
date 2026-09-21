@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AccountNav from "@/auth/AccountNav";
 import { PIPELINE_VERSION } from "@/trustnode/version";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/explore">Explore sources</a>
               <a href="/verify">Verify a claim</a>
               <a href="/charter">Charter</a>
+              <AccountNav />
             </nav>
           </header>
           {children}
