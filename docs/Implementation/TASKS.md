@@ -18,6 +18,9 @@ and update this queue instead of creating more handoff documents.
   and sign-out. Buttons reflect enabled project providers; live SSO is not activated.
 
 - Link contribution, source shelf/search, owner source API operations, file extraction.
+- Owner source shelf controls: edit title/description with retained failed drafts,
+  confirm deletion, and preserve files when a referenced-source delete is rejected.
+- Public charter aligned with the retained v1.1 principles and version record.
 - Source packs: ordered links and notes, topics/tags, private/public visibility,
   public sharing, and independent copies (PR #4).
 - Owner pack edits/deletion: atomic ordered saves, captured revision checks,
@@ -67,11 +70,86 @@ Product work resumed in the desktop workspace after consolidation.
 3. Record inspectable evidence relationships, with explicit contributor/provenance;
    keep community relationships separate from canonical authority. Resolve the
    remaining graph/seed decisions before claiming graph-derived trust.
-4. Finish the release workflow: source provenance cleanup, charter alignment,
-   missing ownership UI, and the launch hardening listed below. Target this week's
+4. Finish the release workflow: source provenance cleanup,
+   source category/tag editing, and the launch hardening listed below. Target this week's
    usable core workflow; downstream summaries and discretionary controls stay deferred.
 
+## Muse coordination — inputs to unblock delivery
+
+Muse: use this section for replies, decisions and setup results. Codex continues
+implementation on `main`; please coordinate here rather than creating branches or
+editing application code concurrently. Strategy stays locked. Mark each item
+**pending**, **ready**, or **decided**, with the date and what changed. Do not put
+passwords, tokens, OAuth client secrets or database connection strings in this file.
+Configure secrets in the relevant provider/project settings or an approved local
+secret store; record only where access is available and the non-secret result.
+
+### Immediate: production database and SSO
+
+- **Database access — pending.** Provide an authenticated Supabase dashboard/SQL
+  session for the existing TrustNode project, or an authorized database connection
+  through the local secret environment. Confirm the intended production project
+  and whether a separate staging project exists. Public anon keys are already
+  configured; another anon key will not unblock migrations.
+- **Migration state — pending.** Inspect existing tables/functions before applying
+  `db/migration-003-source-packs.sql`, `004-pack-editing`, `005-pack-ancestry`, then
+  `006-pack-merge`. Record each actual application result here. 001b/001c were
+  previously reported applied; 003–006 have not been applied by Codex. The observed
+  production pack API returned 503/PGRST205. Deployment success is not DB readiness.
+- **SSO provider choice — pending.** Confirm Google, Microsoft work accounts, both,
+  or enterprise SAML through an organization IdP. Google/Microsoft OAuth adapters
+  and JIT account creation are built. Enterprise SAML is a separate integration;
+  if needed, supply IdP name, organization domains and non-secret metadata/issuer
+  details. Also decide whether signup is open, invite-only or restricted to specified
+  organizations/domains. Current project signup is open; code does not enforce an
+  organization policy through client email matching.
+- **OAuth setup — pending.** For each chosen provider, create/select its OAuth app
+  and configure its client ID/secret directly in Supabase Auth. Use the existing
+  Supabase project's `/auth/v1/callback` as the provider callback. For Microsoft,
+  choose the permitted tenant/account types and set the tenant configuration;
+  the adapter requests the required email scope. Record provider enabled status,
+  allowed tenants and credential expiration date, without the secret value.
+- **App URLs — pending.** Confirm whether the release uses
+  `https://trustnode-lemon.vercel.app` or a custom domain. Configure Supabase Site URL
+  and allow the app's `/auth/callback` redirect with its `next` query, for production
+  and `http://127.0.0.1:3000` (plus localhost if used). Keep JIT signup enabled if open
+  signup is selected. On 2026-09-21 public settings showed email only, Google/Microsoft
+  disabled and SAML disabled. The UI intentionally shows no disabled SSO buttons.
+- **Real-account verification — pending.** Make two authorized test identities
+  available through the chosen provider's normal sign-in flow: a new user and a
+  second distinct account. We need to verify JIT creation, returning-user identity,
+  logout, private/public pack reads, owner-only edits, stale saves and fork/merge
+  privacy. Local fixture checks already pass but do not establish live readiness.
+
+### Product inputs for the next release slices
+
+- **First research domain — pending.** Select the first non-demo domain and provide
+  a small approved starting corpus: source URLs, why each is authoritative, dates
+  or versions, and 3–5 representative claims/research questions. Mark example content
+  explicitly. Current canonical verification remains the OAuth/PKCE seed prototype.
+  Codex can implement the evidence interface without inventing domain authority.
+- **Evidence/community governance — pending.** Decide who can propose evidence
+  relationships and tags, who can accept/reject disputed records, and who moderates
+  reports. Recommended starting scope: attributable community proposals remain
+  separate from canonical evidence; no community edit silently changes confidence.
+  A recorded relationship is not measured historical reliability.
+- **Launch scope/contact — pending.** Confirm private pilot versus unrestricted
+  public launch, expected initial audience/volume, and the support/moderation contact
+  to display. Supply any required privacy/terms text and retention/deletion policy;
+  Codex will not invent legal commitments. Public launch still requires the fetch,
+  upload and abuse controls listed under Remaining limits.
+
+### Muse replies / setup results
+
+Add dated responses here, using the item names above. Codex will fold resolved
+items into Next and DESIGN rather than maintaining competing handoff documents.
+
 ## Latest delivery check — 2026-09-21
+
+Owner source controls and charter alignment: typecheck, production build and 35
+focused API checks pass. Referenced-source deletion preserves the backing file;
+malformed edits fail before database calls. Browser fixtures confirm owner-only
+controls and saved title/description updates on the shelf. Muse inputs are above.
 
 Merge: 37 focused pack/API checks, production build and disposable PostgreSQL
 engine checks pass, including two captured revisions, atomic rejection, private
@@ -83,7 +161,8 @@ SSO: 33 focused API/redirect checks and production build pass. Disposable browse
 fixtures verify PKCE exchange for Google and Microsoft adapters, first-login
 onboarding/profile save, local sign-out and returning-user routing. No real provider
 login was attempted; live activation remains item 2.
-No production data or migrations were changed. Live readiness remains item 1.
+SSO hosted application/build and PostgreSQL checks passed at `50f91b1`.
+No production data or migrations were changed. Live readiness remains items 1–2.
 
 ## Review — 2026-09-21 (Habib, commit `50f91b1`)
 
@@ -144,8 +223,9 @@ are authorized, with proportional checks. No separate agent owns unfinished work
   attachment handling, rate limiting, and moderation.
 - Votes/verification badges, audit history, personal confidence overrides, and
   downstream summarization controls remain deferred.
-- The app's charter page still shows the historical v2 draft; reconcile it with
-  Alex's retained charter text without inventing a ratification decision.
+- Source title/description editing uses the existing API and is currently last-save-wins;
+  unlike packs, source records do not yet have revision tokens. Category/tag editing
+  still needs an atomic update contract before expanding the owner editor.
 
 ## Recovery
 

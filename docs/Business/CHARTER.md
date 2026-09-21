@@ -51,6 +51,5 @@ authority must be explained and distinguished from measured factual accuracy.
 
 The retained charter records v1.1 as ratified on 2026-09-19. This is an editorial
 consolidation of those principles and Alex's source-pack clarifications, not a
-new ratification. A competing v2 draft remains in Git history and the existing
-app page; it is not recorded here as approved. Substantive amendments require a
+new ratification. A competing v2 draft remains in Git history; it is not recorded here as approved. Substantive amendments require a
 new version and Alex's decision.
