@@ -22,16 +22,22 @@ and update this queue instead of creating more handoff documents.
 
 These are implementation milestones, not a claim that every production flow works.
 
+## Workspace status
+
+Consolidated onto `main`; documentation conflicts resolved. Strategy is canonical.
+Redundant docs and historical assignments are removed from the active tree;
+old work is preserved in Git history and the local recovery archive.
+Product changes are paused at Alex's request until organization is complete.
+
 ## Next
 
-1. Finish workspace/docs consolidation and recover the useful unfinished UI changes.
-2. Make the existing workflow discoverable from the homepage and fix source-form
+1. Resume the preserved UI improvements when Alex is ready: make the existing workflow discoverable from the homepage and fix source-form
    error recovery (BUG-006) and empty-claim feedback (BUG-007).
-3. Verify pack persistence in production. The last recorded read returned 503;
+2. Verify pack persistence in production. The last recorded read returned 503;
    migration `db/migration-003-source-packs.sql` activation is unconfirmed. Migrations
    001b/001c were previously reported applied. Do not infer DB state from deployment.
-4. Complete owner pack editing/deletion and attributable fork ancestry.
-5. Add category hierarchy and pack comparison, then evidence graph relationships.
+3. Complete owner pack editing/deletion and attributable fork ancestry.
+4. Add category hierarchy and pack comparison, then evidence graph relationships.
 
 ## Remaining limits and decisions
 
@@ -52,6 +58,8 @@ These are implementation milestones, not a claim that every production flow work
 
 Pre-cleanup tracked/untracked source files, patches, and all Git refs are saved
 locally in `.recovery/2026-09-20-consolidation/` (ignored by Git).
-The named pre-consolidation stash is also retained. Superseded pipeline/file-parser
+`pending-product-ui.patch` contains the paused homepage/error-recovery work;
+it passed typecheck but is not applied or shipped. Archive `README.txt` explains
+restoration. The named pre-consolidation stash is also retained. Superseded pipeline/file-parser
 drafts are preserved there; the already merged implementations remain authoritative.
 Historical reviews, QA reports, and old assignments remain available in Git history.
