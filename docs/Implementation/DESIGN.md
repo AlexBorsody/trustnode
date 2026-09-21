@@ -14,7 +14,9 @@ Missing database configuration/schema produces an explicit unavailable state.
 ## Sources
 
 `GET /api/sources`: public shelf; category/tag filters, title/excerpt search,
-limit (maximum 100), offset. Search text does not currently match tag labels.
+limit (maximum 100), offset, and stable created-time/ID ordering. The shelf UI
+shows 25 rows per page, resets pagination on filtering, and offers retry on failure.
+Search text does not currently match tag labels.
 `POST /api/sources`: authenticated HTTP(S) URL contribution, exact-URL duplicate
 response (409), best-effort metadata; contributor title/description take precedence.
 `PATCH/DELETE /api/sources/:id`: owner operations.

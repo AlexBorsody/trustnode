@@ -110,7 +110,7 @@ export async function GET(req: Request) {
       .replace(/_/g, "\\_");
     query = query.or(`title.ilike.%${esc}%,excerpt.ilike.%${esc}%`);
   }
-  query = query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+  query = query.order("created_at", { ascending: false }).order("id").range(offset, offset + limit - 1);
 
   const { data, error, count } = await query;
   if (error) return json({ error: error.message }, 500);

@@ -30,7 +30,11 @@ export default function VerifyPage() {
 
   async function run(text: string) {
     const c = text.trim();
-    if (!c) return;
+    if (!c) {
+      setError("Enter a claim to verify.");
+      setResult(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -56,9 +60,9 @@ export default function VerifyPage() {
       </div>
       <h1 className="page-title">Verify a claim</h1>
       <p className="page-sub">
-        Paste an AI-generated claim about OAuth/PKCE. TrustNode returns its sources,
+        Paste a claim to inspect its sources,
         supporting evidence, contradictions, and provenance — with confidence derived
-        transparently, never as a bare number.
+        transparently. The current verification corpus covers OAuth/PKCE; other topics may have no analyzed evidence.
       </p>
 
       <div className="panel">
@@ -66,7 +70,13 @@ export default function VerifyPage() {
           className="claim-input"
           rows={3}
           value={claim}
-          onChange={(e) => setClaim(e.target.value)}
+          aria-label="Claim to verify"
+          aria-describedby={error ? "claim-error" : undefined}
+          aria-invalid={Boolean(error)}
+          onChange={(e) => {
+            setClaim(e.target.value);
+            setError(null);
+          }}
           placeholder="Paste an AI-generated claim…"
         />
         <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -87,7 +97,7 @@ export default function VerifyPage() {
             </button>
           ))}
         </div>
-        {error && <p style={{ color: "#e5484d", marginTop: 10 }}>{error}</p>}
+        {error && <p id="claim-error" role="alert" style={{ color: "#e5484d", marginTop: 10 }}>{error}</p>}
       </div>
 
       {result && (

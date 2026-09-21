@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient, type SupabaseClient, type Session } from "@supabase/supabase-js";
 
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -44,6 +44,14 @@ export default function SourcesPage() {
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sendingLink, setSendingLink] = useState(false);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const pageSize = 25;
+  const fileInput = useRef<HTMLInputElement>(null);
+  const requestId = useRef(0);
+  const [shelfError, setShelfError] = useState<string | null>(null);
+  const [shelfLoading, setShelfLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   // link form
@@ -61,7 +69,7 @@ export default function SourcesPage() {
 
   useEffect(() => {
     if (!configured) return;
-    sb().auth.getSession().then(({ data }) => setSession(data.session));
+    sb().auth.getSession().then(({ data }) => setSession(data.session)).catch(() => setAuthMsg("Could not restore sign-in. Try signing in again."));
     const { data: sub } = sb().auth.onAuthStateChange((_e, s) => setSession(s));
     sb().from("tn_categories").select("slug,name").order("name")
       .then(({ data }) => setCategories((data ?? []) as Category[]));
@@ -69,25 +77,49 @@ export default function SourcesPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const sp = new URLSearchParams({ limit: "100" });
+    const currentRequest = ++requestId.current;
+    setShelfLoading(true);
+    setShelfError(null);
+    const sp = new URLSearchParams({ limit: String(pageSize), offset: String(page * pageSize) });
     if (q.trim()) sp.set("q", q.trim());
     if (catFilter) sp.set("category", catFilter);
-    const res = await fetch(`/api/sources?${sp}`);
-    const data = await res.json();
-    if (res.ok) setSources(data.sources ?? []);
-  }, [q, catFilter]);
+    try {
+      const res = await fetch(`/api/sources?${sp}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Could not load the source shelf.");
+      if (currentRequest === requestId.current) {
+        setSources(data.sources ?? []);
+        setTotal(data.total ?? 0);
+      }
+    } catch (error) {
+      if (currentRequest === requestId.current) {
+        setSources([]);
+        setShelfError(error instanceof Error ? error.message : "Could not load sources. Try again.");
+      }
+    } finally {
+      if (currentRequest === requestId.current) setShelfLoading(false);
+    }
+  }, [q, catFilter, page]);
 
-  useEffect(() => { if (configured) load(); }, [load]);
+  useEffect(() => {
+    if (configured) void load();
+    return () => { requestId.current += 1; };
+  }, [load]);
 
   async function sendMagicLink() {
     setAuthMsg(null);
     const em = email.trim();
-    if (!em) return;
-    const { error } = await sb().auth.signInWithOtp({
-      email: em,
-      options: { emailRedirectTo: `${window.location.origin}/sources` },
-    });
-    setAuthMsg(error ? error.message : "Check your email for the sign-in link.");
+    if (!em) { setAuthMsg("Enter your email address."); return; }
+    setSendingLink(true);
+    try {
+      const { error } = await sb().auth.signInWithOtp({
+        email: em,
+        options: { emailRedirectTo: `${window.location.origin}/sources` },
+      });
+      setAuthMsg(error ? error.message : "Check your email for the sign-in link.");
+    } catch {
+      setAuthMsg("Could not send the sign-in link. Check your connection and try again.");
+    } finally { setSendingLink(false); }
   }
 
   async function authed(path: string, body: BodyInit, isForm = false) {
@@ -105,34 +137,41 @@ export default function SourcesPage() {
 
   async function submitLink() {
     setMsg(null); setLoading(true);
-    const data = await authed("/api/sources", JSON.stringify({
-      url: linkUrl, title: linkTitle, category: linkCat, tags: linkTags, description: linkDesc,
-    }));
-    setLoading(false);
-    if (data) {
-      setMsg(`Link shelved (${data.status}).`);
-      setLinkUrl(""); setLinkTitle(""); setLinkTags(""); setLinkDesc("");
-      load();
-    }
+    try {
+      const data = await authed("/api/sources", JSON.stringify({
+        url: linkUrl, title: linkTitle, category: linkCat, tags: linkTags, description: linkDesc,
+      }));
+      if (data) {
+        setMsg(`Link shelved (${data.status}).`);
+        setLinkUrl(""); setLinkTitle(""); setLinkTags(""); setLinkDesc("");
+        if (page === 0) void load(); else setPage(0);
+      }
+    } catch {
+      setMsg("Could not submit the link. Your entries are still here; try again.");
+    } finally { setLoading(false); }
   }
 
   async function submitUpload() {
     setMsg(null);
     if (!upFile) { setMsg("Choose a file first."); return; }
     setLoading(true);
-    const form = new FormData();
-    form.set("file", upFile);
-    form.set("title", upTitle);
-    form.set("category", upCat);
-    form.set("tags", upTags);
-    form.set("description", upDesc);
-    const data = await authed("/api/sources/upload", form, true);
-    setLoading(false);
-    if (data) {
-      setMsg(`File shelved (${data.status}).`);
-      setUpFile(null); setUpTitle(""); setUpTags(""); setUpDesc("");
-      load();
-    }
+    try {
+      const form = new FormData();
+      form.set("file", upFile);
+      form.set("title", upTitle);
+      form.set("category", upCat);
+      form.set("tags", upTags);
+      form.set("description", upDesc);
+      const data = await authed("/api/sources/upload", form, true);
+      if (data) {
+        setMsg(`File shelved (${data.status}).`);
+        setUpFile(null); setUpTitle(""); setUpTags(""); setUpDesc("");
+        if (fileInput.current) fileInput.current.value = "";
+        if (page === 0) void load(); else setPage(0);
+      }
+    } catch {
+      setMsg("Could not upload the file. Your entries are still here; try again.");
+    } finally { setLoading(false); }
   }
 
   if (!configured) {
@@ -156,7 +195,7 @@ export default function SourcesPage() {
         Everything shelved here joins TrustNode's retrieval. Seeds are starting points, not thrones.
       </p>
 
-      {msg && <div className="panel"><p style={{ margin: 0 }}>{msg}</p></div>}
+      {msg && <div className="panel" role="status"><p style={{ margin: 0 }}>{msg}</p></div>}
 
       <div className="panel">
         <h2>{session ? "Signed in" : "Sign in to contribute"}</h2>
@@ -171,9 +210,9 @@ export default function SourcesPage() {
             <div style={{ display: "flex", gap: 8 }}>
               <input className="claim-input" style={{ marginBottom: 0 }} placeholder="you@example.com"
                 value={email} onChange={(e) => setEmail(e.target.value)} />
-              <button className="btn" onClick={sendMagicLink}>Send link</button>
+              <button className="btn" disabled={sendingLink} onClick={sendMagicLink}>{sendingLink ? "Sending…" : "Send link"}</button>
             </div>
-            {authMsg && <p className="panel-sub" style={{ marginTop: 8 }}>{authMsg}</p>}
+            {authMsg && <p role="status" className="panel-sub" style={{ marginTop: 8 }}>{authMsg}</p>}
           </>
         )}
       </div>
@@ -200,7 +239,7 @@ export default function SourcesPage() {
           <div className="panel">
             <h2>Upload a file</h2>
             <p className="panel-sub">PDF, text, markdown, HTML, CSV, JSON — max 25 MB.</p>
-            <input style={inputStyle} type="file"
+            <input ref={fileInput} style={inputStyle} type="file"
               accept=".pdf,.txt,.md,.markdown,.html,.csv,.json"
               onChange={(e) => setUpFile(e.target.files?.[0] ?? null)} />
             <input style={inputStyle} placeholder="Title (optional — defaults to filename)" value={upTitle} onChange={(e) => setUpTitle(e.target.value)} />
@@ -222,18 +261,21 @@ export default function SourcesPage() {
       <h2 style={{ fontSize: 18, margin: "28px 0 12px" }}>On the shelf</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <input className="claim-input" style={{ marginBottom: 0 }} placeholder="Search the shelf…"
-          value={q} onChange={(e) => setQ(e.target.value)} />
+          aria-label="Search the shelf" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} />
         <select className="claim-input" style={{ marginBottom: 0, maxWidth: 200 }} value={catFilter}
-          onChange={(e) => setCatFilter(e.target.value)}>
+          aria-label="Filter by category" onChange={(e) => { setCatFilter(e.target.value); setPage(0); }}>
           <option value="">All categories</option>
           {categories.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
         </select>
       </div>
 
-      {sources.length === 0 && (
-        <div className="panel"><p className="panel-sub" style={{ margin: 0 }}>The shelf is empty. Be the first to shelve a source.</p></div>
+      <p className="panel-sub">Found useful links? <a href="/packs">Organize them into a source pack →</a></p>
+      {shelfLoading && <p role="status">Loading sources…</p>}
+      {shelfError && <div className="panel" role="alert"><p>{shelfError}</p><button className="chip" onClick={() => void load()}>Retry</button></div>}
+      {!shelfLoading && !shelfError && sources.length === 0 && (
+        <div className="panel"><p className="panel-sub" style={{ margin: 0 }}>{q.trim() || catFilter ? "No sources match these filters." : "The shelf is empty. Be the first to shelve a source."}</p></div>
       )}
-      {sources.map((s) => (
+      {!shelfLoading && !shelfError && sources.map((s) => (
         <div className="panel" key={s.id}>
           <h2 style={{ fontSize: 15 }}>
             <a href={s.kind === "link" ? (s.url ?? "#") : (s.file_url ?? "#")} target="_blank" rel="noreferrer"
@@ -255,6 +297,13 @@ export default function SourcesPage() {
           )}
         </div>
       ))}
+      {!shelfLoading && !shelfError && (total > 0 || page > 0) && (
+        <nav aria-label="Source shelf pages" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <button className="chip" disabled={page === 0} onClick={() => setPage(p => p - 1)}>Previous</button>
+          <span role="status">{sources.length ? `${page * pageSize + 1}–${page * pageSize + sources.length} of ${total} sources` : "No sources on this page"}</span>
+          <button className="chip" disabled={(page + 1) * pageSize >= total} onClick={() => setPage(p => p + 1)}>Next</button>
+        </nav>
+      )}
     </>
   );
 }

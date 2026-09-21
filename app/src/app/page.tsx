@@ -5,68 +5,50 @@ import { PIPELINE_VERSION } from "@/trustnode/version";
 export default function Home() {
   return (
     <>
-      <div className="meta-line">
-        PROTOTYPE <b>v{PIPELINE_VERSION}</b> · DETERMINISTIC PIPELINE · SEEDED CORPUS (OAUTH/PKCE)
-      </div>
-      <h1 className="page-title">TrustNode</h1>
+      <div className="meta-line">TRUSTNODE <b>v{PIPELINE_VERSION}</b> · SOURCES · CURATION · EVIDENCE</div>
+      <h1 className="page-title">Know what your research relies on.</h1>
       <p className="page-sub">
-        AI gives convincing answers. TrustNode shows where they came from, whether the
-        sources actually support them, and how much confidence the evidence earns.
+        Collect useful sources, put them in an order you can explain, and explore
+        the evidence behind an AI-generated claim.
       </p>
-
       <div className="panel">
-        <h2>Answer → Claim → Source → Evidence → Confidence</h2>
-        <p className="panel-sub" style={{ marginBottom: 8 }}>
-          TrustNode sits between an AI application and its information sources and makes
-          provenance visible. It is not another chatbot, and it is not an AI fact-checker
-          that asks a second model whether the first one was right. Its value comes from
-          grounding claims against identifiable sources and exposing the evidence chain.
-        </p>
-        <div className="formula">verify(claim) = retrieve → stance → conflicts → confidence</div>
-      </div>
-
-      <div className="panel">
-        <h2>Try it</h2>
+        <h2>Explore sources and see why they rank</h2>
         <p className="panel-sub">
-          Paste an AI-generated claim about OAuth/PKCE. TrustNode returns the sources
-          behind it, the supporting evidence, the contradictions, and a confidence score
-          with its derivation shown — never a bare number.
+          Search the available source collection. Inspect matched terms, source weights,
+          public pack influence, and superseded guidance alongside every result.
         </p>
-        <p>
-          <a href="/verify" className="btn">Verify a claim →</a>{" "}
-          <a href="/sources" className="chip" style={{ textDecoration: "none", padding: "10px 18px" }}>The commons shelf →</a>
+        <a href="/explore" className="btn">Explore sources →</a>
+      </div>
+      <div className="panel">
+        <h2>Build your source map</h2>
+        <p className="panel-sub">
+          Bring links together around a topic. Rank them, explain your choices,
+          keep your pack private, or publish it for others to explore and copy.
+        </p>
+        <p style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <a href="/packs" className="btn">Create or browse packs →</a>
+          <a href="/sources" className="chip" style={{ textDecoration: "none", padding: "10px 18px" }}>Contribute a source →</a>
         </p>
       </div>
-
       <div className="panel">
-        <h2>Where trust comes from</h2>
-        <p className="panel-sub">Three signals, kept distinct — never blended into one mushy score:</p>
+        <h2>Inspect the evidence behind a claim</h2>
+        <p className="panel-sub">
+          See supporting and contradicting sources, quoted evidence, and a confidence
+          calculation you can follow. The current verification demo covers OAuth/PKCE;
+          it does not establish whether claims in other domains are true.
+        </p>
+        <a href="/verify" className="btn">Try claim verification →</a>
+      </div>
+      <div className="panel">
+        <h2>Understand the signals</h2>
         <ul style={{ margin: "0 0 0 18px", padding: 0, color: "var(--text-dim)" }}>
-          <li style={{ marginBottom: 8 }}>
-            <b style={{ color: "var(--text)" }}>Earned trust (measured)</b> — track record: did this
-            source's past claims pan out? Computed, never voted on.
-          </li>
-          <li style={{ marginBottom: 8 }}>
-            <b style={{ color: "var(--text)" }}>Community trust (voted)</b> — users vote, but votes are
-            displayed as sentiment, labeled, never silently merged into scores.
-          </li>
-          <li style={{ marginBottom: 8 }}>
-            <b style={{ color: "var(--text)" }}>Your trust (personal)</b> — your allowlist, blocklist,
-            weight tweaks. For your queries, you're the final arbiter.
-          </li>
+          <li style={{ marginBottom: 8 }}><b>Source weight:</b> the prototype uses published analyst-seeded weights. Measured historical reliability is still future work.</li>
+          <li style={{ marginBottom: 8 }}><b>Community curation:</b> public packs can influence retrieval order through visible factors. They do not change canonical claim confidence.</li>
+          <li style={{ marginBottom: 8 }}><b>Your selection:</b> choose a pack, result count, and whether to include public pack influence in Explorer.</li>
         </ul>
-        <p className="panel-sub">Trust is per-domain. Gold on medicine can be garbage on crypto.</p>
+        <p className="panel-sub">Retrieval rank helps you navigate sources. Evidence helps you decide what to trust.</p>
       </div>
-
-      <div className="panel">
-        <h2>The commons</h2>
-        <p className="panel-sub">
-          TrustNode is built under the{" "}
-          <a href="/charter" style={{ color: "var(--accent)" }}>Trust Commons Charter</a>:
-          methodology, data, and code are public and forkable; trust is never for sale;
-          AI explains but never decides; the network belongs to everyone.
-        </p>
-      </div>
+      <p className="panel-sub">Built around public methodology and inspectable evidence. Read the <a href="/charter">Trust Commons Charter</a>.</p>
     </>
   );
 }
