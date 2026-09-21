@@ -19,13 +19,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   data.tn_pack_sources.sort((a: { rank: number }, b: { rank: number }) => a.rank - b.rank);
   const { data: ancestry, error: ancestryError } = await sb.from("tn_pack_origins")
     .select("parent_revision,forked_at,parent:tn_packs!tn_pack_origins_parent_id_fkey(id,title,owner_id)")
-    .eq("pack_id", id).maybeSingle();
+    .eq("pack_id", id).order("parent_id");
   // Keep existing installations readable before migration 005. Other read errors
   // must not be misrepresented as successful absence of ancestry.
   const missingAncestry = ancestryError && ["PGRST205", "42P01", "PGRST200"].includes(ancestryError.code);
   if (ancestryError && !missingAncestry) return json({ error: "Could not load pack attribution. Try again." }, 503);
-  const origin = ancestry?.parent ? ancestry : null;
-  return json({ pack: { ...data, origin, ancestry_available: !missingAncestry } });
+  // Return only currently visible parents; never expose total/hidden parent counts.
+  const origins = (ancestry ?? []).filter(item => item.parent).map(item => ({
+    parent_revision: item.parent_revision, forked_at: item.forked_at, parent: item.parent,
+  }));
+  return json({ pack: { ...data, origins, origin: origins[0] ?? null, ancestry_available: !missingAncestry } });
 }
 
 async function mutate(req: Request, id: string, deleting: boolean) {

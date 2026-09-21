@@ -67,7 +67,9 @@ than silently saving without ancestry. Legacy copies cannot gain invented ancest
 snapshot titles/owners. No caller writes; origin is immutable. RLS reveals the row
 only if the viewer can currently read both packs. Parent deletion cascades only to
 this origin row, not the child. Detail responses resolve current parent title/owner
-under caller RLS; private, deleted, and absent ancestry all return `origin: null`.
+under caller RLS; private, deleted, and absent ancestry return no visible origin.
+Detail responses expose `origins` and the first visible `origin` for compatibility,
+without a hidden-parent count or inaccessible IDs.
 Current parent metadata is labeled as such, not a historical content snapshot.
 
 `tn_fork_pack` atomically validates/locks the visible parent, checks revision,
@@ -94,7 +96,27 @@ Source identity is the source record ID, not a fuzzy title/URL match. A differen
 filter highlights membership, rank and note differences. Refresh rechecks access;
 failed/hidden pack reads clear the previous comparison. Account/token changes
 remount the comparison so private results cannot persist into another session.
-This is read-only: no merged saves, ancestry changes or confidence calculations.
+Comparison itself is read-only. Signed-in users can select up to 50 unique sources
+and either curator's note, then review/reorder/edit an independent private draft.
+Existing drafts must be saved/discarded before starting a merge.
+
+## Two-parent merge (migration 006)
+
+POST `/api/packs` accepts `merge_of: [{id, revision}, {id, revision}]` instead of
+`fork_of`. Exactly two distinct parents are required. Both revisions are captured
+from the comparison used to start the draft. `tn_merge_pack` locks readable parents
+in stable UUID order, checks both captured revisions, reuses constrained fork
+creation, and records the second immutable origin in the same transaction. Any
+failure rolls back the whole save. Missing/private parent returns generic 404;
+changed parent returns 409 and retains the draft. Before 006, a merge fails as
+unavailable, never silently saving without both origins.
+
+006 changes the origin primary key to `(pack_id, parent_id)`; existing single-parent
+forks and their function remain valid. Existing RLS applies independently to each
+origin. Hiding/deleting a parent removes only that attribution from a reader's view,
+not the other visible origin or the independent child. No stored total or merge-kind
+flag reveals hidden ancestry. Source membership/order/notes remain curator choices;
+merged provenance never changes canonical confidence or retrieval formulas.
 
 ## Retrieval
 

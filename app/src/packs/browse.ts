@@ -1,3 +1,5 @@
+import type { PackSource } from "./model";
+
 /** Topics are curator-defined paths, not an authority taxonomy. Legacy labels stay intact. */
 export function topicParts(topic: string): string[] {
   const parts = topic.split(">").map(part => part.trim());
@@ -23,7 +25,7 @@ export function topicOptions(packs: { category: string }[]) {
 }
 export interface RankedEntry {
   source_id: string; rank: number; note: string;
-  tn_sources: { title: string; url: string | null } | null;
+  tn_sources: PackSource | null;
 }
 export function compareEntries(left: RankedEntry[], right: RankedEntry[]) {
   const leftMap = new Map(left.map(entry => [entry.source_id, entry]));

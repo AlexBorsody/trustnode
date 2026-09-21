@@ -256,3 +256,68 @@ reset role;
 select test_assert((select count(*)=0 from tn_pack_origins),'deletion removes ancestry linkage');
 select test_assert((select count(*)=2 from tn_packs where title in ('My independent copy','Public child of private parent')),'parent deletion preserves independent children');
 select 'Fork attribution privacy and independence checks passed' as result;
+
+-- Two-parent merge reuses independent packs and enforces both captured revisions.
+\ir ../migration-006-pack-merge.sql
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+insert into tn_packs(id,owner_id,title,category,is_public) values
+ ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',auth.uid(),'Merge A','security',true),
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',auth.uid(),'Merge B','security',true);
+insert into tn_pack_sources(pack_id,source_id,rank) values
+ ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1),
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',1);
+set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+do $$ declare parents jsonb; child uuid; before_count integer; begin
+  select jsonb_agg(jsonb_build_object('id',id,'revision',revision) order by id) into parents from tn_packs where title in ('Merge A','Merge B');
+  child := tn_merge_pack(parents,'Merged privately','','security','{}',false,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","note":"Selected note"}]');
+  perform test_assert((select count(*)=2 from tn_pack_origins where pack_id=child),'merge records both origins');
+  perform test_assert((select owner_id=auth.uid() and not is_public from tn_packs where id=child),'merge is caller-owned and private');
+  select count(*) into before_count from tn_packs;
+  begin
+    perform tn_merge_pack(jsonb_set(parents,'{1,revision}','1'),'Stale merge','','security','{}',false,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'stale second parent accepted';
+  exception when sqlstate 'PT409' then null; end;
+  begin
+    perform tn_merge_pack(jsonb_build_array(parents->0,parents->0),'Same parent','','security','{}',false,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'duplicate parents accepted';
+  exception when invalid_parameter_value then null; end;
+  begin
+    perform tn_merge_pack(parents,'Invalid merge','','security','{}',false,'[{"source_id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}]');
+    raise exception 'file merge accepted';
+  exception when invalid_parameter_value then null; end;
+  perform test_assert((select count(*)=before_count from tn_packs),'failed merges create no child');
+  perform test_assert((select count(*)=2 from tn_pack_origins),'failed merges create no origins');
+end $$;
+set role anon;
+set request.jwt.claim.sub = '';
+select test_assert((select count(*)=0 from tn_pack_origins),'private merge hides both origins from anonymous');
+do $$ begin
+  begin
+    perform tn_merge_pack('[]','Anonymous merge','','security','{}',false,'[]');
+    raise exception 'anonymous merge accepted';
+  exception when insufficient_privilege then null; end;
+end $$;
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+update tn_packs set is_public=false where title='Merge B';
+set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+select test_assert((select count(*)=1 from tn_pack_origins),'hidden parent removes only its own visible attribution');
+do $$ declare parents jsonb := '[{"id":"dddddddd-dddd-4ddd-8ddd-dddddddddddd","revision":2},{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","revision":2}]'; begin
+  begin
+    perform tn_merge_pack(parents,'Hidden merge','','security','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'hidden parent merged';
+  exception when sqlstate 'PT404' then null; end;
+  update tn_packs set title='Independent merged result',is_public=true where title='Merged privately';
+end $$;
+set role anon;
+set request.jwt.claim.sub = '';
+select test_assert((select count(*)=1 from tn_pack_origins),'public merge exposes only its public parent');
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+select test_assert((select count(*)=2 from tn_packs where title in ('Merge A','Merge B')),'merged child edit preserves both originals');
+delete from tn_packs where title='Merge A';
+reset role;
+select test_assert((select count(*)=1 from tn_pack_origins),'deleting one original preserves other origin');
+select test_assert(exists(select 1 from tn_packs where title='Independent merged result'),'deleting original preserves merged child');
+select 'Two-parent merge atomicity, privacy and independence checks passed' as result;

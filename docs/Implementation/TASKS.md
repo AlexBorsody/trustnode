@@ -21,7 +21,9 @@ and update this queue instead of creating more handoff documents.
 - Attributed forks: captured parent revision, independent copies, immutable origin
   records and visibility-aware attribution. Requires migration 005.
 - Nested topic browsing, pack search and side-by-side comparison of source membership,
-  ranks and notes. Read-only comparison uses caller visibility; no new migration.
+  ranks and notes. Comparison uses caller visibility; browsing requires no new migration.
+- Two-parent merge drafts: explicit source/note choices, independent private saves,
+  both captured revisions, and per-parent visible attribution. Requires migration 006.
 - Explorer and retrieval API with visible ranking factors and pack scope (PR #5).
 - Canonical verification isolated from community ranking; pipeline 0.3.0.
 - Node setup, API input validation, existing regression checks and CI.
@@ -43,7 +45,7 @@ Product work resumed in the desktop workspace after consolidation.
 1. Activate and verify pack persistence in production. The live read still returned
    503 on 2026-09-21;
    direct Supabase read returned PGRST205 (tn_packs missing from schema cache).
-   Apply migrations `003-source-packs`, `004-pack-editing`, and `005-pack-ancestry`
+   Apply migrations `003-source-packs`, `004-pack-editing`, `005-pack-ancestry`, and `006-pack-merge`
    from `db/` in that order
    through an authorized database session; check applied state before rerunning.
    No authenticated dashboard/DB session is available to this desktop task.
@@ -51,9 +53,9 @@ Product work resumed in the desktop workspace after consolidation.
    001b/001c were previously reported applied. Do not infer DB state from deployment.
    After activation: verify private/public reads, owner edits and deletion, two-tab
    stale-save recovery, and second-account ownership isolation in an authorized test account.
-2. Add deliberate pack merge: choose sources/order/notes and save an independent
-   private draft, with attribution to both visible parents and stale-parent checks.
-   Do not silently represent a two-parent merge as a single-parent fork.
+2. Build dedicated signup/login, account navigation and first-time onboarding.
+   Supabase email-link auth/session/ownership enforcement exists, but sign-in is
+   currently embedded in Sources and production auth remains unverified.
 3. Record inspectable evidence relationships, with explicit contributor/provenance;
    keep community relationships separate from canonical authority. Resolve the
    remaining graph/seed decisions before claiming graph-derived trust.
@@ -63,10 +65,12 @@ Product work resumed in the desktop workspace after consolidation.
 
 ## Latest delivery check — 2026-09-21
 
-Topic browsing/comparison: 34 pack/API checks and typecheck pass; production build
-and local browser checks cover nested-topic filtering, parent counts, comparison
-membership/rank/note differences and refresh after access loss. Fork ancestry's
-hosted application/build and PostgreSQL CI passed at `0b99c27`.
+Merge: 37 focused pack/API checks, production build and disposable PostgreSQL
+engine checks pass, including two captured revisions, atomic rejection, private
+child/parent visibility and deletion preserving the other origin and child. Local
+browser fixtures verify source/note selection, reorder, stale-draft recovery,
+private saved merges and independent parent attribution.
+Topic browsing/comparison hosted CI passed at `ada0210`.
 No production data or migrations were changed. Live readiness remains item 1.
 
 ## Resumption context
@@ -77,6 +81,9 @@ are authorized, with proportional checks. No separate agent owns unfinished work
 - Topic/compare helpers are in `packs/browse.ts`; comparison UI is in
   `PackComparison.tsx`, opened from `PackWorkspace.tsx`. Topics use `>` paths within
   the existing category field. Browse and comparison choices are capped at 50 packs.
+- Merge is migration 006 and `merge_of` in the pack API/editor. Both captured parent
+  revisions stay fixed through draft edits. Read APIs return only visible `origins`;
+  the compatibility `origin` is the first visible one, with no total-parent count.
 - Ancestry is in migration 005, pack creation/detail routes, `packs/model.ts`, and
   `PackWorkspace.tsx`. DESIGN records storage, privacy and locking choices.
 - Copies before migration 005 have no inferred ancestry. Parent attribution uses

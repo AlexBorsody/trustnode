@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, test } from "node:test";
-import { parsePack, parseRevision, parseForkOrigin } from "../src/packs/model";
+import { parsePack, parseRevision, parseForkOrigin, parseMergeOrigins } from "../src/packs/model";
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const valid = { title: " OAuth ", description: " Evidence ", category: "security", tags: ["PKCE", "PKCE"], is_public: false,
   entries: [{ source_id: id, note: " Primary standard " }] };
@@ -40,7 +40,7 @@ before(async () => {
     calls.push({ path, auth: req.headers.get("Authorization"), body: req.method === "POST" ? await req.json() : {} });
     const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
     if (path === "/auth/v1/user") return invalidToken ? reply({ message: "Expired" }, 401) : reply({ id, aud: "authenticated", role: "authenticated" });
-    if (path.includes("/rpc/")) return rpcError ? reply({ code: rpcError, message: "internal detail must not leak" }, 400) : reply((path.endsWith("tn_delete_pack") || path.endsWith("tn_fork_pack") || path.endsWith("tn_create_pack")) ? id : 11);
+    if (path.includes("/rpc/")) return rpcError ? reply({ code: rpcError, message: "internal detail must not leak" }, 400) : reply((path.endsWith("tn_delete_pack") || path.endsWith("tn_fork_pack") || path.endsWith("tn_merge_pack") || path.endsWith("tn_create_pack")) ? id : 11);
     if (path.endsWith("/tn_pack_origins")) return ancestryError ? reply({ code: ancestryError }, 404) : reply(ancestry);
     if (path.endsWith("/tn_packs")) return reply([{ id, revision: 7, tn_pack_sources: [{ rank: 2 }, { rank: 1 }] }]);
     throw new Error(`Unexpected request: ${path}`);
@@ -178,4 +178,37 @@ test("comparison exposes independent rank/note changes and missing sources witho
   assert.equal(rows[1].rankChanged, true); assert.equal(rows[1].noteChanged, true);
   assert.equal(rows[2].left, undefined);
   assert.deepEqual(compareEntries([], []), []);
+});
+
+
+test("merge validates two distinct versioned parents and rejects ambiguous ancestry", () => {
+  const parents = [{ id, revision: 3 }, { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", revision: 4 }];
+  assert.deepEqual(parseMergeOrigins({ merge_of: parents }), parents);
+  assert.equal(parseMergeOrigins(valid), null);
+  for (const merge_of of [null, [], [parents[0]], [parents[0], parents[0]], [{ id }, parents[1]], [...parents, parents[0]]]) {
+    assert.throws(() => parseMergeOrigins({ merge_of }));
+  }
+  assert.throws(() => parseMergeOrigins({ fork_of: parents[0], merge_of: parents }));
+});
+
+test("merge uses one atomic caller-scoped RPC and preserves failure status without fallback", async () => {
+  const merge_of = [{ id, revision: 3 }, { id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", revision: 4 }];
+  let response = await createRoute.POST(mutation({ ...valid, merge_of }, "POST"));
+  assert.equal(response.status, 201);
+  const call = calls.find(c => c.path.endsWith("tn_merge_pack"))!;
+  assert.deepEqual(call.body.p_parents, merge_of); assert.equal(call.auth, "Bearer owner-token");
+  for (const [code, status] of [["PT404", 404], ["PT409", 409], ["PGRST202", 503]] as const) {
+    rpcError = code;
+    response = await createRoute.POST(mutation({ ...valid, merge_of }, "POST"));
+    assert.equal(response.status, status);
+  }
+  assert(!calls.some(c => c.path.endsWith("tn_fork_pack") || c.path.endsWith("tn_create_pack")));
+});
+
+test("multiple origins return only visible attribution without hidden counts or raw parent IDs", async () => {
+  ancestry = [{ parent_revision: 3, forked_at: "2026-09-21", parent: { id, title: "Visible", owner_id: id } }, { parent: null, parent_id: "secret", parent_revision: 4 }];
+  const response = await route.GET(new Request(`http://localhost/api/packs/${id}`), context);
+  const pack = (await response.json()).pack;
+  assert.equal(pack.origins.length, 1); assert.equal(pack.origin.parent.title, "Visible");
+  assert(!JSON.stringify(pack).includes("secret")); assert(!("total_parents" in pack));
 });

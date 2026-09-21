@@ -52,3 +52,16 @@ export function parseForkOrigin(input: unknown): ForkOrigin | null {
   if (typeof parent.id !== "string" || !UUID.test(parent.id)) throw new Error("Choose an accessible parent pack.");
   return { id: parent.id.toLowerCase(), revision: parseRevision(parent) };
 }
+
+export function parseMergeOrigins(input: unknown): ForkOrigin[] | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const body = input as Record<string, unknown>;
+  if (body.merge_of === undefined) return null;
+  if (body.fork_of !== undefined) throw new Error("Choose either a copy or a merge.");
+  if (!Array.isArray(body.merge_of) || body.merge_of.length !== 2) throw new Error("Choose two packs to merge.");
+  const parents = body.merge_of.map(parent => parseForkOrigin({ fork_of: parent })!);
+  if (parents[0].id === parents[1].id) throw new Error("Choose two different packs to merge.");
+  return parents;
+}
+
+export type PackSource = { id: string; title: string; url: string | null; kind: string; status: string };
