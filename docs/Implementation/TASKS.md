@@ -85,6 +85,29 @@ onboarding/profile save, local sign-out and returning-user routing. No real prov
 login was attempted; live activation remains item 2.
 No production data or migrations were changed. Live readiness remains item 1.
 
+## Review — 2026-09-21 (Habib, commit `50f91b1`)
+
+Secret handling is correct: the browser uses only `NEXT_PUBLIC_SUPABASE_ANON_KEY`;
+`/api/auth/providers` uses the server-side `SUPABASE_ANON_KEY` to read public
+`/auth/v1/settings`. No service-role/client secret in the client bundle or the
+repo. Return-to URLs are allowlisted (`safeReturnTo`), covered by tests.
+
+Findings for Codex, in priority order:
+
+1. Env var name split — fix before activation. The client reads
+   `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` while the providers
+   route reads `SUPABASE_URL`/`SUPABASE_ANON_KEY`. If only the `NEXT_PUBLIC_` pair
+   is set, the route silently returns `{ providers: [] }` and the UI reports
+   "SSO sign-in is being configured" even though auth works. Have the route fall
+   back to the `NEXT_PUBLIC_` vars, or document that both pairs must be set.
+2. Azure `scopes: "email"` — verify at activation (item 2). Microsoft identity
+   platform requires the `openid` scope for OIDC; if Supabase replaces rather than
+   merges default scopes, the Azure flow breaks with no ID token. Confirm a real
+   Microsoft sign-in completes before calling SSO live.
+3. Minor: `useAuth` calls `client.auth.initialize()` then `getSession()` on top of
+   `onAuthStateChange` (which already fires `INITIAL_SESSION`) — harmless but
+   redundant; one session-restore path is enough.
+
 ## Resumption context
 
 Continue in this checkout on `main`; Strategy is locked. Routine commits/pushes
