@@ -49,7 +49,15 @@ shows 25 rows per page, resets pagination on filtering, and offers retry on fail
 Search text does not currently match tag labels.
 `POST /api/sources`: authenticated HTTP(S) URL contribution, exact-URL duplicate
 response (409), best-effort metadata; contributor title/description take precedence.
-`PATCH/DELETE /api/sources/:id`: owner operations.
+`PATCH/DELETE /api/sources/:id`: owner operations. Shelf reads include public owner
+UUID so only the owner sees edit/delete controls; bearer authentication and RLS
+remain the actual authorization boundary. The editor updates title/description,
+retains failed drafts across shelf filtering and confirms deletion. Editing these
+shared details affects every pack using that source; curator notes/order are separate.
+Source edits currently use last-save-wins, without pack-style revision tokens.
+A foreign-key reference from a pack blocks deletion with a generic 409. Uploaded
+storage is removed only after successful row deletion; cleanup failures are reported.
+Category/tag editing remains API-only pending an atomic replacement contract.
 
 Uploads accept PDF/text/Markdown/HTML/CSV/JSON, maximum 25 MB. Extracted text has a
 200 KB cap; `extracted_text` is separate from the contributor excerpt. Failed

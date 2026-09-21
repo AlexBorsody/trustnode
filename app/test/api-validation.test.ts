@@ -90,3 +90,36 @@ test("SSO availability exposes only enabled supported providers and signup readi
     assert.equal(response.status, 503);
   } finally { globalThis.fetch = trappedFetch; }
 });
+
+
+test("source editing rejects malformed fields before owner or database calls", async () => {
+  const { PATCH } = await import("../src/app/api/sources/[id]/route");
+  const params = Promise.resolve({ id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" });
+  for (const body of [null, [], { title: 1 }, { description: {} }, { category: [] }, { tags: [4] }]) {
+    const response = await PATCH(new Request("http://localhost/api/sources/example", {
+      method: "PATCH", headers: { Authorization: "Bearer test-token", "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }), { params });
+    assert.equal(response.status, 400);
+  }
+});
+
+test("a referenced source deletion preserves its backing file", async () => {
+  const trappedFetch = globalThis.fetch;
+  const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const requests: string[] = [];
+  try {
+    globalThis.fetch = async (input, init) => {
+      const request = new Request(input, init), path = new URL(request.url).pathname;
+      requests.push(`${request.method} ${path}`);
+      const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+      if (path.endsWith("/user")) return reply({ id });
+      if (request.method === "DELETE") return reply({ code: "23503", message: "private pack detail" }, 409);
+      return reply({ id, owner_id: id, kind: "file", file_path: "test/file.pdf" });
+    };
+    const { DELETE } = await import("../src/app/api/sources/[id]/route");
+    const response = await DELETE(new Request(`http://localhost/api/sources/${id}`, { method: "DELETE", headers: { Authorization: "Bearer test-token" } }), { params: Promise.resolve({ id }) });
+    assert.equal(response.status, 409);
+    assert(!JSON.stringify(await response.json()).includes("private pack detail"));
+    assert(!requests.some(path => path.includes("/storage/")));
+  } finally { globalThis.fetch = trappedFetch; }
+});

@@ -30,6 +30,7 @@ export async function OPTIONS() {
 
 interface SourceRow {
   id: string;
+  owner_id: string | null;
   kind: "file" | "link";
   title: string;
   url: string | null;
@@ -46,6 +47,7 @@ interface SourceRow {
 function mapRow(r: SourceRow) {
   return {
     id: r.id,
+    owner_id: r.owner_id,
     kind: r.kind,
     title: r.title,
     url: r.kind === "link" ? r.url : r.url,
@@ -65,7 +67,7 @@ function mapRow(r: SourceRow) {
 }
 
 const BASE_SELECT = `
-  id, kind, title, url, file_path, file_name, mime_type, status, excerpt, created_at,
+  id, owner_id, kind, title, url, file_path, file_name, mime_type, status, excerpt, created_at,
 `;
 
 // ---------------------------------------------------------------------------

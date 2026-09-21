@@ -1,3 +1,4 @@
+import { UUID } from "@/packs/model";
 import { NextResponse } from "next/server";
 import {
   bearerToken,
@@ -103,6 +104,7 @@ export async function PATCH(
     return json({ error: "source commons not configured yet" }, 503);
   }
   const { id } = await params;
+  if (!UUID.test(id)) return json({ error: "source not found" }, 404);
   const token = bearerToken(req);
   if (!token) return json({ error: "sign in to modify sources" }, 401);
 
@@ -118,6 +120,13 @@ export async function PATCH(
     return json({ error: "expected JSON body" }, 400);
   }
 
+  if (!body || typeof body !== "object" || Array.isArray(body) ||
+      ["title", "description", "category"].some(key => {
+        const value = (body as Record<string, unknown>)[key];
+        return value !== undefined && typeof value !== "string";
+      }) || (body.tags !== undefined && typeof body.tags !== "string" && (!Array.isArray(body.tags) || body.tags.some(tag => typeof tag !== "string")))) {
+    return json({ error: "Source details must contain valid text fields." }, 400);
+  }
   const sb = supabaseFor(token);
   const owned = await requireOwner(sb, id);
   if ("error" in owned) return owned.error;
@@ -162,6 +171,7 @@ export async function DELETE(
     return json({ error: "source commons not configured yet" }, 503);
   }
   const { id } = await params;
+  if (!UUID.test(id)) return json({ error: "source not found" }, 404);
   const token = bearerToken(req);
   if (!token) return json({ error: "sign in to modify sources" }, 401);
 
@@ -169,13 +179,19 @@ export async function DELETE(
   const owned = await requireOwner(sb, id);
   if ("error" in owned) return owned.error;
 
-  if (owned.row.kind === "file" && owned.row.file_path) {
-    // Best-effort: the row delete is what matters; a stray object is harmless.
-    await sb.storage.from("source-files").remove([owned.row.file_path]);
-  }
-
+  // A pack reference may reject deletion. Preserve its storage object until the
+  // source row is actually removed, so a failed delete never breaks a shared file.
   const { error } = await sb.from("tn_sources").delete().eq("id", id);
-  if (error) return json({ error: error.message }, 500);
+  if (error?.code === "23503") return json({ error: "This source is used by a pack and cannot be deleted. Its details can still be edited." }, 409);
+  if (error) return json({ error: "Could not delete the source. Try again." }, 500);
 
+  if (owned.row.kind === "file" && owned.row.file_path) {
+    try {
+      const { error: storageError } = await sb.storage.from("source-files").remove([owned.row.file_path]);
+      if (storageError) return json({ id, deleted: true, warning: "Source removed from the shelf, but file cleanup needs administrator attention." });
+    } catch {
+      return json({ id, deleted: true, warning: "Source removed from the shelf, but file cleanup needs administrator attention." });
+    }
+  }
   return json({ id, deleted: true });
 }

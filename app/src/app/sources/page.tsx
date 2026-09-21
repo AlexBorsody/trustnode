@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authClient as sb, authConfigured as configured } from "@/auth/client";
 import { useAuth } from "@/auth/useAuth";
+import SourceManager from "@/sources/SourceManager";
 
 interface Category { slug: string; name: string }
 interface Tag { slug: string; label: string }
 interface CommonsSource {
   id: string;
+  owner_id: string | null;
   kind: "file" | "link";
   title: string;
   url: string | null;
@@ -28,6 +30,7 @@ const inputStyle: React.CSSProperties = {
 
 export default function SourcesPage() {
   const { session, ready: authReady, error: authError } = useAuth();
+  const [managed, setManaged] = useState<CommonsSource | null>(null);
   const [sources, setSources] = useState<CommonsSource[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [q, setQ] = useState("");
@@ -41,6 +44,8 @@ export default function SourcesPage() {
   const [shelfError, setShelfError] = useState<string | null>(null);
   const [shelfLoading, setShelfLoading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => { setManaged(null); }, [session?.user.id]);
 
   // link form
   const [linkUrl, setLinkUrl] = useState("");
@@ -215,6 +220,9 @@ export default function SourcesPage() {
         </>
       )}
 
+      {managed && session && managed.owner_id === session.user.id && <SourceManager
+        key={`${managed.id}:${session.user.id}`} source={managed} token={session.access_token}
+        onClose={() => setManaged(null)} onSaved={message => { setManaged(null); setMsg(message); void load(); }} />}
       <h2 style={{ fontSize: 18, margin: "28px 0 12px" }}>On the shelf</h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <input className="claim-input" style={{ marginBottom: 0 }} placeholder="Search the shelf…"
@@ -252,6 +260,7 @@ export default function SourcesPage() {
               {s.excerpt.slice(0, 280)}{s.excerpt.length > 280 ? "…" : ""}
             </p>
           )}
+          {session && s.owner_id === session.user.id && <button className="chip" disabled={!!managed} onClick={() => { setManaged(s); requestAnimationFrame(() => document.getElementById("source-editor")?.scrollIntoView({ behavior: "smooth", block: "start" })); }}>Edit or delete my source</button>}
         </div>
       ))}
       {!shelfLoading && !shelfError && (total > 0 || page > 0) && (
