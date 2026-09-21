@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient, type Session } from "@supabase/supabase-js";
 import type { PackInput } from "./model";
 
 type Source = { id: string; title: string; url: string | null; kind: string; status: string };
-type Pack = Omit<PackInput, "entries"> & { id: string; owner_id: string; created_at: string;
+type Pack = Omit<PackInput, "entries"> & { id: string; owner_id: string; created_at: string; revision?: number; updated_at?: string;
   tn_pack_sources?: { source_id: string; rank: number; note: string; tn_sources: Source | null }[] };
 type Entry = { source: Source; note: string };
 const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
@@ -26,6 +26,9 @@ export default function PackWorkspace({ id }: { id?: string }) {
   const [tags, setTags] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [editing, setEditing] = useState(!id);
+  const [editRevision, setEditRevision] = useState<number | null>(null);
+  const [deleteRevision, setDeleteRevision] = useState<number | null>(null);
+  const [conflict, setConflict] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
   const [query, setQuery] = useState("");
   const [reload, setReload] = useState(0);
   const token = session?.access_token;
+  const mutation = useRef<AbortController | null>(null);
   useEffect(() => {
     if (!configured) return;
     const sb = createClient(SUPA_URL, SUPA_KEY);
@@ -78,8 +82,11 @@ export default function PackWorkspace({ id }: { id?: string }) {
   }, [token, editing, query]);
   // Do not carry a private draft into a different signed-in account.
   useEffect(() => {
+    mutation.current?.abort();
     setEntries([]); setTitle(""); setDescription(""); setCategory(""); setTags("");
-    setIsPublic(false); setEditing(!id); setNotice("");
+    setIsPublic(false); setEditing(!id); setNotice(""); setSaving(false);
+    setEditRevision(null); setDeleteRevision(null); setConflict(false);
+    return () => mutation.current?.abort();
   }, [session?.user.id, id]);
   const visiblePack = pack && (pack.is_public || pack.owner_id === session?.user.id) ? pack : null;
   function move(index: number, direction: number) {
@@ -89,27 +96,57 @@ export default function PackWorkspace({ id }: { id?: string }) {
       return next;
     });
   }
-  function copyPack() {
+  function beginDraft(copy: boolean) {
     if (!pack) return;
-    setTitle(`${pack.title} (copy)`.slice(0, 120)); setDescription(pack.description);
-    setCategory(pack.category); setTags(pack.tags.join(", ")); setIsPublic(false);
+    if (!copy && (!pack.revision || pack.owner_id !== session?.user.id)) return;
+    setEditRevision(copy ? null : pack.revision!); setDeleteRevision(null); setConflict(false); setError("");
+    setTitle(copy ? `${pack.title} (copy)`.slice(0, 120) : pack.title); setDescription(pack.description);
+    setCategory(pack.category); setTags(pack.tags.join(", ")); setIsPublic(copy ? false : pack.is_public);
     setEntries((pack.tn_pack_sources ?? []).filter(e => e.tn_sources).map(e => ({ source: e.tn_sources!, note: e.note })));
-    setEditing(true); setNotice("Your copy starts private. Adjust the order, then save a new pack.");
+    setEditing(true); setNotice(copy ? "Your copy starts private. Adjust the order, then save a new pack." : "Editing this pack. Saved changes will appear at the same address.");
+  }
+  function discardDraft() {
+    setEditing(false); setEditRevision(null); setEntries([]); setError(""); setNotice(""); setConflict(false);
   }
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!token) return;
-    setSaving(true); setError("");
+    const ctrl = new AbortController(); mutation.current = ctrl;
+    const updating = editRevision !== null;
+    setSaving(true); setError(""); setConflict(false);
     try {
-      const res = await fetch("/api/packs", {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      const res = await fetch(updating ? `/api/packs/${id}` : "/api/packs", {
+        method: updating ? "PATCH" : "POST", signal: ctrl.signal, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ title, description, category, tags: tags.split(",").map(t => t.trim()).filter(Boolean), is_public: isPublic,
+          ...(updating ? { revision: editRevision } : {}),
           entries: entries.map(e => ({ source_id: e.source.id, note: e.note })) }),
       });
       const data = await res.json();
+      if (ctrl.signal.aborted) return;
+      if (res.status === 409) setConflict(true);
       if (!res.ok) throw new Error(data.error ?? "Could not save pack.");
-      window.location.assign(`/packs/${data.id}`);
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not save pack. Your draft is still here."); }
-    finally { setSaving(false); }
+      if (updating) {
+        discardDraft(); setNotice("Pack updated."); setReload(r => r + 1);
+      } else window.location.assign(`/packs/${data.id}`);
+    } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Could not save pack. Your draft is still here."); }
+    finally { if (!ctrl.signal.aborted) setSaving(false); }
+  }
+  async function deletePack() {
+    if (!token || deleteRevision === null) return;
+    const ctrl = new AbortController(); mutation.current = ctrl;
+    setSaving(true); setError(""); setConflict(false);
+    try {
+      const res = await fetch(`/api/packs/${id}`, {
+        method: "DELETE", signal: ctrl.signal,
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ revision: deleteRevision }),
+      });
+      const data = await res.json();
+      if (ctrl.signal.aborted) return;
+      if (res.status === 409) setConflict(true);
+      if (!res.ok) throw new Error(data.error ?? "Could not delete pack.");
+      window.location.assign("/packs");
+    } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Could not delete pack. Try again."); }
+    finally { if (!ctrl.signal.aborted) setSaving(false); }
   }
   async function share() {
     try { await navigator.clipboard.writeText(window.location.href); setNotice("Public pack link copied."); }
@@ -120,7 +157,9 @@ export default function PackWorkspace({ id }: { id?: string }) {
     <h1 className="page-title">{id ? "A curator’s source map" : "Build a source map"}</h1>
     <p className="page-sub">Collect links for a topic, put them in the order you trust, and explain why. Pack order is curator preference; it does not change canonical confidence.</p>
     <p><a href="/packs">Browse packs</a> · <a href="/sources">Contribute a source or sign in</a></p>
-    {error && <div className="panel" role="alert"><p>{error}</p><button className="chip" onClick={() => setReload(r => r + 1)}>Retry loading packs</button></div>}
+    {error && <div className="panel" role="alert"><p>{error}</p>{conflict
+      ? <button className="chip" disabled={saving} onClick={() => window.location.reload()}>Discard draft and reload latest pack</button>
+      : <button className="chip" disabled={saving} onClick={() => setReload(r => r + 1)}>Retry loading packs</button>}</div>}
     {notice && <p role="status">{notice}</p>}
     {loading && <p role="status">Loading packs…</p>}
     {visiblePack && pack && <section className="panel">
@@ -137,7 +176,17 @@ export default function PackWorkspace({ id }: { id?: string }) {
       </li>)}</ol>
       <p><a className="btn" href={`/explore?pack=${pack.id}`}>Explore these sources →</a></p>
       {pack.is_public && <button className="btn" onClick={share}>Copy share link</button>}{" "}
-      {session && <button className="chip" onClick={copyPack}>Make my own copy</button>}
+      {session && !editing && <button className="chip" disabled={saving || deleteRevision !== null} onClick={() => beginDraft(true)}>Make my own copy</button>}
+      {pack.owner_id === session?.user.id && !editing && pack.revision && <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 16 }}>
+        <button className="btn" disabled={saving || deleteRevision !== null} onClick={() => beginDraft(false)}>Edit pack</button>
+        <button className="chip" disabled={saving || deleteRevision !== null} onClick={() => { setDeleteRevision(pack.revision!); setError(""); setNotice(""); setConflict(false); }}>Delete pack</button>
+      </div>}
+      {pack.owner_id === session?.user.id && !pack.revision && <p>Editing is not available for this pack yet. You can still make a copy.</p>}
+      {deleteRevision !== null && pack.owner_id === session?.user.id && <div role="group" aria-label="Confirm pack deletion" style={{ marginTop: 16 }}>
+        <p>Delete “{pack.title}” permanently? Its order and notes will be removed. Shared source records and other people’s copies will remain.</p>
+        <button className="btn" disabled={saving || conflict} onClick={deletePack}>{saving ? "Deleting…" : "Permanently delete this pack"}</button>{" "}
+        <button className="chip" disabled={saving} onClick={() => { setDeleteRevision(null); setError(""); setConflict(false); }}>Keep pack</button>
+      </div>}
       {!pack.is_public && <p>Only your signed-in account can open this pack. Source links themselves remain public.</p>}
     </section>}
     {!id && !loading && <section aria-label="Available source packs">
@@ -147,13 +196,14 @@ export default function PackWorkspace({ id }: { id?: string }) {
     </section>}
     {!session && authReady && <p><a href="/sources">Sign in on the source shelf</a> to create a pack or save your own copy.</p>}
     {session && editing && <form className="panel" onSubmit={save}>
-      <h2>{id ? "Save your own version" : "Create a ranked source pack"}</h2>
+      <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <h2>{editRevision !== null ? "Edit your source pack" : id ? "Save your own copy" : "Create a ranked source pack"}</h2>
       <label style={style}>Title<input className="claim-input" required maxLength={120} value={title} onChange={e => setTitle(e.target.value)} /></label>
       <label style={style}>Description<textarea className="claim-input" maxLength={2000} value={description} onChange={e => setDescription(e.target.value)} /></label>
       <label style={style}>Topic or category<input className="claim-input" required maxLength={80} placeholder="e.g. OAuth security" value={category} onChange={e => setCategory(e.target.value)} /></label>
       <label style={style}>Tags (comma-separated)<input className="claim-input" value={tags} onChange={e => setTags(e.target.value)} /></label>
       <label style={style}><input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} /> Publish this pack for anyone to read and copy</label>
-      <p className="panel-sub">Packs are saved as new versions. To revise one, open it and make a copy. Private packs are visible only to your account; their linked sources are still public.</p>
+      <p className="panel-sub">{editRevision !== null ? "Saving updates this pack’s shared address. Existing copies remain independent." : "Saving creates an independent pack."} Private packs are visible only to your account; their linked sources are still public.</p>
       <h3>Your ranking ({entries.length}/50)</h3>
       <ol style={{ paddingLeft: 24 }}>{entries.map((entry, i) => <li key={entry.source.id} style={{ marginBottom: 16 }}>
         <strong>{entry.source.title}</strong>
@@ -169,7 +219,9 @@ export default function PackWorkspace({ id }: { id?: string }) {
       <div style={{ maxHeight: 300, overflowY: "auto", marginBottom: 20 }}>{sources.map(source => <div key={source.id} style={{ marginBottom: 10 }}>
         <button type="button" className="chip" disabled={entries.length >= 50 || entries.some(e => e.source.id === source.id)} onClick={() => setEntries(current => [...current, { source, note: "" }])}>Add</button>{" "}{source.title}
       </div>)}</div>
-      <button className="btn" disabled={saving || entries.length === 0}>{saving ? "Saving…" : "Save source pack"}</button>
+      <button className="btn" disabled={saving || entries.length === 0 || conflict}>{saving ? "Saving…" : editRevision !== null ? "Save changes" : "Save source pack"}</button>{" "}
+      {id && <button type="button" className="chip" disabled={saving} onClick={discardDraft}>Discard {editRevision !== null ? "changes" : "copy"}</button>}
+      </fieldset>
     </form>}
   </>;
 }

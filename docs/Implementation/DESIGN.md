@@ -29,7 +29,7 @@ and rate limiting remain hardening follow-ups before broader public use.
 
 ## Source packs
 
-`GET/POST /api/packs`, `GET /api/packs/:id`. A pack has title (1–120 characters),
+`GET/POST /api/packs`, `GET/PATCH/DELETE /api/packs/:id`. A pack has title (1–120 characters),
 description (up to 2,000), topic (1–80), up to ten tags (1–40 each), public/private
 visibility, and 1–50 unique existing link sources with ordered ranks and notes
 (up to 1,000 characters each). Owner attribution uses account UUID, never email.
@@ -38,9 +38,21 @@ Migration 003 creates `tn_packs`, `tn_pack_sources`, and `tn_create_pack`.
 Creation is atomic, SECURITY INVOKER, and governed by caller RLS. Packs default
 private. Anonymous users see public packs only; owners also see their private packs.
 Source records themselves remain public. Copies create independent packs, private
-by default; tracked ancestry, owner edits/deletion, and category trees are not yet implemented.
+by default; tracked ancestry and category trees are not yet implemented.
 Lists return up to 50 visible packs; source selection searches up to 100 shelf rows.
 Production migration activation is tracked separately from code deployment.
+
+Migration 004 adds owner editing/deletion with `tn_update_pack` and `tn_delete_pack`,
+both SECURITY INVOKER under RLS. PATCH replaces the full pack and ordered entries
+atomically; DELETE removes the pack and its entries, preserving shared sources and
+independent copies. Both requests require the `revision` captured when editing or
+confirming deletion begins. A locked parent row prevents concurrent writes through
+these functions from silently overwriting each other: stale revision returns 409;
+missing/non-owned pack returns generic 404. Metadata and direct entry writes advance
+revision, an opaque concurrency token; caller updates cannot change identity or ownership.
+The editor retains failed drafts, offers explicit discard/reload after a conflict,
+and confirms permanent deletion. Before migration 004, existing pack reads/copies
+remain supported and owner editing is labeled unavailable.
 
 ## Retrieval
 

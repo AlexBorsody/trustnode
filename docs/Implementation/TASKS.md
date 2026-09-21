@@ -1,7 +1,7 @@
 # Current work
 
 Product direction: [STRATEGY](../Business/STRATEGY.md).
-Technical contracts: [DESIGN](DESIGN.md). Updated 2026-09-20.
+Technical contracts: [DESIGN](DESIGN.md). Updated 2026-09-21.
 
 ## Working agreement
 
@@ -16,6 +16,8 @@ and update this queue instead of creating more handoff documents.
 - Link contribution, source shelf/search, owner source API operations, file extraction.
 - Source packs: ordered links and notes, topics/tags, private/public visibility,
   public sharing, and independent copies (PR #4).
+- Owner pack edits/deletion: atomic ordered saves, captured revision checks,
+  recoverable drafts, and explicit deletion confirmation. Requires migration 004.
 - Explorer and retrieval API with visible ranking factors and pack scope (PR #5).
 - Canonical verification isolated from community ranking; pipeline 0.3.0.
 - Node setup, API input validation, existing regression checks and CI.
@@ -34,20 +36,28 @@ Product work resumed in the desktop workspace after consolidation.
 
 ## Next
 
-1. Verify pack persistence in production. The live read returned 503 on 2026-09-20;
+1. Activate and verify pack persistence in production. The live read still returned
+   503 on 2026-09-21;
    direct Supabase read returned PGRST205 (tn_packs missing from schema cache).
-   Apply `db/migration-003-source-packs.sql` through an authorized database session.
+   Apply `db/migration-003-source-packs.sql`, then `db/migration-004-pack-editing.sql`
+   through an authorized database session; check applied state before rerunning.
+   No authenticated dashboard/DB session is available to this desktop task.
    The local public app credentials cannot run migrations. Migrations
    001b/001c were previously reported applied. Do not infer DB state from deployment.
-2. Complete owner pack editing/deletion and attributable fork ancestry.
+   After activation: verify private/public reads, owner edits and deletion, two-tab
+   stale-save recovery, and second-account ownership isolation in an authorized test account.
+2. Add attributable fork ancestry to the existing independent-copy flow.
 3. Add category hierarchy and pack comparison, then evidence graph relationships.
 
 ## Latest delivery check
 
-2026-09-20: production build and existing API checks pass. Local browser confirms
-homepage navigation, blank-claim feedback, live shelf reads/counts, and filtered
-empty state. Authenticated contribution failures and multi-page navigation were
-not exercised in a live account; no production data was written.
+2026-09-21: 132 application checks, typecheck, and production build pass. Migration
+003→004 and the existing SQL suite pass in disposable PGlite, including owner RLS,
+atomic rollback, revision conflicts, visibility changes, and source/copy preservation.
+Local browser with disposable auth/API fixtures confirms edit/reorder/note/visibility
+saves at the same URL, stale-draft preservation, failed-save retry, delete cancellation
+and completion, and narrow-screen layout. This does not establish live Supabase behavior.
+No production data was written; pack activation and authenticated production QA remain open.
 
 ## Remaining limits and decisions
 
