@@ -59,6 +59,38 @@ saves at the same URL, stale-draft preservation, failed-save retry, delete cance
 and completion, and narrow-screen layout. This does not establish live Supabase behavior.
 No production data was written; pack activation and authenticated production QA remain open.
 
+## Resume in another agent thread — 2026-09-21
+
+Alex requested this handoff. Read STRATEGY, DESIGN, and this queue, then continue
+delivery in the existing desktop checkout on `main`. Strategy is locked. Commit
+and push routine tested work autonomously; PRs/Muse review are not required gates.
+Respect platform permissions and preserve unrelated changes if the checkout becomes dirty.
+
+- Completed feature baseline: `ace73f0` (`e04a49e` backend/migration, `bdb2904` UI,
+  `ace73f0` permission regression). [Hosted CI](https://github.com/AlexBorsody/trustnode/actions/runs/35633791419)
+  passed all 132 application checks, typecheck/build, and real PostgreSQL checks;
+  Vercel reported deployment success. This handoff adds comments/docs only.
+- Fork ancestry is the next implementation task. Only the existing code and
+  design options were reviewed; no fork code or migration 005 has been written.
+  No outgoing agent is editing the repository or owns unfinished changes.
+- Start in `app/src/packs/PackWorkspace.tsx`, `app/src/packs/model.ts`, and
+  `app/src/app/api/packs/route.ts`; the copy flow currently POSTs a new independent
+  pack. Detail reads are in `app/src/app/api/packs/[id]/route.ts`. Extend the existing
+  `app/test/packs.test.ts` and `db/tests/source-packs.sql` for relevant coverage.
+- Resolve ancestry storage/API behavior in DESIGN before implementing. Evaluate
+  immutable origin records, captured parent revision, and visibility-aware attribution.
+  Test another owner's public parent under RLS before choosing a locking approach;
+  do not broaden owner-write policies merely to make copying work. Private/deleted
+  parents must not leak titles, owner details, or private linkage through direct DB reads.
+  These are design considerations, not a finished schema. Copies must remain independent.
+- Production activation is still the concrete blocker in item 1 above. No DB
+  migration was applied in this thread. Do not report working live packs from a
+  green deploy or from the disposable browser fixtures.
+- Node/npm/gh are in `~/.local/bin` on this Mac; add that directory to PATH if
+  needed. Test scripts are in `app/package.json`; database tests run in CI using
+  a disposable database, never production. Browser fixture servers are stopped.
+  Temporary files under `/private/tmp` are optional test aids, not project dependencies.
+
 ## Remaining limits and decisions
 
 - Canonical evidence is still a seeded OAuth/PKCE demo with illustrative fixtures;

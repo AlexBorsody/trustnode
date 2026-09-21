@@ -9,6 +9,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!UUID.test(id)) return json({ error: "Pack not found." }, 404);
   if (!supabaseConfigured()) return json({ error: "Source packs need a configured database." }, 503);
   const sb = supabaseFor(bearerToken(req) ?? undefined);
+  // Read the installed row shape so migration 003 remains readable before 004
+  // adds revision/updated_at. The UI disables owner editing without a revision.
   const { data, error } = await sb.from("tn_packs")
     .select("*,tn_pack_sources(source_id,rank,note,tn_sources(id,title,url,kind,status))")
     .eq("id", id).maybeSingle();

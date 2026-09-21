@@ -26,6 +26,8 @@ export default function PackWorkspace({ id }: { id?: string }) {
   const [tags, setTags] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [editing, setEditing] = useState(!id);
+  // Capture the saved revision when a draft/confirmation opens. Background pack
+  // refreshes must not advance it and accidentally authorize a stale overwrite.
   const [editRevision, setEditRevision] = useState<number | null>(null);
   const [deleteRevision, setDeleteRevision] = useState<number | null>(null);
   const [conflict, setConflict] = useState(false);
@@ -82,6 +84,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
   }, [token, editing, query]);
   // Do not carry a private draft into a different signed-in account.
   useEffect(() => {
+    // Abort suppresses late UI responses; it cannot undo a committed DB mutation.
     mutation.current?.abort();
     setEntries([]); setTitle(""); setDescription(""); setCategory(""); setTags("");
     setIsPublic(false); setEditing(!id); setNotice(""); setSaving(false);
@@ -99,6 +102,8 @@ export default function PackWorkspace({ id }: { id?: string }) {
   function beginDraft(copy: boolean) {
     if (!pack) return;
     if (!copy && (!pack.revision || pack.owner_id !== session?.user.id)) return;
+    // null selects POST/create. Copies are independent today; ancestry is the
+    // next task and must be persisted/validated by the API, not inferred here.
     setEditRevision(copy ? null : pack.revision!); setDeleteRevision(null); setConflict(false); setError("");
     setTitle(copy ? `${pack.title} (copy)`.slice(0, 120) : pack.title); setDescription(pack.description);
     setCategory(pack.category); setTags(pack.tags.join(", ")); setIsPublic(copy ? false : pack.is_public);
