@@ -45,6 +45,7 @@ What doesn't: negation handling (BUG-001); file bytes never parsed (BUG-002); ve
 **Constraints (Charter as engineering requirements):**
 - Art. I — every confidence value ships with its derivation string, never a bare number.
 - Art. II — methodology, data, code public, versioned, forkable. `/api/verify` is intentionally CORS-open.
+- **Canonical source model:** links and public source endpoints are the primary content objects. Files are a convenience ingestion path only; once imported, they must be normalized into a public, addressable source record, not a hidden internal document store.
 - Art. III — no paid placement, no sponsored ranking, ever. No code path may accept money for rank.
 - Art. IV — influence is a liability: append-only history, versioned methodology, no per-project tuning.
 - Art. V — community votes are displayed signals, never silently merged into scores.
@@ -71,6 +72,8 @@ Next.js (App Router) on Vercel + Supabase (Postgres + Auth + Storage). No custom
 - Shelf read: `GET /api/sources?limit&category&tag&q` → public read via anon key.
 
 **Data flow principle:** writes always ride the caller's JWT; the server never bypasses RLS. Reads are public. The pipeline itself is a pure function of (claim, corpus) — same inputs, same output, forever.
+
+**Source-object principle:** the canonical object in the system is an addressable source record, not a private server-side file. A file upload is only a staging/import mechanism. If the content is meant to live in TrustNode, it should become a public source endpoint or normalized content object with provenance and trust metadata, not an opaque blob in an internal file system.
 
 ## 6. UI: the granular menu (secondary feature — deferred)
 
@@ -203,7 +206,7 @@ Phase 1 additions: edge-driven conflicts — a `contradicts` edge between two re
 
 **Links** (`POST /api/sources`): validate http(s); 409 on exact-URL duplicate; server fetch best-effort (10s timeout, 600KB cap, TrustNodeBot UA) for title + ≤4000-char text → `excerpt`; contributor title/description override; `status = ready` iff excerpt present else `pending`. **Security (do before scaling):** SSRF guard — resolve DNS, refuse private/loopback/link-local/metadata ranges; or drop server fetch entirely and rely on contributor text.
 
-**Files** (`POST /api/sources/upload`, BUG-002 fix): after storing bytes, extract text deterministically by MIME — pdf via a pinned parser lib, txt/md as UTF-8, html via tag-stripping (reuse link path), csv as row text, json as extracted string values; cap extracted text at **200KB** (decided); store in `extracted_text` (new column), keep contributor `description` as the display excerpt; `status = ready` iff `extracted_text` or description present. 25MB cap stays. Extraction failures → `status='failed'` with reason (today nothing sets `failed` — wire it).
+**Files** (`POST /api/sources/upload`, BUG-002 fix): treat uploads as a convenience ingestion path only. We may extract text and normalize it, but the system should not build the source model around a private file store. Once ingested, the imported document should become a canonical source object with public metadata and an addressable identity in the graph, not a hidden internal blob. Extraction flows: pdf via a pinned parser lib, txt/md as UTF-8, html via tag-stripping (reuse link path), csv as row text, json as extracted string values; cap extracted text at **200KB** (decided); store in `extracted_text` (new column), keep contributor `description` as the display excerpt; `status = ready` iff `extracted_text` or description present. 25MB cap stays. Extraction failures → `status='failed'` with reason (today nothing sets `failed` — wire it).
 
 **Retrieval text** for a source = title + keywords + excerpt + extracted_text (Phase 0: wire `extracted_text` into the verify route's `text` field).
 

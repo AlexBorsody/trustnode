@@ -115,6 +115,7 @@ Muse now owns frontend testing and post-merge review rather than implementation.
 
 ## Active bugs
 
+- [ ] DB-001: Configure the real Supabase connection and local environment values for the app; this is Muse's setup task under the shared operational workflow. — DESIGN §§10, 23, 25
 - [ ] BUG-001: Stance engine has no negation handling — "PKCE does not protect against interception" can match support patterns. — DESIGN §4
 - [ ] BUG-002: Uploaded file bytes are never parsed; only title/description are searchable. — DESIGN §4
 - [ ] BUG-003: Homepage shows PROTOTYPE v0.1.0 while the pipeline reports 0.2.0 — version labels disagree.
