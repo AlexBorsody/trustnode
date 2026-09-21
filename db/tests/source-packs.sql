@@ -15,6 +15,9 @@ alter table public.tn_sources enable row level security;
 create policy "read sources" on public.tn_sources for select using(true);
 grant select on public.tn_sources to anon,authenticated;
 \ir ../migration-003-source-packs.sql
+-- Model Supabase's broad default table grants before tightening editable columns.
+grant update on public.tn_packs to anon, authenticated;
+\ir ../migration-004-pack-editing.sql
 create function public.test_assert(value boolean, message text) returns void language plpgsql as $$
 begin if value is distinct from true then raise exception '%',message; end if; end $$;
 set role authenticated;
@@ -63,4 +66,97 @@ do $$ begin
   exception when insufficient_privilege then null; end;
 end $$;
 reset role;
+insert into public.tn_sources values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc','link');
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$ declare target_id uuid; original_revision integer; next_revision integer; begin
+  select id,revision into target_id,original_revision from tn_packs where title='Public';
+  next_revision := tn_update_pack(target_id,original_revision,'Edited','New reason','policy',array['primary'],false,
+    '[{"source_id":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","note":"First"},{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","note":"Second"}]');
+  perform test_assert(next_revision>original_revision,'save advances revision');
+  perform test_assert((select title='Edited' and description='New reason' and category='policy' and tags=array['primary'] and not is_public from tn_packs where id=target_id),'metadata and visibility saved');
+  perform test_assert((select array_agg(source_id order by rank)=array['cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid] from tn_pack_sources where tn_pack_sources.pack_id=target_id),'ordered replacement saved');
+  perform test_assert((select note='First' from tn_pack_sources where tn_pack_sources.pack_id=target_id and rank=1),'source note saved');
+  begin
+    perform tn_update_pack(target_id,original_revision,'Stale','','policy','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'stale edit unexpectedly accepted';
+  exception when sqlstate 'PT409' then null; end;
+  begin
+    perform tn_delete_pack(target_id,original_revision);
+    raise exception 'stale delete unexpectedly accepted';
+  exception when sqlstate 'PT409' then null; end;
+  begin
+    perform tn_update_pack(target_id,next_revision,'Bad','','policy','{}',true,'[{"source_id":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"}]');
+    raise exception 'file replacement unexpectedly accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform tn_update_pack(target_id,next_revision,'Bad','','policy','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"},{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'duplicate replacement unexpectedly accepted';
+  exception when unique_violation then null; end;
+  begin
+    perform tn_update_pack(target_id,next_revision,'Empty','','policy','{}',false,'[]');
+    raise exception 'empty replacement unexpectedly accepted';
+  exception when invalid_parameter_value then null; end;
+  perform test_assert((select title='Edited' and revision=next_revision and not is_public from tn_packs where id=target_id),'failed saves roll back metadata and revision');
+  perform test_assert((select count(*)=2 from tn_pack_sources where tn_pack_sources.pack_id=target_id),'failed saves retain entries');
+  begin
+    update tn_packs set owner_id='22222222-2222-4222-8222-222222222222' where id=target_id;
+    raise exception 'owner transfer unexpectedly accepted';
+  exception when insufficient_privilege then null; end;
+  -- Direct owner entry changes invalidate previously opened drafts as well.
+  delete from tn_pack_sources where tn_pack_sources.pack_id=target_id and rank=1;
+  perform test_assert((select revision>next_revision from tn_packs where id=target_id),'direct entry write advances revision');
+  update tn_packs set is_public=true where id=target_id;
+end $$;
+set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+do $$ declare target uuid; rev integer; begin
+  select id,revision into target,rev from tn_packs where title='Edited';
+  begin
+    perform tn_update_pack(target,rev,'Hijack','','policy','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'cross-owner edit unexpectedly accepted';
+  exception when sqlstate 'PT404' then null; end;
+  begin
+    perform tn_delete_pack(target,rev);
+    raise exception 'cross-owner delete unexpectedly accepted';
+  exception when sqlstate 'PT404' then null; end;
+  update tn_packs set title='Hijack' where id=target;
+  delete from tn_packs where id=target;
+  delete from tn_pack_sources where pack_id=target;
+  perform test_assert((select title='Edited' from tn_packs where id=target),'RLS rejects cross-owner direct edits/deletes');
+  perform test_assert((select count(*)=1 from tn_pack_sources where pack_id=target),'RLS rejects cross-owner entry deletion');
+end $$;
+set role anon;
+set request.jwt.claim.sub = '';
+do $$ declare target uuid; rev integer; begin
+  select id,revision into target,rev from tn_packs where title='Edited';
+  begin
+    perform tn_delete_pack(target,rev);
+    raise exception 'anonymous delete unexpectedly accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform tn_update_pack(target,rev,'Anonymous','','policy','{}',true,'[{"source_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}]');
+    raise exception 'anonymous edit unexpectedly accepted';
+  exception when insufficient_privilege then null; end;
+end $$;
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$ declare target uuid; rev integer; begin
+  select id,revision into target,rev from tn_packs where title='Edited';
+  update tn_packs set is_public=false where id=target;
+end $$;
+set role anon;
+set request.jwt.claim.sub = '';
+select test_assert((select count(*)=0 from tn_packs),'privacy change hides public pack');
+select test_assert((select count(*)=0 from tn_pack_sources),'privacy change hides entries');
+set role authenticated;
+set request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
+do $$ declare target uuid; rev integer; begin
+  select id,revision into target,rev from tn_packs where title='Edited';
+  perform tn_delete_pack(target,rev);
+  perform test_assert(not exists(select 1 from tn_packs where id=target),'owner delete removes pack');
+  perform test_assert(not exists(select 1 from tn_pack_sources where pack_id=target),'owner delete removes pack entries');
+  perform test_assert((select count(*)=3 from tn_sources),'deleting pack preserves shared sources');
+end $$;
+reset role;
+select test_assert((select count(*)=1 from tn_packs where title='Copy'),'editing/deletion preserves independent copies');
 select 'Source pack RLS and transaction checks passed' as result;

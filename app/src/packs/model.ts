@@ -4,6 +4,14 @@ export interface PackInput {
   is_public: boolean; entries: PackEntry[];
 }
 export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function parseRevision(input: unknown): number {
+  const revision = input && typeof input === "object" && !Array.isArray(input)
+    ? (input as Record<string, unknown>).revision : undefined;
+  if (typeof revision !== "number" || !Number.isInteger(revision) || revision < 1 || revision > 2147483647) {
+    throw new Error("Reload this pack before saving or deleting it.");
+  }
+  return revision;
+}
 export function parsePack(input: unknown): PackInput {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("Expected a source pack object.");
   const body = input as Record<string, unknown>;
