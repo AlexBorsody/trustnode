@@ -340,13 +340,15 @@ findings are addressed; resolution details and remaining issues follow the revie
   direct PostgREST, no rate limits on open compute endpoints. `test:api` 40/40 and
   `test:packs` 43/43 green after `npm install` (the 40 failures seen mid-recheck
   were the missing `ipaddr.js` in the local checkout, not a code regression).
-- Supervisor directive (2026-09-21): no file storage, ever. This supersedes the
-  storage findings above and the whole `source-files` bucket model: a file upload
-  is converted in memory to HTML as faithfully as possible (choose a conversion
-  library per accepted format — PDF/text/Markdown/CSV/JSON); only the converted
-  HTML is kept, the file bytes are discarded immediately and never written to
-  storage. Remove the bucket flow, file-retention-on-blocked-delete logic, and the
-  extracted-text sidecar model.
+- Supervisor directive (2026-09-21, narrowed): no file storage, ever. This supersedes the
+  storage findings above and the whole `source-files` bucket model. Keep uploads
+  minimal: accept only doc/docx and txt, plus pdf only if the conversion is trivial.
+  Convert in memory to HTML with one library per format (e.g. mammoth for docx,
+  escaped text for txt); only the converted HTML is kept, the file bytes are
+  discarded immediately and never written to storage. Take the easiest route and
+  build nothing on top of this — file handling is an unimportant feature. Remove
+  the bucket flow, file-retention-on-blocked-delete logic, and the extracted-text
+  sidecar model.
 
 **Codex resolution, 2026-09-21:** findings 1–8 are addressed by migration 009 and
 the source API changes. Fetching validates socket DNS addresses and every redirect,
