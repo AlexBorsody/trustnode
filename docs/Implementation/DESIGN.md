@@ -1,11 +1,11 @@
 # TrustNode architecture and technical contracts
 
 Implements the [canonical strategy](../Business/STRATEGY.md).
-Current methods: pipeline `0.3.0`, ranking `retrieval-v1`.
+Current methods: pipeline `0.3.0`, ranking `retrieval-v1`, templates `seed-template-v1`.
 
 The sections through Canonical verification describe the existing implementation.
-The [target architecture](#target-architecture--planned-not-implemented) defines
-the next system; it is a plan, not a claim of shipped behavior. Delivery order and
+The [target architecture](#target-architecture-and-implementation-plan) defines
+the full system; implementation status is recorded separately. Delivery order and
 external dependencies live in [TASKS](TASKS.md#implementation-sequence).
 For the implemented milestones and verification evidence, use the
 [delivery ledger](TASKS.md#completed-work); do not infer delivery from this plan.
@@ -164,6 +164,44 @@ not the other visible origin or the independent child. No stored total or merge-
 flag reveals hidden ancestry. Source membership/order/notes remain curator choices;
 merged provenance never changes canonical confidence or retrieval formulas.
 
+## Category seed templates (migration 007)
+
+`tn_sites` identifies an exact lowercase host; `tn_sources.site_id` and
+`normalized_url` are database-derived on every source write. Normalization removes
+default ports/fragments, preserving scheme, path and query. The contribution API
+already serializes WHATWG URLs/IDNA; unsupported legacy URLs retain no site identity
+rather than being guessed. Files never inherit their storage host. Alias review,
+publisher boundary corrections and fetched-content identity remain future work.
+
+Pack category paths map to stable hierarchical records. Existing public categories
+remain shared; other paths are scoped to their curator, with normalized `path_key`.
+RLS reveals a curator's category/ancestors only to that curator or through a currently
+visible pack. Equal labels from different curators do not merge automatically.
+Backfill preserves source/pack IDs and deliberately advances existing pack revisions
+once, so any draft opened before migration must reload before saving.
+
+`GET/POST /api/packs/:id/versions` reads or captures `tn_pack_versions`. Capture
+requires ownership, the expected pack revision, 1–50 ready identified link seeds,
+and a rationale for each. A narrow authenticated SECURITY DEFINER function locks
+the pack and source rows, validates membership and assembles the snapshot from DB
+records. Clients cannot write snapshots or spoof site identities. Repeating an
+identical capture returns its existing ID and SHA-256 content fingerprint.
+
+The immutable `seed-template-v1` JSON records category identity/path, pack metadata,
+revision, all members/order/notes, source/site identities, explicit seed flags and
+rationale. `uniform-seeds-v1` assigns equal raw resource weights;
+`ordered-seeds-v1` uses `1 / chosen_seed_position`. Site weights use the maximum
+raw weight per site before normalization, preventing duplicate pages from boosting
+that site's mass. These are declared seed preferences, not computed trust scores.
+`accepted-edges-v1` names the future graph policy; no evidence is inferred or fetched.
+
+Pack details expose seed editing, weight preview, version selection, direct links
+and JSON export. GET lists the latest 20 versions or a specific `?version=UUID`.
+Reads and versions follow the pack's current visibility; deleting the pack cascades
+to its versions. Later pack/source edits do not rewrite captured contents. Capture
+conflicts return 409 and retain choices until explicit reload. Existing fork/merge
+flows still copy pack members; version-aware seed reconciliation belongs to step 6.
+
 ## Retrieval
 
 `POST /api/retrieve` accepts `query` (1–500 characters), `limit` (1–20, default 6),
@@ -227,7 +265,7 @@ evidence chain. Standards do not expire by age alone. The current canonical corp
 is an OAuth/PKCE prototype and still contains illustrative fixtures and sample votes.
 Do not claim general-domain verification or measured historical reliability.
 
-## Target architecture — planned, not implemented
+## Target architecture and implementation plan
 
 Architecture revision `plan-1`, 2026-09-21. This implements Strategy and Alex's
 priority: transparent trust ranking first, RAG second, granular controls last.
@@ -282,9 +320,9 @@ does not make it the canonical policy for everyone.
 | Component | Reuse | Remaining work |
 | --- | --- | --- |
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
-| Curation | Sources, packs, ordered links, revision checks, forks/merges | Immutable template versions and explicit seeds/policy |
-| Topics | Category records and pack `>` paths | Stable hierarchical category IDs and recorded membership |
-| Source authority | Bundled analyst weights | Site identity, evidence graph, snapshots, computation, explanations |
+| Curation | Sources, packs, revisions, forks/merges; immutable seed versions (007) | Version-aware forks/merges and graph policy reconciliation |
+| Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
+| Source authority | Exact-host site identity (007); bundled demo analyst weights | Evidence graph, frozen runs, computation, explanations |
 | Evidence review | OAuth/PKCE demonstration pipeline | Recorded claim-specific relationships and provenance |
 | Retrieval | `retrieval-v1` and pack filtering | Passage index, selected subsets and pinned trust-run input |
 | Operations | Next.js/Vercel and Supabase | Bounded job execution, publication records, retries and quotas |
@@ -662,7 +700,8 @@ slider adjustment to canonical trust. These controls are deferred, not phase-one
 ### 12. Migration, operations and release boundaries
 
 Apply existing migrations 003–006 only after inspecting the authorized target DB.
-Plan additive migrations beginning at 007; do not resurrect the unused historical
+Migration 007 implements identities/template versions; continue additive migrations
+at 008. Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
 Give each group constraints, RLS/grants, backfill, compatibility reads and a recorded

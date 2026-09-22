@@ -49,4 +49,4 @@ jobs:
       - name: Check pack permissions and atomic saves
         env:
           PGPASSWORD: postgres
-        run: psql -h localhost -U postgres -d postgres -f db/tests/source-packs.sql
+        run: psql -h localhost -U postgres -d postgres -f db/tests/seed-templates.sql

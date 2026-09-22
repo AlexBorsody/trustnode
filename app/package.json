@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx test/run.ts",
     "test:api": "node --import tsx --test test/api-validation.test.ts",
-    "test:packs": "node --import tsx --test test/packs.test.ts",
+    "test:packs": "node --import tsx --test test/packs.test.ts test/templates.test.ts",
     "test:retrieval": "node --import tsx --test test/ranking.test.ts test/retrieval.test.ts"
   },
   "version": "0.1.0"

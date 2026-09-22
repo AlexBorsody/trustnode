@@ -10,16 +10,18 @@ Updated 2026-09-21. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   sets → RAG using that trust signal → granular SourceSelect controls last.
   Trust is independent of the research query. Curation, graph authority, relevance
   and claim confidence remain separate, explained signals.
-- **Code:** latest application change is `ee0c98d`; later commits document the plan.
-  Architecture `plan-1` was published at `c788112`. No graph engine, graph migration
-  007+, passage index, generation adapter or sampling controls have been implemented.
+- **Code:** step 1 is implemented: migration 007, derived site/category identities,
+  immutable seed-template capture and a working pack editor/read/export flow.
+  Architecture `plan-1` was published at `c788112`. Evidence relationships, graph
+  computation, stored runs, passage indexing and generation remain unbuilt.
 - **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
   existing app, not the proposed architecture. A successful deployment does not
   establish database or SSO readiness.
 - **Production, last observed 2026-09-21:** packs returned 503/PGRST205; migrations
   003–006 were not applied by Codex. Google/Microsoft providers were disabled;
   email and signup enabled, SAML disabled. These observations have not been
-  rechecked during this documentation update. Muse setup results are below.
+  rechecked during this implementation. New migration 007 also awaits activation.
+  Muse setup results are below.
 - **Workspace:** `/Users/alexborsody/Projects/trustnode`, `main`, one implementation
   owner in the desktop app. Consolidation/conflict cleanup is complete. No other
   agent has an active code assignment. Routine commits/pushes are authorized;
@@ -39,6 +41,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Owner pack management | Atomic edits/deletion, captured revision checks, stale-save rejection and retained drafts | `e04a49e`, `bdb2904`; migration 004 |
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
 | Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
+| Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | Migration 007; implemented 2026-09-21, activation pending |
 | Existing explorer | Deterministic `retrieval-v1`, displayed factors, public adoption and private-pack scope; canonical verification isolated from curation | `ae98399`, `0b8a9cc`, `3714c44` / PR #5 |
 | SSO/JIT account flow | Shared Supabase client, Google/Microsoft OAuth adapters, PKCE callback, first-login onboarding, account/profile/sign-out, enabled-provider discovery | `50f91b1`; live provider activation pending |
 | Review/configuration fix | Preserved Habib's review; server Supabase clients/provider discovery fall back to the public env pair | Review `143f68e`; fix `ee0c98d` |
@@ -48,22 +51,21 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Start implementation sequence step 1: site identity and versioned category
-seed templates.** The architecture/documentation work is complete; this update
-adds no feature code. Read DESIGN's target architecture before resuming.
+**Implement sequence step 2: attributable evidence relationships.** Step 1 is
+wired from SQL through API to the pack UI. Seed mass is now inspectable input;
+it is not yet a propagated trust score.
 
-1. Add deterministic site/resource identity and category mapping contracts. Keep
-   existing source IDs and pack references; record ambiguous aliases rather than
-   merging sites silently.
-2. Add the first additive migration from 007 for those identities and immutable
-   template versions, including ownership/RLS and an explicit backfill. Existing
-   links remain members, not automatically trusted seeds.
-3. Extend atomic pack save/version capture with explicit seed roles, rationale and
-   the named weighting modes in DESIGN. Preserve current revision checks,
-   public/private visibility and independent fork/merge behavior.
-4. Expose the minimal template editor/read path. Complete when an owned version
-   captures category, members and chosen seeds reproducibly; a later edit leaves
-   it unchanged and duplicate pages cannot multiply site seed mass.
+1. Add migration 008 for append-only relationship revisions, evidence locators,
+   scoped acceptance and challenges, following DESIGN section 4. Preserve author,
+   category/template scope, relation type and the evidence behind each assertion.
+2. Add caller-scoped proposal/review APIs. Observed links, accepted citations and
+   claim-specific conflicts must remain distinct; private records cannot enter
+   another user's public run or expose hidden IDs.
+3. Add the minimal evidence editor/read flow for a saved template. Completion:
+   a curator records and reviews a citation/conflict with attributable rationale;
+   later revisions preserve the prior evidence and decision history.
+4. Then implement deterministic site/resource projections and explained seeded
+   PageRank (step 3), followed by frozen, atomically published runs (step 4).
 
 This work can proceed locally while Muse handles production access. Do not start
 passage ingestion, generation, tuning controls, unrelated CRUD polish or a separate
@@ -72,14 +74,14 @@ edges, compute explained scores, then make that workflow usable and shareable.
 
 ## Implementation sequence
 
-All steps are **todo**. Step 0 activates existing code; steps 1–10 implement planned
-capabilities. Detailed contracts live in [DESIGN](DESIGN.md#target-architecture--planned-not-implemented).
+Step 1 is **implemented locally; production activation pending**. Other steps are
+todo. Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
 Each step ends with a focused commit, relevant checks and a status update here.
 
 | Step | Deliverable | Depends on | Completion condition |
 | --- | --- | --- | --- |
-| 0. Production activation | Inspect/apply 003–006; configure SSO/JIT; verify two-user ownership | Muse access | Real accounts use owned/private/public packs; actual DB/provider results recorded |
-| 1. Identity and templates | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Fixed seed/member/category snapshot with revision and privacy protection |
+| 0. Production activation | Inspect/apply 003–007; configure SSO/JIT; verify two-user ownership | Muse access | Real accounts use owned/private/public packs; actual DB/provider results recorded |
+| 1. Identity and templates — implemented | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Local DB/API/browser flow verified; 007 activation pending |
 | 2. Evidence graph | Relationship revisions, evidence locators, scoped acceptance and challenges | 1 | Curator can record, review and explain a citation or conflict; observations are separate from accepted edges |
 | 3. Trust computation | Site/resource projections, seeded PageRank and contribution accounting | 1–2 contracts | A nonseed earns rank through evidence; seed/edge changes are explained; identical inputs replay |
 | 4. Stored/public runs | Frozen snapshots, scores, jobs, restricted worker, atomic publication and read/export APIs | 1–3; worker deployment for production | One completed run ties rankings and explanations to exact inputs; retries cannot publish partial results |
@@ -98,7 +100,7 @@ while real category evidence is prepared; it cannot prove real-world reliability
 This is a scope target, not a promise that RAG and controls also fit this week.
 
 **Release discipline:** code deployment and migration activation are separate.
-Start new additive migrations at 007; never rewrite applied migrations. Keep previous
+Continue new additive migrations at 008; never rewrite applied migrations. Keep previous
 completed runs for rollback. Formula/parameter changes require methodology versions.
 Proposed constants are recorded in DESIGN, not treated as measured accuracy.
 
@@ -121,9 +123,11 @@ secret store; record only where access is available and the non-secret result.
   configured; another anon key will not unblock migrations.
 - **Migration state — pending.** Inspect existing tables/functions before applying
   `db/migration-003-source-packs.sql`, `004-pack-editing`, `005-pack-ancestry`, then
-  `006-pack-merge`. Record each actual application result here. 001b/001c were
+  `006-pack-merge`, then `007-seed-templates`. Record each actual application result here. 001b/001c were
   previously reported applied; 003–006 have not been applied by Codex. The observed
   production pack API returned 503/PGRST205. Deployment success is not DB readiness.
+  **007 backfill advances existing pack revisions once**; reopen any older drafts.
+  It assigns site/category identities but does not automatically mark any seeds.
 - **SSO provider choice — pending.** Confirm Google, Microsoft work accounts, both,
   or enterprise SAML through an organization IdP. Google/Microsoft OAuth adapters
   and JIT account creation are built. Enterprise SAML is a separate integration;
@@ -184,9 +188,22 @@ secret store; record only where access is available and the non-secret result.
 Add dated responses here, using the item names above. Codex will fold resolved
 items into Next and DESIGN rather than maintaining competing handoff documents.
 
+**Codex → Muse, 2026-09-21:** seed templates are ready for testing after 007 is
+applied. In an owned pack, select seeds, enter rationale, choose equal/ordered
+weighting and save a template version. Check fixed contents after a pack edit,
+version links/JSON, stale capture recovery and private/public visibility with a
+second account. Two seed URLs on one site must not multiply that site's weight.
+Record specific failures here with route, action, expected/actual result and
+account role; omit credentials. No new Muse notes were present at the latest fetch.
+
 ## Validation and review record
 
-- Latest application commit `ee0c98d` passed hosted application/type/build and
+- Step 1: focused pack/template checks, typecheck and production build passed.
+  Disposable PostgreSQL-engine checks exercised identities, immutable/idempotent
+  capture, stale/non-owner rejection and private category/version visibility.
+  Local browser fixture completed SSO → owned pack → ordered seed capture → saved
+  weights/rationale/fingerprint. No production migration or provider was changed.
+- Prior application baseline `ee0c98d` passed hosted application/type/build and
   PostgreSQL checks ([CI run](https://github.com/AlexBorsody/trustnode/actions/runs/35665903138)).
   Local browser fixtures exercised owner source editing, SSO callback/onboarding/
   sign-out, pack merge/reordering and stale-draft recovery. These fixtures do not
@@ -202,7 +219,7 @@ items into Next and DESIGN rather than maintaining competing handoff documents.
 
 ## Remaining limits and deferred work
 
-- The central trust engine and every new architecture step above are unbuilt.
+- The central trust engine and architecture steps 2–10 are unbuilt.
   Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
 - Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
   and illustrative content. Provenance cleanup and real domain evidence are needed;

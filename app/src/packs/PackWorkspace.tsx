@@ -5,6 +5,7 @@ import { useAuth } from "@/auth/useAuth";
 import type { ForkOrigin, PackInput, PackSource } from "./model";
 import { inTopic, topicOptions } from "./browse";
 import PackComparison, { type MergeDraft } from "./PackComparison";
+import SeedTemplates from "./SeedTemplates";
 
 type Source = PackSource;
 type Origin = { parent_revision: number; forked_at: string; parent: { id: string; title: string; owner_id: string } };
@@ -230,6 +231,7 @@ export default function PackWorkspace({ id }: { id?: string }) {
       {filteredPacks.map(p => <article className="panel" key={p.id}><h3><a href={`/packs/${p.id}`}>{p.title}</a> <span className="tag">{p.is_public ? "Public" : "Private"}</span></h3><p>{p.description}</p><small>{p.category}</small></article>)}
     </section>}
     {!session && authReady && <p><a href={`/login?next=${encodeURIComponent(id ? `/packs/${id}` : "/packs")}`}>Sign in</a> to create a pack or save your own copy.</p>}
+    {visiblePack && pack && <SeedTemplates key={`${pack.id}:${session?.user.id ?? "anonymous"}`} packId={pack.id} token={token} isOwner={pack.owner_id === session?.user.id} disabled={editing || saving || deleteRevision !== null} />}
     {session && editing && <form id="pack-editor" className="panel" onSubmit={save}>
       <fieldset disabled={saving} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       <h2>{editRevision !== null ? "Edit your source pack" : mergeOrigins ? "Review your merged source pack" : id ? "Save your own copy" : "Create a ranked source pack"}</h2>
