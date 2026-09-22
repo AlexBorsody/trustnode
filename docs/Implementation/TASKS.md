@@ -57,7 +57,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
 | Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
 | Evidence relationships | Version-scoped manual proposals, immutable revisions, stale-protected curator decisions, challenges/resolutions and private-safe history APIs/editor | `1c3ede2` deployed; migration 011 applied 2026-09-21 |
-| Stored trust runs — local milestone | Consistent captures, fenced worker leases/retries, atomic results, RLS reads/exports and explicit publication | Migration 012 prepared; production activation pending |
+| Stored trust runs — local milestone | Consistent captures, fenced worker leases/retries, atomic results, RLS reads/exports and explicit publication | `7e8d942`; PostgreSQL CI passed; 012/worker production activation pending |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -73,8 +73,9 @@ production readiness. Earlier foundation work is retained and integrated.
 **Review and activate the step 4 backend; then build step 5 trust workspace.**
 The technical PM independently reviewed `7cbfd43` and assigned stored runs. The
 local implementation now has snapshot/enqueue/read/export/publication APIs and a
-restricted worker. PostgreSQL concurrent-session CI remains a required gate until
-its actual result is recorded below. No production worker is claimed.
+restricted worker. The exact implementation commit `7e8d942` passed application
+and PostgreSQL CI, including concurrent captures and a separate restricted login.
+No production worker is claimed.
 
 1. Review migration 012 and the committed backend. Inspect the authorized Supabase
    schema before applying it; do not rewrite already applied 003–011.
@@ -127,7 +128,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 1. Identity and templates — implemented | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Local DB/API/browser flow verified; schema and RLS verified live |
 | 2. Evidence graph — implemented | Append-only proposals/revisions, curator decisions, challenges and resolutions; saved-template editor/history | 1 | Local DB/API checks and hosted rollback flow passed; real-account acceptance pending |
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
-| 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Local enqueue/replay/isolation/retry checks pass; real PostgreSQL concurrency and production activation tracked below |
+| 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Enqueue/replay/isolation/retry and real PostgreSQL concurrency checks pass; production activation pending |
 | 5. Trust workspace | Category/template chooser, rankings, focused graph, explanations, conflicts and comparison | 4 | User can inspect why a site ranks before entering a research question |
 | 6. Shared template hub | Version-aware publish/fork/merge, category discovery, separate adoption and private-safe comparison | 5; 0 for live pilot | A second user independently forks and recomputes a template without private-parent leakage |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
@@ -273,9 +274,11 @@ parked under Alex's latest direction.
   capture of 25 relationships beyond the UI page, private/public ownership,
   visibility transitions, request-key aliases, stale lease fencing, conflicting
   completion, atomic nonconvergence rejection and bounded retries. API checks pass.
-  Real concurrent-session PostgreSQL capture/revision and capture/review checks
-  are prepared for CI and **not yet verified**. Typecheck and local production build
-  passed; exact-commit hosted results will be recorded after the run finishes.
+  Commit `7e8d942` passed [application and PostgreSQL 16 CI](https://github.com/AlexBorsody/trustnode/actions/runs/35692966904),
+  including actual concurrent capture/revision and capture/review blocking, plus
+  execution through a separately provisioned restricted LOGIN role and rejection
+  of another login using a valid lease token. Typecheck and local/hosted builds
+  passed. The concurrency gate is verified; the process host remains unconfigured.
   Migration 012 is not applied in production; no restricted production login,
   worker host or real-account acceptance has been configured by this milestone.
 - Step 3 PM review passed at `7cbfd43`: six graph scenarios, typecheck and 30
