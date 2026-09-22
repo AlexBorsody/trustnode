@@ -24,8 +24,8 @@ Updated 2026-09-21. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   provider endpoint still returns no enabled Google/Microsoft providers, with signup
   enabled. Source creation/editing now has an atomic, authenticated-only RPC; live
   transaction checks verified tags, rollback and ownership without retaining test
-  rows. Source API deployment verification is pending this commit. Real-account
-  app flows remain pending SSO configuration.
+  rows. Source API commit `7257b7f` is deployed; live source search and packs return
+  200. Real-account app flows remain pending SSO configuration.
 - **Workspace:** `/Users/alexborsody/Projects/trustnode`, `main`, one implementation
   owner in the desktop app. Consolidation/conflict cleanup is complete. No other
   agent has an active code assignment. Routine commits/pushes are authorized;
@@ -41,7 +41,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Repository/docs organization | Consolidated onto main, resolved documentation conflicts, removed redundant active docs/assignments, retained recovery data and locked Strategy | `c2ff57d`, `18759b2` |
 | Source foundation | Link contribution; filtered/searchable public shelf; owner APIs; file text extraction and explicit failures; normalized input validation | `39eb561`, `ea15f8d`, `b6f7b10`, `fe4ec96` |
 | Source workflow | Homepage entry points, shelf pagination, loading/retry states and recoverable errors; owner title/description editing and confirmed deletion; files retained if pack references block deletion | `9e00256`, `1112e30` |
-| Source database wiring | Atomic metadata/category/tag saves and file registration; immutable ownership/file identity and shared tag labels; caller-folder storage, bounded public metadata fetching, safe search/errors and bounded verification reads | Migration 009 applied 2026-09-21; source API deployment check pending |
+| Source database wiring | Atomic metadata/category/tag saves and file registration; immutable ownership/file identity and shared tag labels; caller-folder storage, bounded public metadata fetching, safe search/errors and bounded verification reads | `7257b7f` deployed; migration 009 applied 2026-09-21 |
 | Pack creation and sharing | Ranked links/notes, topic/tags, ownership, public/private visibility and independent copies | `2e3717b` / PR #4; migration 003 |
 | Owner pack management | Atomic edits/deletion, captured revision checks, stale-save rejection and retained drafts | `e04a49e`, `bdb2904`; migration 004 |
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
@@ -222,7 +222,12 @@ findings are addressed; resolution details and remaining issues follow the revie
   passed. A public metadata fetch succeeded with the bounded socket/DNS path.
   Live caller-RLS transaction checks verified source/tag saves, immutable shared
   labels, rollback and foreign-owner rejection, then rolled back all temporary
-  records. API deployment verification is pending; no real SSO login was exercised.
+  records. Commit `7257b7f` passed [hosted CI](https://github.com/AlexBorsody/trustnode/actions/runs/35680171982)
+  and Vercel deployment. Live `/api/sources?q=%28oauth%29` and `/api/packs` return
+  200; anonymous source creation returns 401. Two repeated `PKCE uses a code
+  verifier` requests returned identical verification responses. This narrow check
+  does not resolve the broader headline report. No real SSO login was exercised;
+  the live provider list remains empty.
 - Production activation: inspected hosted schema before applying 003–008; verified
   final RLS/privileges and unchanged source count. Live pack/source/provider APIs
   return 200; providers remain empty. The 008 regression check reproduces explicit
