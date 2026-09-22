@@ -109,6 +109,16 @@ passage ingestion, generation, tuning controls, unrelated CRUD polish or a separ
 validation project ahead of the trust engine. Next milestones: record evidenced
 edges, compute explained scores, then make that workflow usable and shareable.
 
+**Reference seed collection v1 (OAuth/PKCE) — proposed 2026-09-21:** the first real
+reference seed set is drafted at `docs/Implementation/reference-seed-oauth-pkce.json`:
+3 seeds (RFC 7636, RFC 9700, RFC 6749 — equal seed mass per DESIGN section 3),
+4 non-seed members (security-topics draft, Auth0/Okta PKCE guides, oauth.net), and
+5 manually evidenced relationships (1 supersedes, 3 cites, 1 corroborates). The two
+`.invalid` illustrative fixtures are excluded and must not be migrated as proven
+content. Ingest as the first reference category policy input for steps 2–3
+(evidence graph + trust computation). Reference status requires Alex's recorded
+maintainer publication.
+
 ## Implementation sequence
 
 Step 1 is **implemented and its schema activated**; live signed-in verification is
