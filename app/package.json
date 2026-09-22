@@ -28,7 +28,7 @@
     "test:api": "node --import tsx --test test/api-validation.test.ts test/evidence.test.ts test/trust-api.test.ts",
     "test:packs": "node --import tsx --test test/packs.test.ts test/templates.test.ts",
     "test:retrieval": "node --import tsx --test test/ranking.test.ts test/retrieval.test.ts",
-    "test:graph": "node --import tsx --test test/graph.test.ts",
+    "test:graph": "node --import tsx --test test/graph.test.ts test/trust-workspace.test.ts",
     "worker:graph": "node --import tsx worker/run.ts",
     "graph:replay": "node --import tsx worker/replay.ts",
     "test:trust-db": "node --import tsx test/run-trust-database.ts"

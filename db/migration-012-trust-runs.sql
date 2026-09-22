@@ -369,9 +369,11 @@ begin
   ) page;
   return jsonb_build_object('run_id',run.id,'state',run.state,'failure_code',run.failure_code,'failure_diagnostics',run.failure_diagnostics,
     'created_at',run.created_at,'completed_at',run.completed_at,'input_hash',frozen.input_hash,'output_hash',run.output_hash,
-    'template_version_id',frozen.template_version_id,'pack_revision',frozen.pack_revision,'evidence_revision',frozen.evidence_revision,
+    'current_public',pack.is_public,'template_version_id',frozen.template_version_id,'pack_revision',frozen.pack_revision,'evidence_revision',frozen.evidence_revision,
     'stale',pack.revision<>frozen.pack_revision or version.evidence_revision<>frozen.evidence_revision or pack.trust_visibility_epoch<>frozen.visibility_epoch,
     'published',exists(select 1 from public.tn_policy_publications where run_id=p_run),
+    'public_readable',run.state='completed' and frozen.captured_public and pack.is_public and pack.trust_visibility_epoch=frozen.visibility_epoch
+      and exists(select 1 from public.tn_policy_publications where run_id=p_run),
     'diagnostics',run.raw_result->'results'->p_projection->'diagnostics',
     'evidence_state',run.raw_result->'results'->p_projection->'evidence_state',
     'projection',p_projection,'offset',p_offset,'limit',100,'scores',scores);

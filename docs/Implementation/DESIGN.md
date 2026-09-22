@@ -404,7 +404,7 @@ does not make it the canonical policy for everyone.
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
 | Curation | Sources, packs, revisions, forks/merges; immutable seed versions (007) | Version-aware forks/merges and graph policy reconciliation |
 | Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
-| Source authority | Exact-host site identity (007); pure site/resource graph computation | Consistent snapshots, stored/public runs and trust workspace |
+| Source authority | Exact-host site identity (007), site/resource computation, frozen stored runs and trust workspace | Production activation and shared template discovery |
 | Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
 | Retrieval | `retrieval-v1` and pack filtering | Passage index, selected subsets and pinned trust-run input |
 | Operations | Next.js/Vercel, Supabase; bounded Postgres jobs and restricted graph worker (012) | Production worker credentials/host and migration activation |
@@ -811,13 +811,14 @@ recorded in TASKS; the local worker milestone does not establish either.
 | `GET /api/seeds?template_version=` | Visible seeds, normalized masses, rationale and policy identity |
 | `POST /api/relationships` and decision/challenge actions | Authenticated proposals; policy-scoped acceptance; append-only revisions |
 | `POST /api/trust/runs` — implemented | `template_version_id`, `pack_revision`, `evidence_revision`, `request_key`; enqueue or reuse; 202, or 200 for an already completed request |
+| `GET /api/trust/runs?template_version=&offset=` — implemented | Newest 20 currently accessible runs for a visible version; caller JWT and table RLS apply to both run and snapshot |
 | `GET /api/trust/inputs?template_version=` — implemented | Read currently visible pack/evidence tokens before capture |
-| `GET /api/trust/runs/:id` — implemented | Status, input versions, stale/publication state, diagnostics and scores; `projection` and `offset` |
+| `GET /api/trust/runs/:id` — implemented | Status, input versions, stale/publication state, current template visibility and public readability, diagnostics and scores; `projection` and `offset` |
 | `GET /api/trust/:node_id?run_id=&projection=` — implemented | One score and complete contribution ledger; unknown is distinct from zero |
 | `GET /api/trust/runs/:id/export?part=` — implemented | Separate exact input/canonical/raw/manifest artifacts with current RLS |
 | `POST /api/trust/runs/:id/publish` — implemented | Explicit requesting-owner publication with current expected pack/evidence revisions |
-| `GET /api/graph?run_id=&focus=` | Visible bounded subgraph; counts/truncation explicit; export uses pagination |
-| Run export/compare | Canonical JSON inputs/results and two-run differences; access checked for both |
+| Focused graph — implemented in workspace | Incoming/outgoing evidence list from the same bounded frozen artifact as rankings; paged supports/exclusions/reviews. A separate graph endpoint is not required for this bounded first version |
+| Run export/compare — implemented | Exact input/canonical/raw/manifest exports; independently authorized second-run reads; input/category/evidence/policy/seed differences shown before raw mass deltas |
 | Category/template listing | Category-filtered templates, separate adoption and optional independent-reference authority/coverage; cursor pagination |
 | Later `POST /api/retrieve` v2 | Query, template version, completed trust run, selected source IDs, exclusions and limit |
 | Later `POST /api/research` | Pinned retrieval result plus generation settings; persisted citation provenance |
@@ -892,11 +893,31 @@ expose provenance and permitted excerpts, with storage/retention policy recorded
 
 ### 11. Product surfaces and later controls
 
-The first new UI is the trust workspace: choose category/template, see ranked
-sites and resources, open a score's calculation, inspect supporting edges and
-conflicts, compare policies, and publish/fork the template. A table and focused
-graph share the same run ID. Show seed-only, stale, failed and incomplete-coverage
-states. Detailed graph layout is presentation; it cannot alter rank.
+The implemented `/trust` workspace selects categories, packs and immutable seed
+versions, captures current revision tokens, requests a stored run and polls at
+three-second intervals for at most one minute. An ambiguous enqueue failure retains
+the exact payload/request key for retry; explicit input reload starts a new intent.
+Site/resource tables and focused incoming/outgoing evidence lists use the same
+frozen input and stored artifact. Input bytes are checked against the run's SHA-256
+before display. Explanations show direct seed, incoming and dangling mass, seed
+rationale, recorded quotations, decisions/challenges and exclusions. Display
+rounding never changes stored mass. Unknown nodes remain distinct from zero.
+
+Comparison authorizes and loads both runs independently, then labels differing
+input/category/graph/policy/seed scopes before showing raw mass deltas. Publication
+is an explicit owner action; private captures and stale runs cannot be published.
+The status distinguishes a recorded publication from current public readability,
+including revoked publication after a public/private/public transition. Exact
+exports and replay instructions are available. Seed-only, stale, failed, private,
+unavailable and unmapped-resource states are explicit.
+
+Account, run and template changes abort outstanding requests and reset their
+views; delayed responses cannot populate another scope. Refresh and page focus
+recheck current access and clear unavailable data. This does not retract already
+downloaded data or promise immediate revocation in an idle offline browser.
+Discovery is bounded to the newest 50 accessible packs, 20 versions and 20 runs
+per page; larger shared discovery and version-aware fork/merge belong to step 6.
+Detailed graph layout is presentation; it cannot alter rank.
 
 The second UI connects that chosen run to a research question and selected links,
 then shows cited passages/results with trust and relevance in separate columns.

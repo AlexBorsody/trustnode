@@ -61,7 +61,8 @@ export async function runTrustIntegration(db: SqlClient, connection?: () => Prom
   assert.equal((await db.query("select * from tn_graph_snapshots")).rows.length, 0);
   await role("tn_graph_worker"); const worked = await workOnce(restrictedWorker ?? db); assert.equal(worked.state, "completed");
   await role("authenticated");
-  const status = await read(run); assert.equal(status.state, "completed"); assert.equal(status.published, false);
+  const status = await read(run); assert.equal(status.state, "completed"); assert.equal(status.published, false); assert.equal(status.current_public, false);
+  assert.equal(status.public_readable, false);
   const input = (await read(run, "input")).text, canonical = (await read(run, "canonical")).text, manifest = await read(run, "manifest");
   assert.equal(JSON.parse(input).relationships.length, 25, "capture must exceed the UI's 20-row page");
   assert.equal(JSON.parse(input).reviews.length, 25);
@@ -80,13 +81,16 @@ export async function runTrustIntegration(db: SqlClient, connection?: () => Prom
   await role("authenticated"); await code("PT409", publish(inFlight)); await visibility(true); await code("PT409", publish(inFlight));
   const published = (await enqueue()).run_id; await role("tn_graph_worker"); assert.equal((await workOnce(db)).state, "completed");
   await role("authenticated"); await publish(published);
-  await role("anon"); assert.equal((await read(published)).published, true); assert.equal((await read(published, "manifest")).output_hash.length, 64);
+  await role("anon"); assert.equal((await read(published)).published, true); assert.equal((await read(published)).current_public, true); assert.equal((await read(published, "manifest")).output_hash.length, 64);
+  assert.equal((await read(published)).public_readable, true);
   await role("authenticated", OTHER); assert.equal((await read(published, "input")).text.length > 0, true);
   await role("authenticated"); await visibility(false);
+  assert.equal((await read(published)).current_public, false); assert.equal((await read(published)).stale, true);
+  assert.equal((await read(published)).public_readable, false);
   await role("anon"); await code("PT404", read(published)); assert.equal((await db.query("select * from tn_trust_scores where run_id=$1", [published])).rows.length, 0);
   await role("authenticated"); await visibility(true);
   await role("anon"); await code("PT404", read(published));
-  await role("authenticated"); assert.equal((await read(published)).stale, true);
+  await role("authenticated"); assert.equal((await read(published)).stale, true); assert.equal((await read(published)).public_readable, false);
   console.log("Explicit publication and visibility epoch isolation passed");
 
   const retried = (await enqueue()).run_id, stale = await lease();

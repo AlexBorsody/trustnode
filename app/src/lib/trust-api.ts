@@ -7,7 +7,11 @@ export async function trustClient(req: Request, write = false) {
   if (!supabaseConfigured()) return { error: trustJson({ error: "Trust storage is unavailable." }, 503) };
   const token = bearerToken(req), sb = supabaseFor(token ?? undefined);
   if (write && !token) return { error: trustJson({ error: "Sign in to compute or publish a trust run." }, 401) };
-  if (token) { const { data, error } = await sb.auth.getUser(); if (error || !data.user) return { error: trustJson({ error: "Sign in again." }, 401) }; }
+  if (token) {
+    const { data, error } = await sb.auth.getUser();
+    if (error && (!error.status || error.status >= 500)) return { error: trustJson({ error: "Trust storage is unavailable." }, 503) };
+    if (error || !data.user) return { error: trustJson({ error: "Sign in again." }, 401) };
+  }
   return { sb };
 }
 export function trustFailure(error: { code?: string }) {

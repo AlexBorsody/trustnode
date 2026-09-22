@@ -85,7 +85,7 @@ export default function SeedTemplates({ packId, token, userId, isOwner, disabled
   }
   return <section className="panel" aria-label="Category seed templates">
     <h2>Category seed templates</h2>
-    <p className="panel-sub">A saved version preserves this category’s links, order and seed rationale. Seed weight is a declared starting preference; graph trust has not been computed yet.</p>
+    <p className="panel-sub">A saved version preserves this category’s links, order and seed rationale. Seed weight is a declared starting preference. Compute and inspect graph authority in the trust workspace.</p>
     {busy && <p role="status">{loaded ? "Saving template…" : "Loading templates…"}</p>}
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
@@ -128,7 +128,8 @@ export default function SeedTemplates({ packId, token, userId, isOwner, disabled
         <p>Site seed mass: {distribution?.sites.map(s => `${s.host} ${(100 * s.mass).toFixed(1)}%`).join(" · ")}</p>
         <p className="panel-sub" style={{ overflowWrap: "anywhere" }}>Content fingerprint: {version.content_hash}</p>
         <a className="chip" href={`/packs/${packId}?version=${version.id}`}>Open this version</a>{" "}
-        <button className="chip" onClick={download}>Download template JSON</button>
+        <button className="chip" onClick={download}>Download template JSON</button>{" "}
+        <a className="chip" href={`/trust?pack=${packId}&version=${version.id}`}>Compute and inspect trust</a>
         <EvidencePanel key={`${version.id}:${token ?? 'anonymous'}`} version={version} token={token} userId={userId} isOwner={isOwner} />
       </>}
     </div>}

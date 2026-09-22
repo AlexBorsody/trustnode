@@ -71,6 +71,7 @@ for (const key of ["file_name", "title", "description", "category", "tags"]) {
 test("authentication return paths stay within known application pages", async () => {
   const { safeReturnTo } = await import("../src/auth/returnTo");
   assert.equal(safeReturnTo("/sources"), "/sources");
+  assert.equal(safeReturnTo("/trust?run=example"), "/trust?run=example");
   assert.equal(safeReturnTo("/explore?pack=example"), "/explore?pack=example");
   for (const value of ["https://attacker.invalid", "//attacker.invalid", "/\\attacker.invalid", "/auth/callback", "/account", "/api/packs", "/%2f%2fattacker.invalid", "javascript:alert(1)"]) {
     assert.equal(safeReturnTo(value), "/packs");
