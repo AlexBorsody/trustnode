@@ -1,3 +1,4 @@
+import { boundedJson } from "@/lib/request-body";
 import { NextResponse } from "next/server";
 import { bearerToken, supabaseConfigured, supabaseFor } from "@/lib/supabase";
 import { verifyClaim } from "@/trustnode/pipeline";
@@ -10,7 +11,7 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 export async function OPTIONS() { return new NextResponse(null, { status: 204, headers }); }
 export async function POST(req: Request) {
   let input;
-  try { input = parseRetrieval(await req.json()); }
+  try { input = parseRetrieval(await boundedJson(req)); }
   catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid retrieval request." }, 400); }
   const warnings: string[] = [];
   let shelf: ShelfSource[] = [], packs: PublicPack[] = [], selected: SelectedPack | undefined;

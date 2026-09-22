@@ -1,3 +1,5 @@
+import { boundedJson } from "@/lib/request-body";
+import { sourceTags, sourceWriteError } from "@/sources/write";
 import { UUID } from "@/packs/model";
 import { NextResponse } from "next/server";
 import {
@@ -33,7 +35,7 @@ async function requireOwner(
   sb: SupabaseClient,
   id: string,
 ): Promise<
-  | { row: { id: string; kind: string; file_path: string | null; excerpt: string | null; extracted_text: string | null } }
+  | { row: { id: string; kind: string; file_path: string | null } }
   | { error: ReturnType<typeof json> }
 > {
   const { data: userData, error: userErr } = await sb.auth.getUser();
@@ -41,53 +43,19 @@ async function requireOwner(
   if (!user) return { error: json({ error: "sign in to modify sources" }, 401) };
   const { data: row } = await sb
     .from("tn_sources")
-    .select("id, kind, file_path, excerpt, extracted_text, owner_id")
+    .select("id, kind, file_path, owner_id")
     .eq("id", id)
     .single();
   const typed = row as {
     id: string;
     kind: string;
     file_path: string | null;
-    excerpt: string | null;
-    extracted_text: string | null;
     owner_id: string | null;
   } | null;
   if (!typed || typed.owner_id !== user.id) {
     return { error: json({ error: "source not found" }, 404) };
   }
   return { row: typed };
-}
-
-async function resolveCategoryId(
-  sb: SupabaseClient,
-  slug: unknown,
-): Promise<string | null> {
-  const s = slugify(String(slug ?? "general")) || "general";
-  const { data } = await sb.from("tn_categories").select("id").eq("slug", s).single();
-  return (data as { id: string } | null)?.id ?? null;
-}
-
-async function replaceTags(sb: SupabaseClient, sourceId: string, tags: unknown) {
-  await sb.from("tn_source_tags").delete().eq("source_id", sourceId);
-  const list = Array.isArray(tags) ? tags : String(tags ?? "").split(",");
-  const slugs = [...new Set(list.map((t) => slugify(String(t))).filter(Boolean))].slice(0, 10);
-  for (const slug of slugs) {
-    const label =
-      list.map((t) => String(t).trim()).find((t) => slugify(t) === slug) ?? slug;
-    const { data: tag } = await sb
-      .from("tn_tags")
-      .upsert({ slug, label }, { onConflict: "slug" })
-      .select("id")
-      .single();
-    if (tag) {
-      await sb
-        .from("tn_source_tags")
-        .upsert(
-          { source_id: sourceId, tag_id: (tag as { id: string }).id },
-          { onConflict: "source_id,tag_id" },
-        );
-    }
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -115,7 +83,7 @@ export async function PATCH(
     tags?: unknown;
   };
   try {
-    body = await req.json();
+    body = await boundedJson(req) as typeof body;
   } catch {
     return json({ error: "expected JSON body" }, 400);
   }
@@ -128,34 +96,21 @@ export async function PATCH(
     return json({ error: "Source details must contain valid text fields." }, 400);
   }
   const sb = supabaseFor(token);
-  const owned = await requireOwner(sb, id);
-  if ("error" in owned) return owned.error;
-
+  const { data: auth, error: authError } = await sb.auth.getUser();
+  if (authError || !auth.user) return json({ error: "sign in to modify sources" }, 401);
   const updates: Record<string, string | null> = {};
   if (body.title !== undefined) {
     const title = body.title.trim().slice(0, 300);
     if (!title) return json({ error: "title cannot be empty" }, 400);
     updates.title = title;
   }
-  if (body.description !== undefined) {
-    updates.excerpt = body.description.trim().slice(0, 4000) || null;
-  }
-  if (body.category !== undefined) {
-    updates.category_id = await resolveCategoryId(sb, body.category);
-  }
-
-  const excerpt = updates.excerpt !== undefined ? updates.excerpt : owned.row.excerpt;
-  updates.status =
-    excerpt || owned.row.extracted_text ? "ready" : "pending";
-
-  const { error } = await sb.from("tn_sources").update(updates).eq("id", id);
-  if (error) return json({ error: error.message }, 500);
-
-  if (body.tags !== undefined) {
-    await replaceTags(sb, id, body.tags);
-  }
-
-  return json({ id, status: updates.status });
+  if (body.description !== undefined) updates.excerpt = body.description.trim().slice(0, 4000) || null;
+  if (body.category !== undefined) updates.category = slugify(body.category) || "general";
+  const { data, error } = await sb.rpc("tn_save_source", {
+    p_id: id, p_data: updates, p_tags: body.tags === undefined ? null : sourceTags(body.tags),
+  });
+  if (error || !data) { const failure = sourceWriteError(error ?? {}); return json({ error: failure.error }, failure.status); }
+  return json(data);
 }
 
 // ---------------------------------------------------------------------------

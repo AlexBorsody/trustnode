@@ -65,13 +65,34 @@ shared details affects every pack using that source; curator notes/order are sep
 Source edits currently use last-save-wins, without pack-style revision tokens.
 A foreign-key reference from a pack blocks deletion with a generic 409. Uploaded
 storage is removed only after successful row deletion; cleanup failures are reported.
-Category/tag editing remains API-only pending an atomic replacement contract.
+Category/tag editing remains API-only; title/description editing is on the shelf.
 
-Uploads accept PDF/text/Markdown/HTML/CSV/JSON, maximum 25 MB. Extracted text has a
-200 KB cap; `extracted_text` is separate from the contributor excerpt. Failed
-extraction records its reason. Links and normalized source records remain primary.
-Server fetch uses a timeout; bounded response reading, SSRF prevention, MIME checks,
-and rate limiting remain hardening follow-ups before broader public use.
+Migration 009 adds `tn_save_source`: a caller-RLS, SECURITY INVOKER transaction for
+link creation, file registration and owner edits. Metadata, category and complete
+tag replacement commit together or roll back. Omitted edit tags preserve membership;
+an empty list clears it. Categories resolve only to shared public categories, never
+a private curator's matching slug. Source identity/ownership/file fields cannot be
+updated by callers. Global tag labels are immutable; source-tag attachment requires
+source ownership. An exact-link-URL unique index handles concurrent duplicates.
+Database bounds cover title, excerpt, extracted text, errors, URL and tags. These
+CHECK constraints use NOT VALID to preserve legacy rows while enforcing new writes.
+
+Uploads accept PDF/text/Markdown/CSV/JSON, maximum 4 MiB. Both the API and bucket
+enforce the size/MIME allowlist; storage inserts require the caller's UUID folder.
+Extracted text has a 200 KB character cap, separate from the contributor excerpt.
+Extraction failures retain a generic reason. Storage and Postgres cannot commit
+as one transaction: an explicit database rejection triggers file cleanup; an
+ambiguous RPC failure preserves the file in case its source row committed. Failed
+cleanup and uncertain saves can leave orphans for administrative reconciliation.
+
+Link metadata fetch accepts public HTTP(S) on standard ports, without credentials.
+Each connection uses validated public DNS addresses directly, including after each
+of at most three redirects. The entire fetch has an eight-second deadline and a
+600,000-byte streaming cap; only uncompressed HTML/XHTML/plain text is read. Failed
+fetches fall back to contributor context; fetched descriptions are not versioned
+passages or verified quotations. JSON request bodies are bounded (32 KiB for source
+writes/retrieval, 4 KiB for verification), and multipart bodies allow 4 MiB plus
+32 KiB of form overhead. Shared rate limits remain pending.
 
 ## Source packs
 
@@ -241,6 +262,10 @@ controls, corpus status, and independent `canonical_verification`. Retrieval ran
 is not factual confidence. Unmatched research topics say “No analyzed claim match.”
 
 ## Canonical verification
+
+The community read uses at most 200 ready sources, ordered by creation time then
+ID, and only title/excerpt metadata. Full extracted documents are not loaded by
+this public endpoint. Community entries retain zero earned confidence weight.
 
 `POST /api/verify {claim}`: public and CORS-open; string of 1–500 trimmed characters.
 Malformed/empty/oversized requests return 400. Supabase is optional for seed verification.
@@ -707,8 +732,9 @@ slider adjustment to canonical trust. These controls are deferred, not phase-one
 
 Apply existing migrations 003–006 only after inspecting the authorized target DB.
 Migration 007 implements identities/template versions; 008 tightens older RPC
-grants. Both are activated in production, with results in TASKS. Continue additive
-migrations at 009. Do not resurrect the unused historical
+grants; 009 makes source saves atomic and restricts shared tags/storage writes.
+All are activated in production, with results in TASKS. Continue additive
+migrations at 010. Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
 Give each group constraints, RLS/grants, backfill, compatibility reads and a recorded

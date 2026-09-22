@@ -135,3 +135,81 @@ test("a referenced source deletion preserves its backing file", async () => {
     assert(!requests.some(path => path.includes("/storage/")));
   } finally { globalThis.fetch = trappedFetch; }
 });
+
+test("metadata fetch destinations reject internal and encoded private IPs", async () => {
+  const { publicAddress, metadataUrl } = await import("../src/sources/link-meta");
+  for (const ip of ["127.0.0.1", "10.0.0.1", "169.254.169.254", "172.16.1.1", "192.168.1.1", "100.64.0.1", "::1", "fc00::1", "fe80::1", "::ffff:127.0.0.1", "2001:db8::1"]) assert.equal(publicAddress(ip), false, ip);
+  for (const value of ["http://2130706433", "http://0x7f000001", "http://[::ffff:127.0.0.1]", "http://localhost", "https://user:pass@example.com", "http://example.com:9000"]) assert.throws(() => metadataUrl(value));
+  assert(publicAddress("8.8.8.8")); assert(publicAddress("2606:4700:4700::1111"));
+  assert.equal(metadataUrl("https://example.com:443/page").href, "https://example.com/page");
+});
+
+test("source creation and edits use one atomic metadata/tag RPC with generic errors", async () => {
+  const trappedFetch = globalThis.fetch;
+  const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  let errorCode: string | null = null;
+  const calls: { path: string; body?: Record<string, unknown> }[] = [];
+  try {
+    globalThis.fetch = async (input, init) => {
+      const req = new Request(input, init), path = new URL(req.url).pathname;
+      calls.push({ path, body: req.method === "POST" ? await req.json() : undefined });
+      const body = path.endsWith("/user") ? { id } : path.endsWith("/tn_sources") ? [] : errorCode ? { code: errorCode, message: "private schema detail" } : { id, status: "ready" };
+      return new Response(JSON.stringify(body), { status: path.endsWith("/tn_save_source") && errorCode ? 400 : 200, headers: { "Content-Type": "application/json" } });
+    };
+    const { PATCH } = await import("../src/app/api/sources/[id]/route");
+    let response = await sources.POST(request({ url: "https://example.com/page", title: "Primary", description: "Evidence", tags: ["OAuth", "oauth"] }, true));
+    assert.equal(response.status, 201);
+    assert.deepEqual(calls.at(-1)?.body?.p_tags, [{ slug: "oauth", label: "OAuth" }]);
+    assert.equal(calls.at(-1)?.path, "/rest/v1/rpc/tn_save_source");
+    response = await PATCH(request({ title: "Edited", tags: [] }, true), { params: Promise.resolve({ id }) });
+    assert.equal(response.status, 200); assert.deepEqual(calls.at(-1)?.body, { p_id: id, p_data: { title: "Edited" }, p_tags: [] });
+    assert(!calls.some(c => /tn_tags|tn_source_tags/.test(c.path)));
+    errorCode = "23505";
+    response = await sources.POST(request({ url: "https://example.com/page", title: "Duplicate", description: "Evidence" }, true));
+    assert.equal(response.status, 409); assert(!JSON.stringify(await response.json()).includes("private schema"));
+  } finally { globalThis.fetch = trappedFetch; }
+});
+
+test("verification reads bounded descriptions with a stable tie-breaker", async () => {
+  const trappedFetch = globalThis.fetch; let selected = "", order = "";
+  try {
+    globalThis.fetch = async (input, init) => {
+      const url = new URL(new Request(input, init).url);
+      selected = url.searchParams.get("select") ?? ""; order = url.searchParams.get("order") ?? "";
+      return new Response("[]", { headers: { "Content-Type": "application/json" } });
+    };
+    assert.equal((await verify.POST(request({ claim: "PKCE uses a code verifier" }))).status, 200);
+    assert(!selected.includes("extracted_text")); assert(order.includes("id.asc"));
+  } finally { globalThis.fetch = trappedFetch; }
+});
+
+test("uploads reject active HTML and oversize files before database access", async () => {
+  for (const file of [new File(["<script>alert(1)</script>"], "page.html", { type: "text/html" }), new File([new Uint8Array(4 * 1024 * 1024 + 1)], "large.txt", { type: "text/plain" })]) {
+    const form = new FormData(); form.set("file", file);
+    await bad(await upload.POST(new Request("http://localhost/api/sources/upload", { method: "POST", headers: { Authorization: "Bearer fixture" }, body: form })));
+  }
+});
+
+test("file registration cleans up a rejected save but preserves an uncertain one", async () => {
+  const trappedFetch = globalThis.fetch;
+  const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  try {
+    for (const [code, expectedStatus, shouldRemove] of [["22023", 400, true], ["", 503, false]] as const) {
+      let removed = false;
+      globalThis.fetch = async (input, init) => {
+        const req = new Request(input, init), path = new URL(req.url).pathname;
+        if (req.method === "DELETE") removed = true;
+        const rpc = path.endsWith("/tn_save_source");
+        return new Response(JSON.stringify(path.endsWith("/user") ? { id } : rpc ? { code, message: "save failed" } : {}), {
+          status: rpc ? 400 : 200, headers: { "Content-Type": "application/json" },
+        });
+      };
+      const form = new FormData();
+      form.set("file", new File(["Source evidence"], "source.txt", { type: "text/plain" }));
+      const response = await upload.POST(new Request("http://localhost/api/sources/upload", {
+        method: "POST", headers: { Authorization: "Bearer fixture" }, body: form,
+      }));
+      assert.equal(response.status, expectedStatus); assert.equal(removed, shouldRemove);
+    }
+  } finally { globalThis.fetch = trappedFetch; }
+});

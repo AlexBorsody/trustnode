@@ -17,12 +17,15 @@ Updated 2026-09-21. [Strategy](../Business/STRATEGY.md) is canonical and locked.
 - **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
   existing app, not the proposed architecture. A successful deployment does not
   establish database or SSO readiness.
-- **Production, verified 2026-09-21:** migrations 003–008 are applied to the existing
+- **Production, verified 2026-09-21:** migrations 003–009 are applied to the existing
   Supabase project. `/api/packs` now returns 200 with an empty list, replacing the
   previous 503/PGRST205; the two existing sources are preserved. All five new tables
   have RLS and all six pack mutation RPCs require authenticated execution. The live
   provider endpoint still returns no enabled Google/Microsoft providers, with signup
-  enabled. Real-account app flows remain pending SSO configuration.
+  enabled. Source creation/editing now has an atomic, authenticated-only RPC; live
+  transaction checks verified tags, rollback and ownership without retaining test
+  rows. Source API deployment verification is pending this commit. Real-account
+  app flows remain pending SSO configuration.
 - **Workspace:** `/Users/alexborsody/Projects/trustnode`, `main`, one implementation
   owner in the desktop app. Consolidation/conflict cleanup is complete. No other
   agent has an active code assignment. Routine commits/pushes are authorized;
@@ -38,6 +41,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Repository/docs organization | Consolidated onto main, resolved documentation conflicts, removed redundant active docs/assignments, retained recovery data and locked Strategy | `c2ff57d`, `18759b2` |
 | Source foundation | Link contribution; filtered/searchable public shelf; owner APIs; file text extraction and explicit failures; normalized input validation | `39eb561`, `ea15f8d`, `b6f7b10`, `fe4ec96` |
 | Source workflow | Homepage entry points, shelf pagination, loading/retry states and recoverable errors; owner title/description editing and confirmed deletion; files retained if pack references block deletion | `9e00256`, `1112e30` |
+| Source database wiring | Atomic metadata/category/tag saves and file registration; immutable ownership/file identity and shared tag labels; caller-folder storage, bounded public metadata fetching, safe search/errors and bounded verification reads | Migration 009 applied 2026-09-21; source API deployment check pending |
 | Pack creation and sharing | Ranked links/notes, topic/tags, ownership, public/private visibility and independent copies | `2e3717b` / PR #4; migration 003 |
 | Owner pack management | Atomic edits/deletion, captured revision checks, stale-save rejection and retained drafts | `e04a49e`, `bdb2904`; migration 004 |
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
@@ -57,7 +61,7 @@ production readiness. Earlier foundation work is retained and integrated.
 wired from SQL through API to the pack UI. Seed mass is now inspectable input;
 it is not yet a propagated trust score.
 
-1. Add migration 009 for append-only relationship revisions, evidence locators,
+1. Add migration 010 for append-only relationship revisions, evidence locators,
    scoped acceptance and challenges, following DESIGN section 4. Preserve author,
    category/template scope, relation type and the evidence behind each assertion.
 2. Add caller-scoped proposal/review APIs. Observed links, accepted citations and
@@ -69,10 +73,11 @@ it is not yet a propagated trust score.
 4. Then implement deterministic site/resource projections and explained seeded
    PageRank (step 3), followed by frozen, atomically published runs (step 4).
 
-**Immediate follow-up:** address Muse/Habib's source-fetch, upload and verification
-findings below before broadening live usage. They describe existing exposure, not
-a separate validation project. Database access is now available; SSO setup remains
-with Muse. After those fixes, resume the evidence graph. Do not start
+**Source wiring follow-up complete:** migration 009 connects existing source forms
+to atomic database saves and addresses Muse/Habib's concrete source-fetch, storage,
+upload, query and error findings. Shared rate limits and the reported verifier
+headline/charter discrepancy remain open below. Database access is available;
+SSO setup remains with Muse. Resume the evidence graph backend; do not start
 passage ingestion, generation, tuning controls, unrelated CRUD polish or a separate
 validation project ahead of the trust engine. Next milestones: record evidenced
 edges, compute explained scores, then make that workflow usable and shareable.
@@ -86,7 +91,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 
 | Step | Deliverable | Depends on | Completion condition |
 | --- | --- | --- | --- |
-| 0. Production activation — partial | 003–008 applied; configure SSO/JIT and verify two-user ownership | Provider setup | Real accounts use owned/private/public packs; actual DB/provider results recorded |
+| 0. Production activation — partial | 003–009 applied; configure SSO/JIT and verify two-user ownership | Provider setup | Real accounts use owned/private/public packs; actual DB/provider results recorded |
 | 1. Identity and templates — implemented | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Local DB/API/browser flow verified; schema and RLS verified live |
 | 2. Evidence graph | Relationship revisions, evidence locators, scoped acceptance and challenges | 1 | Curator can record, review and explain a citation or conflict; observations are separate from accepted edges |
 | 3. Trust computation | Site/resource projections, seeded PageRank and contribution accounting | 1–2 contracts | A nonseed earns rank through evidence; seed/edge changes are explained; identical inputs replay |
@@ -106,7 +111,7 @@ while real category evidence is prepared; it cannot prove real-world reliability
 This is a scope target, not a promise that RAG and controls also fit this week.
 
 **Release discipline:** code deployment and migration activation are separate.
-Continue new additive migrations at 009; never rewrite applied migrations. Keep previous
+Continue new additive migrations at 010; never rewrite applied migrations. Keep previous
 completed runs for rollback. Formula/parameter changes require methodology versions.
 Proposed constants are recorded in DESIGN, not treated as measured accuracy.
 
@@ -126,7 +131,7 @@ secret store; record only where access is available and the non-secret result.
   dashboard. The `trustnode` project `nrxhyqzzozynemaxghba` matches the app's configured
   URL. SQL editor access works; no privileged credential was copied into the repo.
   A separate staging project has not been established.
-- **Migration state — ready through 008, 2026-09-21.** Before applying, confirmed
+- **Migration state — ready through 009, 2026-09-21.** Before applying, confirmed
   source/category tables existed, pack/identity tables and functions were absent,
   and category keys had no duplicate backfill collisions. Applied 003 (packs), 004
   (editing), 005 (ancestry), 006 (merge), 007 (templates), then 008 (explicit RPC
@@ -136,6 +141,11 @@ secret store; record only where access is available and the non-secret result.
   the CLI migration-history table records them or blindly reapply them. 001b/001c
   were previously reported applied. No existing packs were present during 007's
   revision backfill; existing links were not automatically promoted to seeds.
+  Before 009, confirmed no duplicate link URLs and one existing Markdown file.
+  Applied 009 and exercised create/edit, tag preservation, rollback and cross-owner
+  rejection inside a rolled-back transaction. Final source count remains two; no
+  test records remain. The source RPC requires authenticated execution, ownership
+  and shared-tag updates are denied, and the bucket enforces a 4 MiB limit.
 - **SSO provider choice — pending.** Confirm Google, Microsoft work accounts, both,
   or enterprise SAML through an organization IdP. Google/Microsoft OAuth adapters
   and JIT account creation are built. Enterprise SAML is a separate integration;
@@ -196,18 +206,23 @@ secret store; record only where access is available and the non-secret result.
 Add dated responses here, using the item names above. Codex will fold resolved
 items into Next and DESIGN rather than maintaining competing handoff documents.
 
-**Codex → Muse, 2026-09-21:** migrations through 008 are now applied; the database
+**Codex → Muse, 2026-09-21:** migrations through 009 are now applied; the database
 setup blocker is resolved. SSO provider configuration remains pending. Once signed
 in, select seeds in an owned pack, enter rationale, choose equal/ordered
 weighting and save a template version. Check fixed contents after a pack edit,
 version links/JSON, stale capture recovery and private/public visibility with a
 second account. Two seed URLs on one site must not multiply that site's weight.
 Record specific failures here with route, action, expected/actual result and
-account role; omit credentials. Review `eaa7ebb` has been read and preserved below;
-its concrete findings are the immediate follow-up before further live exposure.
+account role; omit credentials. Review `eaa7ebb` is preserved below. Its source
+findings are addressed; resolution details and remaining issues follow the review.
 
 ## Validation and review record
 
+- Source wiring (009): focused API/database checks, typecheck and production build
+  passed. A public metadata fetch succeeded with the bounded socket/DNS path.
+  Live caller-RLS transaction checks verified source/tag saves, immutable shared
+  labels, rollback and foreign-owner rejection, then rolled back all temporary
+  records. API deployment verification is pending; no real SSO login was exercised.
 - Production activation: inspected hosted schema before applying 003–008; verified
   final RLS/privileges and unchanged source count. Live pack/source/provider APIs
   return 200; providers remain empty. The 008 regression check reproduces explicit
@@ -266,6 +281,20 @@ its concrete findings are the immediate follow-up before further live exposure.
   DETERMINISTIC label; /charter served two different principle sets minutes apart
   (likely a deploy/cache artifact — pin the canonical text).
 
+**Codex resolution, 2026-09-21:** findings 1–8 are addressed by migration 009 and
+the source API changes. Fetching validates socket DNS addresses and every redirect,
+blocks private ranges, and bounds time/stream size. Storage INSERT is restricted
+to the caller's folder; production had no UPDATE policy, so the claimed overwrite
+path was not established, but foreign-folder creation was possible. HTML MIME is
+removed; API and bucket limits are 4 MiB. Verification reads only bounded excerpts
+with a stable ID tie-breaker. Source APIs return generic errors and shelf search
+sanitizes PostgREST punctuation. Public owner UUID attribution is intentional;
+ownership/file identity and global tag labels are now immutable to callers.
+Source metadata and tag replacement commit together. This does not add malware
+scanning, shared quotas or versioned page capture. Finding 9 (shared rate limits)
+and the headline/charter report remain open. A stable read order is not evidence
+that the headline issue is resolved; reproduce with an exact claim and deployment.
+
 ## Remaining limits and deferred work
 
 - The central trust engine and architecture steps 2–10 are unbuilt.
@@ -273,10 +302,11 @@ its concrete findings are the immediate follow-up before further live exposure.
 - Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
   and illustrative content. Provenance cleanup and real domain evidence are needed;
   graph authority must never be described as measured factual accuracy.
-- Source edits remain last-save-wins. Category/tag editing needs an atomic contract;
-  shelf search does not match tag labels. Keep these behind core trust delivery.
-- Before broader public launch: fetch/SSRF bounds, upload MIME/attachment handling,
-  quotas/rate limits, moderation, retention policy and real ownership verification.
+- Source edits remain last-save-wins. Category/tag edits are atomic but API-only;
+  shelf search does not match tag labels. Storage/DB failures can leave orphaned
+  files requiring reconciliation. Keep further CRUD polish behind trust delivery.
+- Before broader public launch: shared quotas/rate limits, file-content handling,
+  moderation, retention policy and real-account ownership verification.
   Relevant safeguards ship with ingestion/jobs, not as an unrelated project.
 - Votes, verified-user badges, broad social features, measured reliability and
   personal canonical-confidence overrides are deferred. Graph publication/evidence

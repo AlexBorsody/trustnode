@@ -1,3 +1,4 @@
+import { boundedJson } from "@/lib/request-body";
 import { NextResponse } from "next/server";
 import { verifyClaim, communityTextStance, type SourceSeed } from "@/trustnode/pipeline";
 import { publicFileUrl, supabaseConfigured, supabaseFor } from "@/lib/supabase";
@@ -23,7 +24,7 @@ export async function OPTIONS() {
 export async function POST(req: Request) {
   let body: unknown;
   try {
-    body = await req.json();
+    body = await boundedJson(req, 4096);
   } catch {
     return json({ error: "expected JSON body { claim }" }, 400);
   }
@@ -50,9 +51,9 @@ export async function POST(req: Request) {
       const sb = supabaseFor();
       const { data } = await sb
         .from("tn_sources")
-        .select("id, kind, title, url, file_path, excerpt, extracted_text, created_at")
+        .select("id, kind, title, url, file_path, excerpt, created_at")
         .eq("status", "ready")
-        .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false }).order("id", { ascending: true })
         .limit(200);
       extra = ((data ?? []) as {
         id: string;
@@ -61,13 +62,12 @@ export async function POST(req: Request) {
         url: string | null;
         file_path: string | null;
         excerpt: string | null;
-        extracted_text: string | null;
         created_at: string;
       }[]).map((r) => {
         // Unreviewed community material: a labeled mechanical keyword stance,
         // zero earned trust, so it surfaces visibly but never moves confidence.
-        // Retrieval text = contributor excerpt + extracted file text (DESIGN §18).
-        const text = [r.excerpt, r.extracted_text].filter(Boolean).join("\n\n");
+        // Bounded shelf descriptions only; full document text belongs in passage retrieval.
+        const text = r.excerpt ?? "";
         return {
           id: `community:${r.id}`,
           title: r.title,

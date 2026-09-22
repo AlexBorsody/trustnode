@@ -62,7 +62,7 @@ export default function SourcesPage() {
 
   useEffect(() => {
     if (!configured) return;
-    sb().from("tn_categories").select("slug,name").order("name")
+    sb().from("tn_categories").select("slug,name").is("owner_id", null).order("name")
       .then(({ data }) => setCategories((data ?? []) as Category[]));
   }, []);
 
@@ -200,7 +200,7 @@ export default function SourcesPage() {
 
           <div className="panel">
             <h2>Upload a file</h2>
-            <p className="panel-sub">PDF, text, markdown, HTML, CSV, JSON — max 25 MB.</p>
+            <p className="panel-sub">PDF, text, markdown, CSV, JSON — max 4 MB.</p>
             <input ref={fileInput} style={inputStyle} type="file"
               accept=".pdf,.txt,.md,.markdown,.html,.csv,.json"
               onChange={(e) => setUpFile(e.target.files?.[0] ?? null)} />

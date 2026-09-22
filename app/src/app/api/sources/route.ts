@@ -1,3 +1,4 @@
+import { boundedJson } from "@/lib/request-body";
 import { NextResponse } from "next/server";
 import {
   bearerToken,
@@ -6,7 +7,8 @@ import {
   supabaseConfigured,
   supabaseFor,
 } from "@/lib/supabase";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { sourceTags, sourceWriteError } from "@/sources/write";
+import { fetchLinkMeta, metadataUrl } from "@/sources/link-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -86,7 +88,7 @@ export async function GET(req: Request) {
   const offset = Math.max(0, parseInt(sp.get("offset") ?? "0", 10) || 0);
   const category = sp.get("category");
   const tag = sp.get("tag");
-  const q = (sp.get("q") ?? "").trim();
+  const q = (sp.get("q") ?? "").trim().slice(0, 300);
 
   // Inner-join hints only when the corresponding filter is active, so
   // unfiltered reads keep the cheap outer-join shape.
@@ -106,7 +108,7 @@ export async function GET(req: Request) {
     // (db/migration-001c-sources-trgm.sql). Escape LIKE wildcards; commas
     // would break the .or() list syntax.
     const esc = q
-      .replace(/,/g, " ")
+      .replace(/[,()"*]/g, " ")
       .replace(/\\/g, "\\\\")
       .replace(/%/g, "\\%")
       .replace(/_/g, "\\_");
@@ -115,80 +117,10 @@ export async function GET(req: Request) {
   query = query.order("created_at", { ascending: false }).order("id").range(offset, offset + limit - 1);
 
   const { data, error, count } = await query;
-  if (error) return json({ error: error.message }, 500);
+  if (error) return json({ error: "Could not load sources. Try again." }, 503);
 
   const rows = ((data ?? []) as unknown as SourceRow[]).map(mapRow);
   return json({ sources: rows, limit, offset, total: count ?? rows.length });
-}
-
-// ---------------------------------------------------------------------------
-// helpers
-// ---------------------------------------------------------------------------
-
-async function attachTags(sb: SupabaseClient, sourceId: string, tags: unknown) {
-  const list = Array.isArray(tags) ? tags : String(tags ?? "").split(",");
-  const slugs = [...new Set(list.map((t) => slugify(String(t))).filter(Boolean))].slice(0, 10);
-  for (const slug of slugs) {
-    const label =
-      list.map((t) => String(t).trim()).find((t) => slugify(t) === slug) ?? slug;
-    const { data: tag } = await sb
-      .from("tn_tags")
-      .upsert({ slug, label }, { onConflict: "slug" })
-      .select("id")
-      .single();
-    if (tag) {
-      await sb
-        .from("tn_source_tags")
-        .upsert(
-          { source_id: sourceId, tag_id: (tag as { id: string }).id },
-          { onConflict: "source_id,tag_id" },
-        );
-    }
-  }
-}
-
-async function resolveCategoryId(
-  sb: SupabaseClient,
-  slug: unknown,
-): Promise<string | null> {
-  const s = slugify(String(slug ?? "general")) || "general";
-  const { data } = await sb.from("tn_categories").select("id").eq("slug", s).single();
-  return (data as { id: string } | null)?.id ?? null;
-}
-
-async function requireUser(sb: SupabaseClient) {
-  const { data, error } = await sb.auth.getUser();
-  if (error || !data.user) return null;
-  return data.user;
-}
-
-/** Fetch a page server-side and pull a title + plain-text excerpt. */
-async function fetchLinkMeta(url: string): Promise<{ title: string; text: string }> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 10_000);
-  try {
-    const res = await fetch(url, {
-      signal: ctrl.signal,
-      redirect: "follow",
-      headers: { "user-agent": "TrustNodeBot/0.2 (+https://trustnode-lemon.vercel.app)" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength > 600_000) throw new Error("page too large");
-    const html = new TextDecoder().decode(buf);
-    const title =
-      html.match(/<title[^>]*>([^<]{1,200})<\/title>/i)?.[1]?.trim() ?? "";
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 4000);
-    return { title, text };
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +136,7 @@ export async function POST(req: Request) {
 
   let input: unknown;
   try {
-    input = await req.json();
+    input = await boundedJson(req);
   } catch {
     return json({ error: "expected JSON body" }, 400);
   }
@@ -229,7 +161,8 @@ export async function POST(req: Request) {
   const rawUrl = (body.url ?? "").trim();
   let parsed: URL;
   try {
-    parsed = new URL(rawUrl);
+    if (rawUrl.length > 2048) throw new Error("URL too long");
+    parsed = metadataUrl(rawUrl);
   } catch {
     return json({ error: "invalid URL" }, 400);
   }
@@ -238,7 +171,8 @@ export async function POST(req: Request) {
   }
 
   const sb = supabaseFor(token);
-  const user = await requireUser(sb);
+  const { data: auth, error: authError } = await sb.auth.getUser();
+  const user = authError ? null : auth.user;
   if (!user) return json({ error: "sign in to contribute" }, 401);
 
   // already shelved?
@@ -253,34 +187,19 @@ export async function POST(req: Request) {
   }
 
   let meta = { title: "", text: "" };
-  try {
-    meta = await fetchLinkMeta(parsed.toString());
-  } catch {
-    // keep going: the contributor's title/description can carry it
+  if (!body.title?.trim() || !body.description?.trim()) {
+    try { meta = await fetchLinkMeta(parsed.toString()); }
+    catch { /* Contributor context still permits a useful source when a page is unavailable. */ }
   }
 
   const title = (body.title ?? "").trim() || meta.title || parsed.hostname;
   const excerpt = (body.description ?? "").trim() || meta.text || null;
-  const categoryId = await resolveCategoryId(sb, body.category);
-
-  const { data: inserted, error } = await sb
-    .from("tn_sources")
-    .insert({
-      owner_id: user.id,
-      kind: "link",
-      title: title.slice(0, 300),
-      url: parsed.toString(),
-      category_id: categoryId,
-      status: excerpt ? "ready" : "pending",
-      excerpt,
-    })
-    .select("id")
-    .single();
-
-  if (error || !inserted) return json({ error: error?.message ?? "insert failed" }, 500);
-
-  const sourceId = (inserted as { id: string }).id;
-  await attachTags(sb, sourceId, body.tags);
-
-  return json({ id: sourceId, status: excerpt ? "ready" : "pending" }, 201);
+  const { data, error } = await sb.rpc("tn_save_source", {
+    p_id: null,
+    p_data: { kind: "link", title: title.slice(0, 300), url: parsed.toString(),
+      excerpt: excerpt?.slice(0, 4000) ?? null, category: slugify(body.category ?? "general") || "general" },
+    p_tags: sourceTags(body.tags),
+  });
+  if (error || !data) { const failure = sourceWriteError(error ?? {}); return json({ error: failure.error }, failure.status); }
+  return json(data, 201);
 }

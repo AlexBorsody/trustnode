@@ -6,7 +6,8 @@ import {
   supabaseFor,
 } from "@/lib/supabase";
 import { extractText } from "@/trustnode/extract";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { sourceTags, sourceWriteError } from "@/sources/write";
+import { boundedBody } from "@/lib/request-body";
 
 export const dynamic = "force-dynamic";
 
@@ -24,42 +25,19 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS });
 }
 
-const MAX_BYTES = 25 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME = new Set([
   "application/pdf",
   "text/plain",
   "text/markdown",
-  "text/html",
   "text/csv",
   "application/json",
 ]);
 
-async function attachTags(sb: SupabaseClient, sourceId: string, tags: unknown) {
-  const list = Array.isArray(tags) ? tags : String(tags ?? "").split(",");
-  const slugs = [...new Set(list.map((t) => slugify(String(t))).filter(Boolean))].slice(0, 10);
-  for (const slug of slugs) {
-    const label =
-      list.map((t) => String(t).trim()).find((t) => slugify(t) === slug) ?? slug;
-    const { data: tag } = await sb
-      .from("tn_tags")
-      .upsert({ slug, label }, { onConflict: "slug" })
-      .select("id")
-      .single();
-    if (tag) {
-      await sb
-        .from("tn_source_tags")
-        .upsert(
-          { source_id: sourceId, tag_id: (tag as { id: string }).id },
-          { onConflict: "source_id,tag_id" },
-        );
-    }
-  }
-}
-
 /**
  * POST /api/sources/upload — multipart form: file, title?, category?, tags?,
  * description?. Signed in. Files land in the `source-files` bucket; their
- * bytes are then extracted deterministically (DESIGN §18, BUG-002).
+ * bytes are then extracted deterministically.
  *
  * Status: `ready` iff extracted_text or a contributor description is present;
  * `pending` if neither; `failed` with a reason if extraction throws and no
@@ -74,9 +52,10 @@ export async function POST(req: Request) {
 
   let form: FormData;
   try {
-    form = await req.formData();
+    const body = await boundedBody(req, MAX_BYTES + 32_768);
+    form = await new Response(Buffer.from(body), { headers: { "Content-Type": req.headers.get("content-type") ?? "" } }).formData();
   } catch {
-    return json({ error: "expected multipart form" }, 400);
+    return json({ error: "expected multipart form with a file no larger than 4 MB" }, 400);
   }
 
   const file = form.get("file");
@@ -84,12 +63,12 @@ export async function POST(req: Request) {
     return json({ error: "a file is required" }, 400);
   }
   if (file.size > MAX_BYTES) {
-    return json({ error: "file too large (max 25 MB)" }, 400);
+    return json({ error: "file too large (max 4 MB)" }, 400);
   }
   const mime = file.type || "application/octet-stream";
   if (!ALLOWED_MIME.has(mime)) {
     return json(
-      { error: "supported files: PDF, text, markdown, HTML, CSV, JSON" },
+      { error: "supported files: PDF, text, markdown, CSV, JSON" },
       400,
     );
   }
@@ -113,66 +92,45 @@ export async function POST(req: Request) {
   const { error: upErr } = await sb.storage
     .from("source-files")
     .upload(storagePath, file, { contentType: mime, upsert: false });
-  if (upErr) return json({ error: `upload failed: ${upErr.message}` }, 500);
+  if (upErr) return json({ error: "Could not upload the file. Try again." }, 503);
 
   const title =
     ((form.get("title") as string) ?? "").trim().slice(0, 300) || cleanName;
   const description = ((form.get("description") as string) ?? "").trim().slice(0, 4000);
   const categorySlug = slugify(((form.get("category") as string) ?? "general")) || "general";
-  const { data: cat } = await sb
-    .from("tn_categories")
-    .select("id")
-    .eq("slug", categorySlug)
-    .single();
 
-  // BUG-002: parse the file bytes deterministically. Extraction is pure —
-  // same bytes, same text — and capped at 200KB (DESIGN §18).
+  // Parse the file bytes deterministically, capped at 200 KB of text.
   let extractedText: string | null = null;
   let extractError: string | null = null;
   try {
     extractedText = await extractText(new Uint8Array(await file.arrayBuffer()), mime);
     if (!extractedText.trim()) extractedText = null;
-  } catch (e) {
-    extractError = e instanceof Error ? e.message : "extraction failed";
+  } catch {
+    extractError = "Could not extract text from this file. Add a description or upload a supported file.";
     extractedText = null;
   }
 
-  const status = extractError && !description
-    ? "failed"
-    : extractedText || description
-      ? "ready"
-      : "pending";
-
-  const { data: inserted, error } = await sb
-    .from("tn_sources")
-    .insert({
-      owner_id: user.id,
-      kind: "file",
-      title,
-      file_path: storagePath,
-      file_name: cleanName,
-      mime_type: mime,
-      category_id: (cat as { id: string } | null)?.id ?? null,
-      status,
-      excerpt: description || null,
-      extracted_text: extractedText,
-      extract_error: extractError,
-    })
-    .select("id")
-    .single();
-
-  if (error || !inserted) {
-    await sb.storage.from("source-files").remove([storagePath]);
-    return json({ error: error?.message ?? "insert failed" }, 500);
+  const { data, error } = await sb.rpc("tn_save_source", {
+    p_id: null,
+    p_data: { kind: "file", title, file_path: storagePath, file_name: cleanName,
+      mime_type: mime, category: categorySlug, excerpt: description || null,
+      extracted_text: extractedText, extract_error: extractError },
+    p_tags: sourceTags(form.get("tags")),
+  });
+  if (error || !data) {
+    const failure = sourceWriteError(error ?? {});
+    // A lost RPC response can follow a committed save. Preserve its backing file
+    // unless the database definitively rejected the transaction.
+    if (failure.status !== 503) {
+      try { await sb.storage.from("source-files").remove([storagePath]); } catch { /* admin cleanup can remove the orphan */ }
+    }
+    return json({ error: failure.error }, failure.status);
   }
-
-  const sourceId = (inserted as { id: string }).id;
-  await attachTags(sb, sourceId, form.get("tags"));
 
   return json(
     {
-      id: sourceId,
-      status,
+      id: data.id,
+      status: data.status,
       extracted_chars: extractedText?.length ?? 0,
       ...(extractError ? { extract_error: extractError } : {}),
     },
