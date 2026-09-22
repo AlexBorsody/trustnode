@@ -238,6 +238,46 @@ to its versions. Later pack/source edits do not rewrite captured contents. Captu
 conflicts return 409 and retain choices until explicit reload. Existing fork/merge
 flows still copy pack members; version-aware seed reconciliation belongs to step 6.
 
+## Evidence relationships (migration 011)
+
+Saved template versions now own manual proposals in `tn_source_edges`, append-only
+`tn_edge_revisions`, and append-only `tn_edge_reviews`. Every proposal references
+two distinct members of that exact version, which supplies their URLs/site IDs
+and category scope. The author supplies relation, observation date, rationale,
+locators and quoted evidence. Non-citation relations also require claim scope and
+a locator for the second source. These are attributed assertions, not automated
+link observations or independently verified page captures.
+
+Any signed-in reader can propose evidence or challenge a revision. Only the
+proposal author can revise it, supplying the previous revision ID; stale edits
+return 409. Only the template owner can accept/reject/withdraw evidence or resolve
+challenges. Acceptance requires explicit evidence review and a source quotation
+(both quotations for non-citation relations). Decisions target the latest revision
+and include the last decision ID to reject stale reviews. New evidence revisions
+start unaccepted; earlier decisions remain attached to their original revision.
+Challenges require evidence and remain separate from acceptance. A challenge gets
+one recorded uphold/dismiss resolution; changing acceptance requires a separate
+decision. No scores are written by any of these operations.
+
+Mutation RPCs are narrow SECURITY DEFINER functions with fixed search paths,
+authenticated-only grants, current visibility/ownership checks, and row locks.
+Direct table mutations are revoked. An internal helper locks the pack's current
+visibility during writes and cannot be called by app roles. RLS follows current
+template visibility through every history layer, including for proposal authors.
+Deleting the pack removes its versions and evidence histories; independent forks
+do not inherit evidence records or decisions. Reference-policy maintainer roles
+and publication remain unbuilt; current decisions belong only to user templates.
+
+`GET/POST /api/relationships` lists or proposes/revises evidence for
+`template_version`; writes send `template_version_id`, optional `edge_id` and
+`previous_revision_id`, plus `evidence`. Lists return 20 summaries per page with
+current revision/decision. `GET /api/relationships/:edge_id` independently pages
+20 revisions and 20 review events using `before_revision`/`before_review` cursors.
+`POST /api/relationships/revisions/:revision_id/reviews` records decisions,
+challenges and resolutions. Reads are private/no-store even for public templates.
+The saved-template view exposes proposal/edit/review forms and inspectable history;
+failed saves retain drafts. Account/version changes remount the evidence view.
+
 ## Retrieval
 
 `POST /api/retrieve` accepts `query` (1–500 characters), `limit` (1–20, default 6),
@@ -742,9 +782,9 @@ slider adjustment to canonical trust. These controls are deferred, not phase-one
 Apply existing migrations 003–006 only after inspecting the authorized target DB.
 Migration 007 implements identities/template versions; 008 tightens older RPC
 grants; 009 makes source saves atomic and restricts shared tags/storage writes;
-010 enforces source identity on direct writes.
+010 enforces source identity on direct writes; 011 adds evidence relationships.
 All are activated in production, with results in TASKS. Continue additive
-migrations at 011. Do not resurrect the unused historical
+migrations at 012. Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
 Give each group constraints, RLS/grants, backfill, compatibility reads and a recorded

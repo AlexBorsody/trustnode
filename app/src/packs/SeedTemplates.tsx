@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { seedDistribution, type SeedMode, type TemplateEntry, type TemplateVersion } from "./templates";
+import EvidencePanel from "@/sources/EvidencePanel";
 
 interface Loaded {
   pack: { revision: number; tn_pack_sources: { source_id: string; rank: number; note: string; tn_sources: {
@@ -10,8 +11,8 @@ interface Loaded {
   versions: TemplateVersion[];
 }
 
-export default function SeedTemplates({ packId, token, isOwner, disabled }: {
-  packId: string; token?: string; isOwner: boolean; disabled: boolean;
+export default function SeedTemplates({ packId, token, userId, isOwner, disabled }: {
+  packId: string; token?: string; userId?: string; isOwner: boolean; disabled: boolean;
 }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [choices, setChoices] = useState<Record<string, string>>({});
@@ -128,6 +129,7 @@ export default function SeedTemplates({ packId, token, isOwner, disabled }: {
         <p className="panel-sub" style={{ overflowWrap: "anywhere" }}>Content fingerprint: {version.content_hash}</p>
         <a className="chip" href={`/packs/${packId}?version=${version.id}`}>Open this version</a>{" "}
         <button className="chip" onClick={download}>Download template JSON</button>
+        <EvidencePanel key={`${version.id}:${token ?? 'anonymous'}`} version={version} token={token} userId={userId} isOwner={isOwner} />
       </>}
     </div>}
   </section>;

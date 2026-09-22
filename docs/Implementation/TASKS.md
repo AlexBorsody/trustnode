@@ -12,15 +12,16 @@ Updated 2026-09-21. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   and claim confidence remain separate, explained signals.
 - **Code:** step 1 is implemented: migration 007, derived site/category identities,
   immutable seed-template capture and a working pack editor/read/export flow.
-  Architecture `plan-1` was published at `c788112`. Evidence relationships, graph
-  computation, stored runs, passage indexing and generation remain unbuilt.
+  Architecture `plan-1` was published at `c788112`. Step 2 now stores versioned
+  evidence, decisions and challenges (011), with API and template-editor wiring.
+  Graph computation, stored runs, passage indexing and generation remain unbuilt.
 - **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
   existing app, not the proposed architecture. A successful deployment does not
   establish database or SSO readiness.
-- **Production, verified 2026-09-21:** migrations 003–010 are applied to the existing
+- **Production, verified 2026-09-21:** migrations 003–011 are applied to the existing
   Supabase project. `/api/packs` now returns 200 with an empty list, replacing the
-  previous 503/PGRST205; the two existing sources are preserved. All five new tables
-  have RLS and all six pack mutation RPCs require authenticated execution. The live
+  previous 503/PGRST205; the two existing sources are preserved. Pack/template and
+  evidence tables have RLS; mutation RPCs require authenticated execution. The live
   provider endpoint still returns no enabled Google/Microsoft providers, with signup
   enabled. Source creation/editing now has an atomic, authenticated-only RPC; live
   transaction checks verified tags, rollback and ownership without retaining test
@@ -47,6 +48,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Owner pack management | Atomic edits/deletion, captured revision checks, stale-save rejection and retained drafts | `e04a49e`, `bdb2904`; migration 004 |
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
 | Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
+| Evidence relationships | Version-scoped manual proposals, immutable revisions, stale-protected curator decisions, challenges/resolutions and private-safe history APIs/editor | Migration 011 applied 2026-09-21; app deployment check pending |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
 | Existing explorer | Deterministic `retrieval-v1`, displayed factors, public adoption and private-pack scope; canonical verification isolated from curation | `ae98399`, `0b8a9cc`, `3714c44` / PR #5 |
@@ -58,56 +60,25 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Supervisor review, 2026-09-21 (`8481e01`):** source INSERT bypass resolved by
-migration 010, applied and verified live. Resume the evidence graph with migration
-011; SSO configuration proceeds alongside it. The original findings are retained:
+**Implement sequence step 3: deterministic site/resource trust computation.**
+Evidence proposals, revisions, curator decisions and challenges are now wired to
+Supabase and the saved-template view (011). This records graph inputs; it does not
+compute or publish a trust score.
 
-1. **Resolved — enforce source identity at the database boundary.** The disposable
-   `db/tests/source-integrity.sql` suite passes, but an authenticated direct INSERT
-   into `tn_sources` also accepts a file row with another user's `file_path`,
-   `mime_type='text/html'` and `status='ready'`. Migration 009 validates these
-   fields inside `tn_save_source`, while the retained table INSERT policy checks
-   only the source owner. This reproduces forged source metadata, not a storage
-   overwrite or private-file read. Enforce the applicable kind/URL/file-path/MIME
-   invariants for direct writes as well as RPC saves. Preserve the caller-scoped
-   RPC and prove legitimate saves still work; do not simply revoke INSERT and
-   break its SECURITY INVOKER implementation. Add focused direct-write rejection
-   checks for foreign file paths and unsupported file MIME types.
-2. **P1 — unblock real users.** A fresh production read returned
-   `providers: []`, `signupEnabled: true`, and an empty public pack list. Muse must
-   configure the chosen provider; then exercise login, contribution, private/public
-   packs, immutable capture and cross-owner rejection with two actual accounts.
-   SQL fixtures do not complete this acceptance gate.
-3. **Next feature — evidence relationships**, as scoped below; then explained
-   propagation and stored runs. No RAG, model controls or unrelated refactoring.
-4. **Before broader launch — existing open findings:** shared abuse limits and
-   the verifier headline/charter report. Record exact claims and deployment when
-   reproducing; repeated deterministic responses alone do not close that report.
+1. Build the pure `graph-trust-v1` engine under `src/trustnode/graph/`, following
+   DESIGN section 5: seeded PageRank, explicit dangling redistribution, stable
+   ordering, convergence diagnostics and exact contribution accounting.
+2. Build separate site/resource projections from captured template membership and
+   the latest accepted relationship revisions. Only `cites`/`corroborates` propagate;
+   deduplicate pairs, exclude same-site edges in the site projection, and report
+   exclusions. Contradictions and supersession remain evidence, not negative edges.
+3. Then implement step 4: freeze the exact graph inputs, queue bounded work, store
+   runs and publish results atomically. Do not label a local computation as a
+   completed production ranking before that persistence/publication path exists.
 
-**Implement sequence step 2: attributable evidence relationships.** Step 1 is
-wired from SQL through API to the pack UI. Seed mass is now inspectable input;
-it is not yet a propagated trust score.
-
-1. Add the next unused migration for append-only relationship revisions, evidence locators,
-   scoped acceptance and challenges, following DESIGN section 4. Preserve author,
-   category/template scope, relation type and the evidence behind each assertion.
-2. Add caller-scoped proposal/review APIs. Observed links, accepted citations and
-   claim-specific conflicts must remain distinct; private records cannot enter
-   another user's public run or expose hidden IDs.
-3. Add the minimal evidence editor/read flow for a saved template. Completion:
-   a curator records and reviews a citation/conflict with attributable rationale;
-   later revisions preserve the prior evidence and decision history.
-4. Then implement deterministic site/resource projections and explained seeded
-   PageRank (step 3), followed by frozen, atomically published runs (step 4).
-
-**Source wiring follow-up complete:** migration 009 connects existing source forms
-to atomic database saves and addresses Muse/Habib's concrete source-fetch, storage,
-upload, query and error findings. Shared rate limits and the reported verifier
-headline/charter discrepancy remain open below. Database access is available;
-SSO setup remains with Muse. Resume the evidence graph backend; do not start
-passage ingestion, generation, tuning controls, unrelated CRUD polish or a separate
-validation project ahead of the trust engine. Next milestones: record evidenced
-edges, compute explained scores, then make that workflow usable and shareable.
+SSO activation and two-account acceptance remain with Muse. Shared abuse limits
+and the verifier headline/charter report remain open before broader launch. Keep
+RAG, model controls and unrelated UI/refactoring behind the trust engine.
 
 **Reference seed collection v1 (OAuth/PKCE) — proposed 2026-09-21:** the first real
 reference seed set is drafted at `docs/Implementation/reference-seed-oauth-pkce.json`:
@@ -121,16 +92,16 @@ maintainer publication.
 
 ## Implementation sequence
 
-Step 1 is **implemented and its schema activated**; live signed-in verification is
-pending. Step 0 still needs SSO and real-account verification. Steps 2–10 remain todo.
+Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
+verification is pending. Step 0 still needs SSO. Steps 3–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
 Each step ends with a focused commit, relevant checks and a status update here.
 
 | Step | Deliverable | Depends on | Completion condition |
 | --- | --- | --- | --- |
-| 0. Production activation — partial | 003–010 applied; configure SSO/JIT and verify two-user ownership | Provider setup | Real accounts use owned/private/public packs; actual DB/provider results recorded |
+| 0. Production activation — partial | 003–011 applied; configure SSO/JIT and verify two-user ownership | Provider setup | Real accounts use owned/private/public packs; actual DB/provider results recorded |
 | 1. Identity and templates — implemented | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Local DB/API/browser flow verified; schema and RLS verified live |
-| 2. Evidence graph | Relationship revisions, evidence locators, scoped acceptance and challenges | 1 | Curator can record, review and explain a citation or conflict; observations are separate from accepted edges |
+| 2. Evidence graph — implemented | Append-only proposals/revisions, curator decisions, challenges and resolutions; saved-template editor/history | 1 | Local DB/API checks and hosted rollback flow passed; real-account acceptance pending |
 | 3. Trust computation | Site/resource projections, seeded PageRank and contribution accounting | 1–2 contracts | A nonseed earns rank through evidence; seed/edge changes are explained; identical inputs replay |
 | 4. Stored/public runs | Frozen snapshots, scores, jobs, restricted worker, atomic publication and read/export APIs | 1–3; worker deployment for production | One completed run ties rankings and explanations to exact inputs; retries cannot publish partial results |
 | 5. Trust workspace | Category/template chooser, rankings, focused graph, explanations, conflicts and comparison | 4 | User can inspect why a site ranks before entering a research question |
@@ -148,7 +119,7 @@ while real category evidence is prepared; it cannot prove real-world reliability
 This is a scope target, not a promise that RAG and controls also fit this week.
 
 **Release discipline:** code deployment and migration activation are separate.
-Continue new additive migrations at 011; never rewrite applied migrations. Keep previous
+Continue new additive migrations at 012; never rewrite applied migrations. Keep previous
 completed runs for rollback. Formula/parameter changes require methodology versions.
 Proposed constants are recorded in DESIGN, not treated as measured accuracy.
 
@@ -168,7 +139,7 @@ secret store; record only where access is available and the non-secret result.
   dashboard. The `trustnode` project `nrxhyqzzozynemaxghba` matches the app's configured
   URL. SQL editor access works; no privileged credential was copied into the repo.
   A separate staging project has not been established.
-- **Migration state — ready through 010, 2026-09-21.** Before applying, confirmed
+- **Migration state — ready through 011, 2026-09-21.** Before applying, confirmed
   source/category tables existed, pack/identity tables and functions were absent,
   and category keys had no duplicate backfill collisions. Applied 003 (packs), 004
   (editing), 005 (ancestry), 006 (merge), 007 (templates), then 008 (explicit RPC
@@ -187,6 +158,10 @@ secret store; record only where access is available and the non-secret result.
   files had compatible attribution/MIME. Applied 010; direct foreign-path and HTML
   inserts failed while valid link/file RPC saves and edits passed in a rolled-back
   caller-RLS transaction. Source count remains two; no temporary rows remain.
+  Applied 011 after confirming its tables were absent. Evidence revisions/reviews
+  have RLS and no direct caller writes; mutation RPCs are authenticated only and
+  the internal visibility-locking helper is not callable by app roles. The rolled-
+  back evidence workflow passed without leaving sources, packs or proposals.
 - **SSO provider choice — pending.** Confirm Google, Microsoft work accounts, both,
   or enterprise SAML through an organization IdP. Google/Microsoft OAuth adapters
   and JIT account creation are built. Enterprise SAML is a separate integration;
@@ -247,7 +222,7 @@ secret store; record only where access is available and the non-secret result.
 Add dated responses here, using the item names above. Codex will fold resolved
 items into Next and DESIGN rather than maintaining competing handoff documents.
 
-**Codex → Muse, 2026-09-21:** migrations through 010 are now applied; the database
+**Codex → Muse, 2026-09-21:** migrations through 011 are now applied; the database
 setup blocker is resolved. SSO provider configuration remains pending. Once signed
 in, select seeds in an owned pack, enter rationale, choose equal/ordered
 weighting and save a template version. Check fixed contents after a pack edit,
@@ -258,6 +233,41 @@ account role; omit credentials. Review `eaa7ebb` is preserved below. Its source
 findings are addressed; resolution details and remaining issues follow the review.
 
 ## Validation and review record
+
+- Evidence (011): focused API and PostgreSQL-engine checks plus production build
+  passed. Hosted caller-RLS transaction exercised create → accept → challenge →
+  resolve → revise, rejection of stale revisions, and hidden-template isolation.
+  All temporary rows rolled back; sources remain two, packs/evidence remain empty.
+  The local browser fixture exercised sign-in → saved template → proposal →
+  acceptance → revised proposal → preserved history. App deployment is pending.
+  No real SSO provider was configured or exercised.
+
+**Supervisor review, 2026-09-21 (`8481e01`):** source INSERT bypass resolved by
+migration 010, applied and verified live. Resume the evidence graph with migration
+011; SSO configuration proceeds alongside it. The original findings are retained:
+
+1. **Resolved — enforce source identity at the database boundary.** The disposable
+   `db/tests/source-integrity.sql` suite passes, but an authenticated direct INSERT
+   into `tn_sources` also accepts a file row with another user's `file_path`,
+   `mime_type='text/html'` and `status='ready'`. Migration 009 validates these
+   fields inside `tn_save_source`, while the retained table INSERT policy checks
+   only the source owner. This reproduces forged source metadata, not a storage
+   overwrite or private-file read. Enforce the applicable kind/URL/file-path/MIME
+   invariants for direct writes as well as RPC saves. Preserve the caller-scoped
+   RPC and prove legitimate saves still work; do not simply revoke INSERT and
+   break its SECURITY INVOKER implementation. Add focused direct-write rejection
+   checks for foreign file paths and unsupported file MIME types.
+2. **P1 — unblock real users.** A fresh production read returned
+   `providers: []`, `signupEnabled: true`, and an empty public pack list. Muse must
+   configure the chosen provider; then exercise login, contribution, private/public
+   packs, immutable capture and cross-owner rejection with two actual accounts.
+   SQL fixtures do not complete this acceptance gate.
+3. **Next feature — evidence relationships**, as scoped below; then explained
+   propagation and stored runs. No RAG, model controls or unrelated refactoring.
+4. **Before broader launch — existing open findings:** shared abuse limits and
+   the verifier headline/charter report. Record exact claims and deployment when
+   reproducing; repeated deterministic responses alone do not close that report.
+
 
 - Crash recovery / 010: preserved the uncommitted supervisor note; main had no
   incoming commits. Focused direct-write checks and valid RPC saves passed in
@@ -382,7 +392,7 @@ that the headline issue is resolved; reproduce with an exact claim and deploymen
 
 ## Remaining limits and deferred work
 
-- The central trust engine and architecture steps 2–10 are unbuilt.
+- The trust computation and architecture steps 3–10 are unbuilt.
   Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
 - Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
   and illustrative content. Provenance cleanup and real domain evidence are needed;

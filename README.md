@@ -23,7 +23,7 @@ work before editing. Retired branches and agent handoffs are not active assignme
 - `/login` and `/signup`: SSO with automatic first-login account creation.
 - `/account`: onboarding, account details, and sign-out.
 - `/sources`: contribute links and browse the source shelf.
-- `/packs`: browse, curate, share, fork/merge packs and capture immutable category seed templates with visible weights and rationale.
+- `/packs`: curate/share packs, capture category seed templates, and propose/review evidence relationships with version history.
 - `/explore`: retrieve sources with visible ranking factors and pack controls.
 - `/verify`: inspect the seeded claim/evidence/confidence workflow.
 
@@ -43,7 +43,7 @@ npm run dev
 Open `http://localhost:3000`. Home, seeded verification, and seed-backed exploration
 work without credentials. Database-backed contribution and pack flows need Supabase.
 Copy `app/.env.example` to `app/.env.local`, supply the public-project values (server aliases fall back to the `NEXT_PUBLIC_` pair),
-and apply the source migrations (001, 001b, 001c), then migrations 003 through 010 in order
+and apply the source migrations (001, 001b, 001c), then migrations 003 through 011 in order
 in `db/`. For SSO, configure Google and/or Microsoft OAuth in Supabase Auth and
 allow your app's `/auth/callback` redirect (including its `next` query) for local
 and production origins. Enable new-user signup for JIT account creation. Provider
