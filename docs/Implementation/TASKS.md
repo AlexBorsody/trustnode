@@ -25,8 +25,9 @@ Updated 2026-09-21. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   provider endpoint still returns no enabled Google/Microsoft providers, with signup
   enabled. Source creation/editing now has an atomic, authenticated-only RPC; live
   transaction checks verified tags, rollback and ownership without retaining test
-  rows. Source API commit `7257b7f` is deployed; live source search and packs return
-  200. Real-account app flows remain pending SSO configuration.
+  rows. Evidence commit `1c3ede2` is deployed; source/pack reads and the scoped
+  evidence read RPC return 200. Missing template/history routes return generic
+  404s. Real-account app flows remain pending SSO configuration.
 - **Workspace:** `/Users/alexborsody/Projects/trustnode`, `main`, one implementation
   owner in the desktop app. Consolidation/conflict cleanup is complete. No other
   agent has an active code assignment. Routine commits/pushes are authorized;
@@ -43,12 +44,12 @@ production readiness. Earlier foundation work is retained and integrated.
 | Source foundation | Link contribution; filtered/searchable public shelf; owner APIs; file text extraction and explicit failures; normalized input validation | `39eb561`, `ea15f8d`, `b6f7b10`, `fe4ec96` |
 | Source workflow | Homepage entry points, shelf pagination, loading/retry states and recoverable errors; owner title/description editing and confirmed deletion; files retained if pack references block deletion | `9e00256`, `1112e30` |
 | Source database wiring | Atomic metadata/category/tag saves and file registration; immutable ownership/file identity and shared tag labels; caller-folder storage, bounded public metadata fetching, safe search/errors and bounded verification reads | `7257b7f` deployed; migration 009 applied 2026-09-21 |
-| Direct source writes | Database CHECK enforces link/file identity, caller-owned file paths and supported MIME even when bypassing the RPC | Migration 010 applied 2026-09-21; live rollback check passed |
+| Direct source writes | Database CHECK enforces link/file identity, caller-owned file paths and supported MIME even when bypassing the RPC | `4ebea40`; migration 010 applied 2026-09-21; live rollback check passed |
 | Pack creation and sharing | Ranked links/notes, topic/tags, ownership, public/private visibility and independent copies | `2e3717b` / PR #4; migration 003 |
 | Owner pack management | Atomic edits/deletion, captured revision checks, stale-save rejection and retained drafts | `e04a49e`, `bdb2904`; migration 004 |
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
 | Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
-| Evidence relationships | Version-scoped manual proposals, immutable revisions, stale-protected curator decisions, challenges/resolutions and private-safe history APIs/editor | Migration 011 applied 2026-09-21; app deployment check pending |
+| Evidence relationships | Version-scoped manual proposals, immutable revisions, stale-protected curator decisions, challenges/resolutions and private-safe history APIs/editor | `1c3ede2` deployed; migration 011 applied 2026-09-21 |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
 | Existing explorer | Deterministic `retrieval-v1`, displayed factors, public adoption and private-pack scope; canonical verification isolated from curation | `ae98399`, `0b8a9cc`, `3714c44` / PR #5 |
@@ -84,11 +85,20 @@ RAG, model controls and unrelated UI/refactoring behind the trust engine.
 reference seed set is drafted at `docs/Implementation/reference-seed-oauth-pkce.json`:
 3 seeds (RFC 7636, RFC 9700, RFC 6749 — equal seed mass per DESIGN section 3),
 4 non-seed members (security-topics draft, Auth0/Okta PKCE guides, oauth.net), and
-5 manually evidenced relationships (1 supersedes, 3 cites, 1 corroborates). The two
+5 proposed relationships (1 supersedes, 3 cites, 1 corroborates). The two
 `.invalid` illustrative fixtures are excluded and must not be migrated as proven
-content. Ingest as the first reference category policy input for steps 2–3
-(evidence graph + trust computation). Reference status requires Alex's recorded
-maintainer publication.
+content. Prepare locators, quotations and observation dates before curator
+acceptance/import through the evidence API. Reference status requires Alex's
+recorded maintainer publication.
+
+**Codex review of the seed draft:** use the implemented `uniform-seeds-v1` mode.
+All three seeds share one exact host, so they create one site seed mass. The
+proposed vendor/community citations point toward the RFCs; they do not give the
+nonseeds incoming rank. This graph cannot yet demonstrate seed-to-nonseed
+propagation. Preserve citation direction and find real evidence for any additional
+edge. Corrected RFC 9700's rationale: it is BCP 240, with PKCE required for public
+clients and recommended for confidential clients ([section 2.1.1](https://www.rfc-editor.org/info/rfc9700/#section-2.1.1)).
+The draft remains proposed, not imported or accepted evidence.
 
 ## Implementation sequence
 
@@ -232,6 +242,13 @@ Record specific failures here with route, action, expected/actual result and
 account role; omit credentials. Review `eaa7ebb` is preserved below. Its source
 findings are addressed; resolution details and remaining issues follow the review.
 
+**Codex → Muse, evidence update:** use a saved template with at least two members;
+record a proposal with locators/quotations, accept it as curator, revise it as its
+author and confirm the new revision is proposed while the old decision remains
+in history. Challenges/resolutions are separate from acceptance. The seed draft
+review above identifies import and propagation gaps. Upload conversion remains
+parked under Alex's latest direction.
+
 ## Validation and review record
 
 - Evidence (011): focused API and PostgreSQL-engine checks plus production build
@@ -239,8 +256,12 @@ findings are addressed; resolution details and remaining issues follow the revie
   resolve → revise, rejection of stale revisions, and hidden-template isolation.
   All temporary rows rolled back; sources remain two, packs/evidence remain empty.
   The local browser fixture exercised sign-in → saved template → proposal →
-  acceptance → revised proposal → preserved history. App deployment is pending.
-  No real SSO provider was configured or exercised.
+  acceptance → revised proposal → preserved history. Commit `1c3ede2` passed
+  [hosted application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/35683126868)
+  and Vercel deployment. Live missing-template/history routes return generic 404;
+  the anonymous scoped read RPC returns an empty list for unavailable scope.
+  Source/pack reads remain 200. No real SSO provider was configured or exercised;
+  live providers remain empty. Temporary preview processes were stopped.
 
 **Supervisor review, 2026-09-21 (`8481e01`):** source INSERT bypass resolved by
 migration 010, applied and verified live. Resume the evidence graph with migration

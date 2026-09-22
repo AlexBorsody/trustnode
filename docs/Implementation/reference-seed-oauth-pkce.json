@@ -1,1 +1,98 @@
-{"category":"OAuth 2.0 / PKCE","collection":"reference-seed-oauth-pkce-v1","excluded_fixtures":["https://example.invalid/blog/do-you-need-pkce-2019","https://example.invalid/stackoverflow/oauth-flow-for-spas"],"members":[{"rationale":"Included to exercise the supersession relationship: the living draft this BCP was published from. Not a seed; its guidance is superseded.","title":"OAuth 2.0 Security Topics (IETF draft, predecessor of RFC 9700)","url":"https://datatracker.ietf.org/doc/draft-ietf-oauth-security-topics/"},{"rationale":"Major vendor implementation guide. Non-seed member; earns rank through its citation edge to RFC 7636.","title":"Auth0 Docs: Authorization Code Flow with PKCE","url":"https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce"},{"rationale":"Major vendor implementation guide. Non-seed member; earns rank through its citation edge to RFC 7636.","title":"Okta Developer Docs: PKCE Flow","url":"https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/"},{"rationale":"Community-maintained reference linked from the OAuth working group sphere. Non-seed member; earns rank through its citation edge to RFC 7636.","title":"oauth.net: PKCE","url":"https://oauth.net/2/pkce/"}],"note":"Reference status requires Alex's recorded maintainer publication (DESIGN section 3). Replaces the illustrative .invalid fixtures in the demo corpus; those fixtures must not be migrated as proven content.","proposed_at":"2026-09-21","proposed_by":"Habib","relationships":[{"from":"https://www.rfc-editor.org/rfc/rfc9700","rationale":"The draft was published as RFC 9700; its standalone guidance is superseded. No score transfer: the draft earns nothing from succession in v1.","scope":"OAuth 2.0 security guidance","to":"https://datatracker.ietf.org/doc/draft-ietf-oauth-security-topics/","type":"supersedes"},{"from":"https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce","rationale":"Vendor guide implements the RFC's code_challenge/code_verifier mechanics.","scope":"PKCE parameter definitions","to":"https://www.rfc-editor.org/rfc/rfc7636","type":"cites"},{"from":"https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/","rationale":"Vendor guide implements the RFC's code_challenge/code_verifier mechanics.","scope":"PKCE parameter definitions","to":"https://www.rfc-editor.org/rfc/rfc7636","type":"cites"},{"from":"https://oauth.net/2/pkce/","rationale":"Community page summarizes the RFC's mechanism.","scope":"PKCE overview","to":"https://www.rfc-editor.org/rfc/rfc7636","type":"cites"},{"from":"https://www.rfc-editor.org/rfc/rfc9700","rationale":"RFC 9700 mandates the mechanism RFC 7636 defines; two independent IETF publications agreeing on PKCE's role.","scope":"PKCE mandate for public clients","to":"https://www.rfc-editor.org/rfc/rfc7636","type":"corroborates"}],"seed_weighting":"equal-seed-mass-v1","seeds":[{"rationale":"Normative PKCE specification. Primary authority for PKCE mechanics: code_verifier, code_challenge, S256 transform, and the authorization/token request parameters.","title":"RFC 7636: Proof Key for Code Exchange by OAuth Public Clients","url":"https://www.rfc-editor.org/rfc/rfc7636"},{"rationale":"Current IETF consensus security guidance. Mandates PKCE for all OAuth clients including confidential ones; supersedes the older BCP 240 guidance.","title":"RFC 9700: Best Current Practice for OAuth 2.0 Security","url":"https://www.rfc-editor.org/rfc/rfc9700"},{"rationale":"Normative base framework. PKCE extends its authorization code flow; needed to ground claims about the flow PKCE protects.","title":"RFC 6749: The OAuth 2.0 Authorization Framework","url":"https://www.rfc-editor.org/rfc/rfc6749"}],"status":"proposed"}
+{
+  "category": "OAuth 2.0 / PKCE",
+  "collection": "reference-seed-oauth-pkce-v1",
+  "excluded_fixtures": [
+    "https://example.invalid/blog/do-you-need-pkce-2019",
+    "https://example.invalid/stackoverflow/oauth-flow-for-spas"
+  ],
+  "members": [
+    {
+      "rationale": "Included to exercise the supersession relationship: the living draft this BCP was published from. Not a seed; its guidance is superseded.",
+      "title": "OAuth 2.0 Security Topics (IETF draft, predecessor of RFC 9700)",
+      "url": "https://datatracker.ietf.org/doc/draft-ietf-oauth-security-topics/"
+    },
+    {
+      "rationale": "Major vendor implementation guide. Non-seed candidate. An outbound citation can pass authority to its target; it does not itself earn incoming authority.",
+      "title": "Auth0 Docs: Authorization Code Flow with PKCE",
+      "url": "https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce"
+    },
+    {
+      "rationale": "Major vendor implementation guide. Non-seed candidate. An outbound citation can pass authority to its target; it does not itself earn incoming authority.",
+      "title": "Okta Developer Docs: PKCE Flow",
+      "url": "https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/"
+    },
+    {
+      "rationale": "Community-maintained reference linked from the OAuth working group sphere. Non-seed candidate. An outbound citation can pass authority to its target; it does not itself earn incoming authority.",
+      "title": "oauth.net: PKCE",
+      "url": "https://oauth.net/2/pkce/"
+    }
+  ],
+  "note": "Reference status requires Alex's recorded maintainer publication (DESIGN section 3). Replaces the illustrative .invalid fixtures in the demo corpus; those fixtures must not be migrated as proven content.",
+  "proposed_at": "2026-09-21",
+  "proposed_by": "Habib",
+  "relationships": [
+    {
+      "from": "https://www.rfc-editor.org/rfc/rfc9700",
+      "rationale": "The draft was published as RFC 9700; its standalone guidance is superseded. No score transfer: the draft earns nothing from succession in v1.",
+      "scope": "OAuth 2.0 security guidance",
+      "to": "https://datatracker.ietf.org/doc/draft-ietf-oauth-security-topics/",
+      "type": "supersedes"
+    },
+    {
+      "from": "https://auth0.com/docs/get-started/authentication-and-authorization-flow/authorization-code-flow-with-pkce",
+      "rationale": "Vendor guide implements the RFC's code_challenge/code_verifier mechanics.",
+      "scope": "PKCE parameter definitions",
+      "to": "https://www.rfc-editor.org/rfc/rfc7636",
+      "type": "cites"
+    },
+    {
+      "from": "https://developer.okta.com/docs/guides/implement-grant-type/authcodepkce/main/",
+      "rationale": "Vendor guide implements the RFC's code_challenge/code_verifier mechanics.",
+      "scope": "PKCE parameter definitions",
+      "to": "https://www.rfc-editor.org/rfc/rfc7636",
+      "type": "cites"
+    },
+    {
+      "from": "https://oauth.net/2/pkce/",
+      "rationale": "Community page summarizes the RFC's mechanism.",
+      "scope": "PKCE overview",
+      "to": "https://www.rfc-editor.org/rfc/rfc7636",
+      "type": "cites"
+    },
+    {
+      "from": "https://www.rfc-editor.org/rfc/rfc9700",
+      "rationale": "RFC 9700 applies PKCE to public-client security guidance. Review alongside RFC 7636 mechanics; these are publications from the same standards organization, not independent publishers.",
+      "scope": "PKCE mandate for public clients",
+      "to": "https://www.rfc-editor.org/rfc/rfc7636",
+      "type": "corroborates"
+    }
+  ],
+  "seed_weighting": "uniform-seeds-v1",
+  "seeds": [
+    {
+      "rationale": "Normative PKCE specification. Primary authority for PKCE mechanics: code_verifier, code_challenge, S256 transform, and the authorization/token request parameters.",
+      "title": "RFC 7636: Proof Key for Code Exchange by OAuth Public Clients",
+      "url": "https://www.rfc-editor.org/rfc/rfc7636"
+    },
+    {
+      "rationale": "IETF security guidance published as BCP 240. Section 2.1.1 requires PKCE for public clients and recommends it for confidential clients.",
+      "title": "RFC 9700: Best Current Practice for OAuth 2.0 Security",
+      "url": "https://www.rfc-editor.org/rfc/rfc9700"
+    },
+    {
+      "rationale": "Normative base framework. PKCE extends its authorization code flow; needed to ground claims about the flow PKCE protects.",
+      "title": "RFC 6749: The OAuth 2.0 Authorization Framework",
+      "url": "https://www.rfc-editor.org/rfc/rfc6749"
+    }
+  ],
+  "status": "proposed",
+  "validation_notes": {
+    "reviewed_at": "2026-09-21",
+    "status": "Partial review only; not imported or published as reference authority.",
+    "rfc9700_source": "https://www.rfc-editor.org/info/rfc9700/#section-2.1.1",
+    "evidence": "Relationship locators, captured quotations, observation dates and curator decisions still need preparation. Rationale alone does not satisfy migration 011 acceptance.",
+    "direction": "Under DESIGN graph-trust-v1, the proposed outbound nonseed-to-seed citations do not give the nonseeds incoming rank. None of the current eligible edges reaches a nonseed from a seed. Preserve the actual direction; do not invent endorsements to force a positive score.",
+    "site_mass": "All three seed URLs use the same exact host, www.rfc-editor.org. They supply one site seed mass after deduplication, while resource seed masses remain separate.",
+    "publication": "An authorized owner must create the template; reference status still requires recorded maintainer publication."
+  }
+}
