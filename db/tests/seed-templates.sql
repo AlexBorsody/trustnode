@@ -70,4 +70,14 @@ set request.jwt.claim.sub = '';
 select test_assert(not exists(select 1 from tn_pack_versions),'making pack private hides saved versions');
 select test_assert(not exists(select 1 from tn_categories where path_key like 'secret%'),'category visibility follows pack');
 reset role;
+-- Model the explicit anon grants found on the hosted project's older RPCs.
+grant execute on function public.tn_create_pack(text,text,text,text[],boolean,jsonb) to anon;
+grant execute on function public.tn_update_pack(uuid,integer,text,text,text,text[],boolean,jsonb) to anon;
+grant execute on function public.tn_delete_pack(uuid,integer) to anon;
+\ir ../migration-008-pack-rpc-permissions.sql
+select test_assert((select count(*)=6 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname='public' and p.proname in ('tn_create_pack','tn_update_pack','tn_delete_pack','tn_fork_pack','tn_merge_pack','tn_capture_pack_version')
+    and has_function_privilege('authenticated',p.oid,'EXECUTE')
+    and not has_function_privilege('anon',p.oid,'EXECUTE')),
+  'all pack mutations are authenticated-only despite hosted default grants');
 select 'Seed template identities, immutable snapshots, stale captures and privacy checks passed' as result;

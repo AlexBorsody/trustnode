@@ -100,6 +100,12 @@ The editor retains failed drafts, offers explicit discard/reload after a conflic
 and confirms permanent deletion. Before migration 004, existing pack reads
 remain supported and owner editing is labeled unavailable.
 
+Migration 008 removes explicit anonymous EXECUTE grants on the original create,
+update and delete RPCs. Supabase's default grants can assign privileges directly
+to `anon`, which revoking `PUBLIC` alone does not remove. The functions already
+checked authentication; the repair also enforces that boundary at the privilege
+layer, preserving authenticated execution and existing ownership/RLS checks.
+
 ## Fork ancestry (migration 005)
 
 POST `/api/packs` optionally accepts `fork_of: {id, revision}`. New drafts/copies
@@ -700,8 +706,9 @@ slider adjustment to canonical trust. These controls are deferred, not phase-one
 ### 12. Migration, operations and release boundaries
 
 Apply existing migrations 003–006 only after inspecting the authorized target DB.
-Migration 007 implements identities/template versions; continue additive migrations
-at 008. Do not resurrect the unused historical
+Migration 007 implements identities/template versions; 008 tightens older RPC
+grants. Both are activated in production, with results in TASKS. Continue additive
+migrations at 009. Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
 Give each group constraints, RLS/grants, backfill, compatibility reads and a recorded
