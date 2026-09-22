@@ -1,7 +1,8 @@
 # TrustNode architecture and technical contracts
 
 Implements the [canonical strategy](../Business/STRATEGY.md).
-Current methods: pipeline `0.3.0`, ranking `retrieval-v1`, templates `seed-template-v1`.
+Current methods: pipeline `0.3.0`, ranking `retrieval-v1`, templates `seed-template-v1`,
+pure graph computation `graph-trust-v1` (stored runs/publication still pending).
 
 The sections through Canonical verification describe the existing implementation.
 The [target architecture](#target-architecture-and-implementation-plan) defines
@@ -402,8 +403,8 @@ does not make it the canonical policy for everyone.
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
 | Curation | Sources, packs, revisions, forks/merges; immutable seed versions (007) | Version-aware forks/merges and graph policy reconciliation |
 | Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
-| Source authority | Exact-host site identity (007); bundled demo analyst weights | Evidence graph, frozen runs, computation, explanations |
-| Evidence review | OAuth/PKCE demonstration pipeline | Recorded claim-specific relationships and provenance |
+| Source authority | Exact-host site identity (007); pure site/resource graph computation | Consistent snapshots, stored/public runs and trust workspace |
+| Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
 | Retrieval | `retrieval-v1` and pack filtering | Passage index, selected subsets and pinned trust-run input |
 | Operations | Next.js/Vercel and Supabase | Bounded job execution, publication records, retries and quotas |
 
@@ -521,7 +522,7 @@ Both projections use only the snapshot's category members and accepted edges.
 An out-of-scope target is recorded as excluded, not silently added to the graph.
 Neither projection uses search queries, traffic, votes, paid placement or an LLM.
 
-Proposed `graph-trust-v1` is seeded personalized PageRank. For nonnegative seed
+Implemented `graph-trust-v1` is seeded personalized PageRank. For nonnegative seed
 vector `p` summing to 1, outgoing-normalized matrix `P`, damping `d = 0.85`:
 
 ```
@@ -567,6 +568,53 @@ Personalized PageRank is the mathematical starting point, not proof of factual
 reliability. The original [PageRank paper](https://research.google/pubs/the-anatomy-of-a-large-scale-hypertextual-web-search-engine/)
 and [TrustRank research](https://www.vldb.org/conf/2004/RS15P3.PDF) inform this choice;
 the category, governance and explanation policies here are TrustNode design choices.
+
+### Implemented computation boundary (step 3)
+
+`app/src/trustnode/graph/` has no DB, network, clock or model dependencies:
+
+- `projectTemplate` consumes one captured template plus **all current relationship
+  summaries from that version**. It creates independent site/resource matrices and
+  seeds, preserves supporting revision/decision IDs, and reports excluded evidence.
+  Duplicate support remains inspectable but contributes one unit-weight pair.
+  Out-of-scope endpoints are recorded as excluded; a missing endpoint supplied
+  directly to `computeTrust` is malformed input and is rejected.
+- `computeTrust` pins methodology `graph-trust-v1`, implementation
+  `graph-trust-v1.0.0`, damping 0.85, tolerance 1e-6 and 100 iterations. Parameter
+  changes require a versioned method, not an unrecorded caller override. It sorts
+  nodes/pairs by code-unit identity, accumulates each `d * previous / outdegree`
+  contribution in that order, and adds direct seed, incoming total, then dangling
+  mass. It returns raw/12-decimal scores, a separate 0–10 display index, previous
+  vectors, residual/mass diagnostics and seed concentration (sum of squared seed
+  masses). Ranking uses descending raw mass with stable ID ties.
+- `computeSeedComponent` splits only initial/teleport seed mass, retaining the full
+  original dangling distribution and the parent run's iteration count. Components
+  add to the original result within float64 precision. `largestContributions`
+  supplies the requested leading inputs plus an explicit remainder; full scores
+  always retain every edge contribution.
+- `serializeProjection` preserves exact input numbers in stable JSON;
+  `serializeTrustResult` rounds canonical output numbers to 12 decimals. Raw results
+  remain available. Step 4 must hash the **complete frozen snapshot envelope**,
+  algorithm/runtime identity and canonical results, not just one matrix. Runtime
+  recording, hashes and artifact persistence belong to that adapter.
+
+Bounds are 1,000 nodes, 10,000 eligible pairs per projection and 10,000 current
+relationship records including duplicate/excluded evidence. Over-limit inputs
+fail without sampling. Duplicate/conflicting identities, invalid weights, mixed
+version evidence, decisions attached to old revisions and zero seed mass fail with
+structured error codes. Challenges/resolutions are not acceptance decisions.
+Unmapped resources remain in the resource graph and are listed as absent from the
+site graph; a site run with no mapped seed fails, never invents site authority.
+No-edge and no-seed-reachable-edge states are distinct. A nonconverged result has
+diagnostics but no completed leaderboard. Exact arithmetic bookkeeping is checked
+before presentation rounding; rounded contribution rows may differ by rounding.
+
+This pure adapter is **not an authorization or snapshot boundary**. Its caller
+must capture the complete latest revisions and decisions in one consistent DB
+transaction with current access checks. The 20-row UI evidence listing cannot
+satisfy that contract. Step 4 implements that boundary, jobs, restricted worker,
+atomic completion/publication and replay storage. No live scores are available
+until those pieces and their read APIs are wired.
 
 ### 6. Community influence and template discovery
 

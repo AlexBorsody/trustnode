@@ -12,8 +12,9 @@ explore ranked evidence, and inspect the reasoning behind a claim's confidence.
 
 For a handoff, read the [completed work](docs/Implementation/TASKS.md#completed-work)
 and [next concrete deliverable](docs/Implementation/TASKS.md#next-concrete-deliverable).
-The trust graph is planned but unbuilt; existing packs, retrieval and account code
-are the foundation. Production database/SSO activation is tracked separately in TASKS.
+Evidence storage and the pure trust engine are implemented; database snapshots,
+stored runs and the trust workspace are next. Existing retrieval remains separate.
+Production database/SSO activation is tracked separately in TASKS.
 
 Use this desktop workspace and `main` for current work. Read Strategy and Current
 work before editing. Retired branches and agent handoffs are not active assignments.

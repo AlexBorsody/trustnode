@@ -28,6 +28,7 @@ jobs:
       - run: npm run test:api
       - run: npm run test:packs
       - run: npm run test:retrieval
+      - run: npm run test:graph
       - run: npm run typecheck
       - run: npm run build
 
