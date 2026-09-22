@@ -2,7 +2,8 @@
 
 Implements the [canonical strategy](../Business/STRATEGY.md).
 Current methods: pipeline `0.3.0`, ranking `retrieval-v1`, templates `seed-template-v1`,
-pure graph computation `graph-trust-v1` (stored runs/publication still pending).
+graph computation `graph-trust-v1`, stored replay artifacts `trust-artifact-v1`.
+Migration 012 implements stored runs locally; production activation is separate.
 
 The sections through Canonical verification describe the existing implementation.
 The [target architecture](#target-architecture-and-implementation-plan) defines
@@ -406,7 +407,7 @@ does not make it the canonical policy for everyone.
 | Source authority | Exact-host site identity (007); pure site/resource graph computation | Consistent snapshots, stored/public runs and trust workspace |
 | Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
 | Retrieval | `retrieval-v1` and pack filtering | Passage index, selected subsets and pinned trust-run input |
-| Operations | Next.js/Vercel and Supabase | Bounded job execution, publication records, retries and quotas |
+| Operations | Next.js/Vercel, Supabase; bounded Postgres jobs and restricted graph worker (012) | Production worker credentials/host and migration activation |
 
 Production migration/auth activation is a separate dependency. Existing source
 descriptions, illustrative seed quotes and pack membership must not be migrated
@@ -596,7 +597,7 @@ the category, governance and explanation policies here are TrustNode design choi
   `serializeTrustResult` rounds canonical output numbers to 12 decimals. Raw results
   remain available. Step 4 must hash the **complete frozen snapshot envelope**,
   algorithm/runtime identity and canonical results, not just one matrix. Runtime
-  recording, hashes and artifact persistence belong to that adapter.
+  recording, hashes and artifact persistence are implemented by the step 4 adapter.
 
 Bounds are 1,000 nodes, 10,000 eligible pairs per projection and 10,000 current
 relationship records including duplicate/excluded evidence. Over-limit inputs
@@ -612,9 +613,8 @@ before presentation rounding; rounded contribution rows may differ by rounding.
 This pure adapter is **not an authorization or snapshot boundary**. Its caller
 must capture the complete latest revisions and decisions in one consistent DB
 transaction with current access checks. The 20-row UI evidence listing cannot
-satisfy that contract. Step 4 implements that boundary, jobs, restricted worker,
-atomic completion/publication and replay storage. No live scores are available
-until those pieces and their read APIs are wired.
+satisfy that contract. Migration 012 and the step 4 worker implement that boundary
+and storage path below. Production use still requires migration/worker activation.
 
 ### 6. Community influence and template discovery
 
@@ -689,8 +689,10 @@ enforces record access alongside explicit grants; UI visibility is not authority
 Use one small Node worker from this repository for bounded graph and later fetch
 jobs. Start it locally for development, then deploy it as a separate job process
 for persistent runs; Vercel requests enqueue work and return 202 rather than run
-a crawl or graph iteration in an HTTP request. Supabase's Postgres-backed
-[queue](https://supabase.com/docs/guides/queues) supplies leased delivery. Results
+a crawl or graph iteration in an HTTP request. A bounded Postgres `tn_jobs` queue supplies leased delivery using
+[`FOR UPDATE SKIP LOCKED`](https://www.postgresql.org/docs/current/sql-select.html).
+This is the deliberate step 4 replacement for the proposed pgmq extension; no
+additional queue service or extension is required. Results
 still require idempotent commits because a worker can retry after a crash.
 
 The worker uses a dedicated restricted DB login, outside the browser/Vercel app,
@@ -720,6 +722,86 @@ lease duration and wall time; repeated failures enter an inspectable failed stat
 No Redis, separate graph database, dedicated vector service or microservice fleet
 is needed for this first implementation.
 
+### Implemented stored-run boundary (migration 012)
+
+Capture receives a template version, current pack/evidence revision tokens and a
+caller-generated UUID request key. Any signed-in reader may request a run of a
+currently accessible template. A pack UPDATE lock serializes capture against
+existing evidence RPCs' SHARE locks; the captured body contains the full immutable
+template, **all current relationship revisions/decisions**, all recorded review
+events and the algorithm configuration. A trigger advances the evidence revision
+for every new revision/review. No paginated UI read supplies this snapshot.
+
+`tn_graph_snapshots.input_text` stores the exact PostgreSQL JSONB text that was
+hashed with SHA-256. It includes identities, evidence text, mappings, declared
+scope and capture-time public/visibility state. The byte string is retained for
+replay: reparsing/reserializing input JSON is not a substitute for those bytes.
+The pure projector derives matrices and exclusions; the stored artifact retains
+both projections, raw results, complete contributions, implementation identity,
+Node/V8/platform/architecture and a canonical output/hash. Only result numbers
+are rounded in the canonical artifact; projection input weights retain precision.
+
+`tn_trust_requests` keeps request-key aliases even when requests coalesce into one
+active job. `tn_jobs` allows one active job per snapshot; a fresh key can recompute
+a completed input into a new retained run. Requests from a different account do
+not reveal an unpublished job's ID/status. Initial quotas are two active runs and
+ten new runs per account/hour. A worker polls every two seconds while idle; its
+lease RPC records health. Enqueue returns unavailable if no poll was observed in
+two minutes. A queued response therefore does not promise eventual execution.
+
+Leases last 60 seconds and allow three attempts. Every complete/fail call checks
+the random lease token, database login, current state and expiry; completion checks
+expiry again before committing. Retried completion with the same lease/output hash
+is idempotent; conflicting output is rejected. Retryable worker failures requeue;
+invalid graphs/results and nonconvergence fail explicitly, with bounded
+convergence diagnostics retained for the requester. Expired third attempts
+become failed at the next worker poll. Status/error codes contain no raw SQL or
+private error strings. The worker uses bounded graph computation and DB statement
+and connection timeouts. Results, every score row and completed state commit in
+one transaction. A failed second projection rolls back the first projection too.
+
+Only the `tn_graph_worker` NOLOGIN group receives lease/complete/fail execution;
+it has no direct table privileges. Provision a separate LOGIN role inheriting
+only that group, outside the app. Startup rejects superuser, BYPASSRLS, role/DB
+creation, replication, public-schema CREATE and broad source/result write access.
+The app continues using caller JWTs. Hosted connections require verified TLS;
+[`pg` SSL URL options](https://node-postgres.com/features/ssl) are rejected so they
+cannot override that TLS configuration. No service-role credential is introduced.
+
+Publication is a separate owner action against a completed run and expected
+revisions. It takes the pack UPDATE lock and requires public inputs captured under
+the current visibility epoch. Any public/private transition advances that epoch;
+public → private → public cannot reactivate an old publication. RLS reevaluates
+current visibility for runs, scores, snapshots and exports. An unpublished run is
+requester-only while its source template remains accessible; a non-owner requester
+also loses access after an epoch change. Only a requesting template owner can
+publish. Publishing a run never grants another curator's private-parent data:
+these inputs are limited to this template and its version-scoped evidence.
+Published runs remain immutable and become visibly stale on pack/evidence changes;
+visibility changes withhold them. Pack/template deletion cascades to derived data.
+
+Limits: 1,000 members, 10,000 current relationships and 20,000 review events;
+2 MiB each for frozen input, raw stored JSONB and canonical output. Oversize work
+fails without truncation. Exports are separate `manifest`, `input`, `canonical`
+and `raw` parts rather than an unbounded combined download. Status returns at most
+100 scores per page; one-node reads include the complete contribution ledger.
+Unknown nodes return 404; a ranked node with zero mass remains a real score.
+All trust API responses, including public exports and errors, are private/no-store.
+
+The worker entry is `app/worker/run.ts`; run `npm run worker:graph -- --once` for
+one lease or omit `--once` for continuous polling. Its only credential is
+`TRUSTNODE_WORKER_DATABASE_URL`; optional `TRUSTNODE_WORKER_CA` supplies the hosted
+CA certificate. Set these on the separate worker host, never as app/public env
+variables. Pin Node 22.23.2. A local database can use loopback without TLS; hosted
+connections must verify certificates. Download all three replay parts, then run
+`npm run graph:replay -- input.json canonical.json manifest.json`; the command
+verifies hashes, recomputes the frozen graph and compares canonical output bytes.
+
+Deployment order: inspect/apply 012, provision the narrow login securely, configure
+and start the worker, verify its heartbeat and an authorized caller run, then enable
+user-facing rank controls. Production activation and actual SSO acceptance are
+recorded in TASKS; the local worker milestone does not establish either.
+
 ### 9. API and code boundaries
 
 | Interface | Planned contract |
@@ -728,9 +810,12 @@ is needed for this first implementation.
 | `POST /api/packs/:id/versions` | Capture owned template using expected revision; return immutable version ID |
 | `GET /api/seeds?template_version=` | Visible seeds, normalized masses, rationale and policy identity |
 | `POST /api/relationships` and decision/challenge actions | Authenticated proposals; policy-scoped acceptance; append-only revisions |
-| `POST /api/trust/runs` | Validate visible template version/category/policy; enqueue or reuse exact input; 202 with job/run ID |
-| `GET /api/trust/runs/:id` | Status, input versions, convergence, coverage and paginated scores |
-| `GET /api/trust/:node_id?run_id=&projection=` | One score and contribution ledger; unknown is distinct from zero |
+| `POST /api/trust/runs` — implemented | `template_version_id`, `pack_revision`, `evidence_revision`, `request_key`; enqueue or reuse; 202, or 200 for an already completed request |
+| `GET /api/trust/inputs?template_version=` — implemented | Read currently visible pack/evidence tokens before capture |
+| `GET /api/trust/runs/:id` — implemented | Status, input versions, stale/publication state, diagnostics and scores; `projection` and `offset` |
+| `GET /api/trust/:node_id?run_id=&projection=` — implemented | One score and complete contribution ledger; unknown is distinct from zero |
+| `GET /api/trust/runs/:id/export?part=` — implemented | Separate exact input/canonical/raw/manifest artifacts with current RLS |
+| `POST /api/trust/runs/:id/publish` — implemented | Explicit requesting-owner publication with current expected pack/evidence revisions |
 | `GET /api/graph?run_id=&focus=` | Visible bounded subgraph; counts/truncation explicit; export uses pagination |
 | Run export/compare | Canonical JSON inputs/results and two-run differences; access checked for both |
 | Category/template listing | Category-filtered templates, separate adoption and optional independent-reference authority/coverage; cursor pagination |
@@ -831,8 +916,10 @@ Apply existing migrations 003–006 only after inspecting the authorized target 
 Migration 007 implements identities/template versions; 008 tightens older RPC
 grants; 009 makes source saves atomic and restricts shared tags/storage writes;
 010 enforces source identity on direct writes; 011 adds evidence relationships.
-All are activated in production, with results in TASKS. Continue additive
-migrations at 012. Do not resurrect the unused historical
+003–011 are activated in production, with results in TASKS. Migration 012 adds
+stored snapshots, jobs, replay results and publication; it is staged locally and
+not yet applied in production. Continue new migrations at 013 after this milestone.
+Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
 Give each group constraints, RLS/grants, backfill, compatibility reads and a recorded

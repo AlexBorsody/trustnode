@@ -12,8 +12,8 @@ explore ranked evidence, and inspect the reasoning behind a claim's confidence.
 
 For a handoff, read the [completed work](docs/Implementation/TASKS.md#completed-work)
 and [next concrete deliverable](docs/Implementation/TASKS.md#next-concrete-deliverable).
-Evidence storage and the pure trust engine are implemented; database snapshots,
-stored runs and the trust workspace are next. Existing retrieval remains separate.
+Evidence storage, graph computation and the local stored-run backend are implemented.
+Production worker activation and the trust workspace are next; retrieval stays separate.
 Production database/SSO activation is tracked separately in TASKS.
 
 Use this desktop workspace and `main` for current work. Read Strategy and Current
@@ -44,7 +44,7 @@ npm run dev
 Open `http://localhost:3000`. Home, seeded verification, and seed-backed exploration
 work without credentials. Database-backed contribution and pack flows need Supabase.
 Copy `app/.env.example` to `app/.env.local`, supply the public-project values (server aliases fall back to the `NEXT_PUBLIC_` pair),
-and apply the source migrations (001, 001b, 001c), then migrations 003 through 011 in order
+and apply the source migrations (001, 001b, 001c), then migrations 003 through 012 in order
 in `db/`. For SSO, configure Google and/or Microsoft OAuth in Supabase Auth and
 allow your app's `/auth/callback` redirect (including its `next` query) for local
 and production origins. Enable new-user signup for JIT account creation. Provider
@@ -52,6 +52,13 @@ client secrets stay in Supabase's provider configuration, never in browser env v
 The app displays only providers confirmed enabled by public Auth settings. Restart
 the server after changing app environment values.
 Writes use the signed-in user's JWT and RLS; no service-role key is used.
+
+Graph jobs run separately from Next.js: after migration 012, provision a restricted
+worker login, set `TRUSTNODE_WORKER_DATABASE_URL` on that process, and run
+`npm run worker:graph` from `app`. The worker uses the same pinned Node runtime.
+See [the stored-run contract](docs/Implementation/DESIGN.md#implemented-stored-run-boundary-migration-012)
+for roles, TLS, quotas, publication and replay. Production migration 012 and worker
+activation are still pending; a Vercel deploy does not run the worker.
 
 For a quick code check: `npm run typecheck`. Existing CI also runs the application
 checks and production build. Keep validation focused on the change being delivered.

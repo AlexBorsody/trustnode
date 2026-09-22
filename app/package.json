@@ -3,12 +3,14 @@
     "@supabase/supabase-js": "^2.45.0",
     "ipaddr.js": "^2.2.0",
     "next": "^15.1.0",
+    "pg": "^8.23.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "description": "TrustNode — the trust layer between generative AI and reality. Claim -> sources, evidence, contradictions, provenance.",
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "pdf-parse": "^1.1.1",
@@ -23,10 +25,13 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/run.ts",
-    "test:api": "node --import tsx --test test/api-validation.test.ts test/evidence.test.ts",
+    "test:api": "node --import tsx --test test/api-validation.test.ts test/evidence.test.ts test/trust-api.test.ts",
     "test:packs": "node --import tsx --test test/packs.test.ts test/templates.test.ts",
     "test:retrieval": "node --import tsx --test test/ranking.test.ts test/retrieval.test.ts",
-    "test:graph": "node --import tsx --test test/graph.test.ts"
+    "test:graph": "node --import tsx --test test/graph.test.ts",
+    "worker:graph": "node --import tsx worker/run.ts",
+    "graph:replay": "node --import tsx worker/replay.ts",
+    "test:trust-db": "node --import tsx test/run-trust-database.ts"
   },
   "version": "0.1.0"
 }

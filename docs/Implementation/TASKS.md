@@ -15,8 +15,10 @@ Updated 2026-09-22. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   Architecture `plan-1` was published at `c788112`. Step 2 now stores versioned
   evidence, decisions and challenges (011), with API and template-editor wiring.
   Step 3 now computes deterministic site/resource graph authority with complete
-  contribution ledgers. Stored runs/publication, passage indexing and generation
-  remain unbuilt; the live app does not yet expose these computed rankings.
+  contribution ledgers. Step 4 implements local frozen snapshots, restricted
+  worker jobs, stored replay artifacts and caller-scoped APIs. Production migration
+  012/worker activation is pending; the live app has no graph rankings yet.
+  Passage indexing and generation remain unbuilt.
 - **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
   existing app, not the proposed architecture. A successful deployment does not
   establish database or SSO readiness.
@@ -55,6 +57,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
 | Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
 | Evidence relationships | Version-scoped manual proposals, immutable revisions, stale-protected curator decisions, challenges/resolutions and private-safe history APIs/editor | `1c3ede2` deployed; migration 011 applied 2026-09-21 |
+| Stored trust runs — local milestone | Consistent captures, fenced worker leases/retries, atomic results, RLS reads/exports and explicit publication | Migration 012 prepared; production activation pending |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -67,27 +70,25 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Implement sequence step 4: freeze, compute, store and publish trust runs.**
-Step 3 is implemented under `app/src/trustnode/graph/`. The technical PM assigned
-it directly and will review the committed engine before assigning stored runs.
-The next backend milestone must connect that computation to the database:
+**Review and activate the step 4 backend; then build step 5 trust workspace.**
+The technical PM independently reviewed `7cbfd43` and assigned stored runs. The
+local implementation now has snapshot/enqueue/read/export/publication APIs and a
+restricted worker. PostgreSQL concurrent-session CI remains a required gate until
+its actual result is recorded below. No production worker is claimed.
 
-1. Add migration 012 for a transactionally consistent graph snapshot: exact template
-   version, current relationship revisions/decisions, member/site mappings and
-   exclusions. Check current visibility and expected revisions inside the capture;
-   never assemble a purported snapshot from paginated UI reads.
-2. Queue bounded, idempotent jobs and a restricted Node worker. Persist full inputs,
-   runtime/implementation/configuration, raw vectors, canonical output hashes and
-   complete contribution ledgers. Reject oversized inputs and keep failed or
-   nonconverged work out of completed rankings.
-3. Atomically complete/store results, then explicitly publish with a fresh access
-   check. Add caller-RLS status, score/explanation and replay/export APIs. Preserve
-   prior runs and independently verify private/public access and retry behavior.
+1. Review migration 012 and the committed backend. Inspect the authorized Supabase
+   schema before applying it; do not rewrite already applied 003–011.
+2. Provision a dedicated restricted worker login inheriting `tn_graph_worker`,
+   choose its host, configure secrets there, and start the pinned Node worker.
+   Confirm heartbeat and a real authorized run before describing graph ranking as
+   active in production. No service-role key belongs in the app.
+3. Step 5 adds the category/template trust workspace over those stored APIs:
+   request a run with captured tokens, show status/rankings, inspect contributions,
+   replay/export and clearly label stale/seed-only/private states. Graph comparison
+   and broader template discovery remain subsequent work.
 
-The milestone is one stored, replayable category run whose scores and explanations
-refer to the same frozen inputs. Worker production hosting remains an external
-setup item; local worker development can proceed. No graph API, stored run or
-production leaderboard has been added in step 3.
+The local deliverable does not add the trust UI, graph-focus/compare endpoints,
+SSO provider activation, real reference endorsements or production job hosting.
 
 SSO activation and two-account acceptance remain with Muse. Shared abuse limits
 and the verifier headline/charter report remain open before broader launch. Keep
@@ -115,8 +116,8 @@ The draft remains proposed, not imported or accepted evidence.
 ## Implementation sequence
 
 Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
-verification is pending. Step 3 pure computation is implemented. Step 0 still
-needs SSO; steps 4–10 remain todo.
+verification is pending. Steps 3–4 are implemented locally; step 4 still needs
+production activation. Step 0 needs SSO; steps 5–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
 Each step ends with a focused commit, relevant checks and a status update here.
 
@@ -126,7 +127,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 1. Identity and templates — implemented | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Local DB/API/browser flow verified; schema and RLS verified live |
 | 2. Evidence graph — implemented | Append-only proposals/revisions, curator decisions, challenges and resolutions; saved-template editor/history | 1 | Local DB/API checks and hosted rollback flow passed; real-account acceptance pending |
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
-| 4. Stored/public runs | Frozen snapshots, scores, jobs, restricted worker, atomic publication and read/export APIs | 1–3; worker deployment for production | One completed run ties rankings and explanations to exact inputs; retries cannot publish partial results |
+| 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Local enqueue/replay/isolation/retry checks pass; real PostgreSQL concurrency and production activation tracked below |
 | 5. Trust workspace | Category/template chooser, rankings, focused graph, explanations, conflicts and comparison | 4 | User can inspect why a site ranks before entering a research question |
 | 6. Shared template hub | Version-aware publish/fork/merge, category discovery, separate adoption and private-safe comparison | 5; 0 for live pilot | A second user independently forks and recomputes a template without private-parent leakage |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
@@ -142,7 +143,7 @@ while real category evidence is prepared; it cannot prove real-world reliability
 This is a scope target, not a promise that RAG and controls also fit this week.
 
 **Release discipline:** code deployment and migration activation are separate.
-Continue new additive migrations at 012; never rewrite applied migrations. Keep previous
+Migration 012 is staged; new schema work follows at 013. Never rewrite applied migrations. Keep previous
 completed runs for rollback. Formula/parameter changes require methodology versions.
 Proposed constants are recorded in DESIGN, not treated as measured accuracy.
 
@@ -212,11 +213,14 @@ secret store; record only where access is available and the non-secret result.
 
 ### Infrastructure for later implementation steps
 
-- **Graph worker — pending for step 4.** Confirm the job-process host and runtime
-  budget. Provision the restricted worker DB role and queue access described in
-  DESIGN; the public app keeps caller-JWT/RLS access. A local process is sufficient
-  during development; persistent production jobs need a deployed worker. Record
-  where secure credentials are configured, without their values.
+- **Graph worker — production setup pending.** Migration 012 creates the NOLOGIN
+  `tn_graph_worker` group and narrow job functions. After applying it, provision a
+  dedicated LOGIN role inheriting only that group and choose the process host.
+  Configure `TRUSTNODE_WORKER_DATABASE_URL` (and trusted CA if needed) on that host,
+  pin Node 22.23.2 and run `npm run worker:graph` from `app`. The worker rejects
+  privileged logins. App JWT/RLS access stays unchanged. Record the host, credential
+  location, heartbeat and a real run result here; never commit the credential.
+  The enqueue API returns 503 until a worker has polled within two minutes.
 - **Generation provider — pending for step 9, not a trust-engine blocker.** Supply
   the chosen provider/model, secure server credential location, spending limit and
   policy for sending user questions and selected source passages to that provider.
@@ -263,6 +267,20 @@ review above identifies import and propagation gaps. Upload conversion remains
 parked under Alex's latest direction.
 
 ## Validation and review record
+
+- Stored runs (step 4, 2026-09-22): local disposable PostgreSQL-engine integration
+  passes full enqueue → lease → compute → store → caller read/export → replay,
+  capture of 25 relationships beyond the UI page, private/public ownership,
+  visibility transitions, request-key aliases, stale lease fencing, conflicting
+  completion, atomic nonconvergence rejection and bounded retries. API checks pass.
+  Real concurrent-session PostgreSQL capture/revision and capture/review checks
+  are prepared for CI and **not yet verified**. Typecheck and local production build
+  passed; exact-commit hosted results will be recorded after the run finishes.
+  Migration 012 is not applied in production; no restricted production login,
+  worker host or real-account acceptance has been configured by this milestone.
+- Step 3 PM review passed at `7cbfd43`: six graph scenarios, typecheck and 30
+  independent small-graph comparisons against a dense stationary reference, with
+  contribution and seed-decomposition checks. No blocking defects reported.
 
 - Graph engine (step 3, 2026-09-22): six focused scenarios verify the hand-computable
   A → B graph, independent site/resource seed masses, pair deduplication and policy
@@ -435,8 +453,8 @@ that the headline issue is resolved; reproduce with an exact claim and deploymen
 
 ## Remaining limits and deferred work
 
-- The pure trust engine is implemented; persistence/publication and architecture
-  steps 4–10 remain unbuilt.
+- The engine and local stored-run backend are implemented; production worker
+  activation and architecture steps 5–10 remain outstanding.
   Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
 - Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
   and illustrative content. Provenance cleanup and real domain evidence are needed;
