@@ -49,6 +49,44 @@ Product work resumed in the desktop workspace after consolidation.
 
 ## Next
 
+**Active product priority — 2026-09-21:** complete the category-template → selected
+links → ranked passages → cited research result workflow. Alex clarified that
+users should create, publish and reuse ranked source sets by category, with a
+sharing/forking experience like a model/dataset hub. Existing packs supply the
+ownership, category, ordering, sharing and ancestry foundation. Strategy remains
+unchanged; category templates should build on packs rather than create a competing
+collection system. Production activation below proceeds with Muse in parallel.
+
+The current explorer is incomplete for this purpose: it matches titles, keywords
+and short excerpts, scopes to one pack, and counts public adoption. It does not
+retrieve page passages, apply the selected pack's rank as a distinct preference,
+let users select a subset of its links, or generate grounded answers. These are
+implementation gaps, not shipped RAG capabilities.
+
+Delivery order for this workflow:
+
+- Start with link content and provenance: bounded, SSRF-safe ingestion; store page
+  text separately from editable curator descriptions, with fetch time, content
+  identity and explicit failures. Produce addressable passages traceable to the
+  retrieved page version. Descriptions and demo seed text must not masquerade as
+  captured quotations. Fetch safety is part of this work, not deferred past it.
+- Connect template/link selection to passage retrieval. Honor caller visibility,
+  retain the selected pack revision, and expose query relevance, seeded authority,
+  selected curator order and public adoption separately in a versioned formula.
+  Excluded links stay excluded; a failed selection must not broaden the corpus.
+- Make the workflow usable from category browsing and pack detail: choose a
+  template, select links, ask a question, inspect ranked passages and citations,
+  then save/share/fork the curated pack. User templates need no canonical seed
+  endorsement; new canonical authority assignments still require Alex's decision.
+- Add generation over those retrieved passages, with citation validation and
+  explicit insufficient-evidence behavior. Model output never assigns trust or
+  silently changes canonical confidence. Provider/model setup belongs in the Muse
+  coordination section when the adapter's concrete requirements are known.
+
+Completion means a user's changed link selection or curator ranking visibly
+changes the retrieved evidence used by the research result, with inspectable
+provenance. More CRUD polish or a context export alone does not complete this path.
+
 1. Activate and verify pack persistence in production. The live read still returned
    503 on 2026-09-21;
    direct Supabase read returned PGRST205 (tn_packs missing from schema cache).
@@ -67,12 +105,13 @@ Product work resumed in the desktop workspace after consolidation.
    no identity provider configuration or real user account was changed here.
    Google/Microsoft are the current default pending Alex's provider preference;
    enterprise SAML organization SSO would be a separate integration.
-3. Record inspectable evidence relationships, with explicit contributor/provenance;
+3. After the active retrieval workflow, record inspectable evidence relationships, with explicit contributor/provenance;
    keep community relationships separate from canonical authority. Resolve the
    remaining graph/seed decisions before claiming graph-derived trust.
 4. Finish the release workflow: source provenance cleanup,
    source category/tag editing, and the launch hardening listed below. Target this week's
-   usable core workflow; downstream summaries and discretionary controls stay deferred.
+   usable core workflow; discretionary controls stay deferred. Grounded research
+   output is part of the active workflow above, after passage retrieval exists.
 
 ## Muse coordination — inputs to unblock delivery
 
