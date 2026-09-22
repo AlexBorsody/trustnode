@@ -349,6 +349,12 @@ findings are addressed; resolution details and remaining issues follow the revie
   build nothing on top of this — file handling is an unimportant feature. Remove
   the bucket flow, file-retention-on-blocked-delete logic, and the extracted-text
   sidecar model.
+  DEPRIORITIZED 2026-09-21 (Alex): the doc→HTML conversion work is parked — do not
+  spend further time on the conversion library or any upload rework. The shipped
+  hardening (no HTML MIME, restricted storage, excerpt-only verify) stays; the
+  conversion feature itself is off the active path until Alex re-approves. This
+  item is now tracked from the TrustNode frontend-feedback thread, not the
+  Prove-It Clock thread.
 
 **Codex resolution, 2026-09-21:** findings 1–8 are addressed by migration 009 and
 the source API changes. Fetching validates socket DNS addresses and every redirect,
