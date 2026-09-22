@@ -49,26 +49,15 @@ Product work resumed in the desktop workspace after consolidation.
 
 ## Next
 
-**Active product priority — 2026-09-21:** implement the transparent source trust
-network and deterministic ranking engine described in Strategy. Trust ranking of
-sites/resources within category seed sets is separate from query relevance in RAG.
-The previous RAG-first queue was an implementation prioritization error, not a
-change to product direction. Production activation proceeds with Muse in parallel.
+**Active priority — architecture before further implementation.** The full plan is
+in [DESIGN, target architecture](DESIGN.md#target-architecture--planned-not-implemented),
+revision `plan-1` (2026-09-21). It covers the trust engine, category templates,
+community curation, evidence, RAG and the later controls as one system. This planning
+change ships no application code or migrations. Strategy remains canonical.
 
-Start with the recorded relationships and graph contract in DESIGN's “Future graph
-work”: edge meaning/direction and provenance, category membership, seed influence,
-dangling nodes, supersession, deterministic ordering, versioned seed/graph snapshots
-and immutable run IDs. Then implement reproducible ranking with inspectable seed
-and edge contributions. Existing draft parameters are not yet shipped behavior.
-Keep community curation, graph authority and measured factual reliability explicit;
-none silently changes canonical claim confidence.
-
-User-created category templates build on existing packs, ownership, sharing and
-independent forks. Their seeds and curation must remain attributable. Canonical
-seed additions and community-edge governance retain the decisions recorded below.
-RAG subsequently uses the selected resources and trust signal alongside its own
-query-relevance score. Passage ingestion and grounded output remain downstream
-work; neither substitutes for the trust engine.
+Implementation follows the sequence below: trust ranking first, RAG second,
+granular controls last. Production activation proceeds with Muse in parallel.
+The existing OAuth/PKCE verification demo remains separate from new graph scores.
 
 1. Activate and verify pack persistence in production. The live read still returned
    503 on 2026-09-21;
@@ -88,13 +77,68 @@ work; neither substitutes for the trust engine.
    no identity provider configuration or real user account was changed here.
    Google/Microsoft are the current default pending Alex's provider preference;
    enterprise SAML organization SSO would be a separate integration.
-3. Deliver the active trust-graph work above: record inspectable evidence relationships
-   with explicit contributor/provenance;
-   keep community relationships separate from canonical authority. Resolve the
-   remaining graph/seed decisions before claiming graph-derived trust.
-4. Finish the release workflow: source provenance cleanup,
-   source category/tag editing, and the launch hardening listed below. Target this week's
-   usable core workflow; downstream summaries and discretionary controls stay deferred.
+3. Start implementation with step 1 below, then finish the trust workspace through
+   step 6 before expanding RAG. The design's proposed methodology defaults are
+   implementation specifications, not claims that algorithms or authority decisions
+   have already shipped. No further feature implementation is part of this planning task.
+
+## Implementation sequence
+
+Each step is a focused deliverable on `main`. The detailed schemas, formulas,
+privacy rules and interfaces live only in DESIGN; this table tracks execution.
+Steps are **planned**, except the existing portions explicitly identified in step 0.
+
+| Step | Build and integration work | Dependency | Complete when |
+| --- | --- | --- | --- |
+| 0. Activate the foundation | Inspect/apply 003–006, enable chosen SSO providers, verify JIT and ownership in production. Reuse existing code. | Muse's project/provider access | Two real accounts can sign in, manage their own packs and see only permitted private data; migration results recorded |
+| 1. Model sites, categories and template versions | Add stable site/resource mappings, category IDs, explicit seed roles and immutable pack-version capture. Preserve existing pack revisions and forks. First additive migration begins at 007. | Existing schema; live activation needed only for production | A saved template version contains a fixed category, members, seeds, weights and rationale; duplicate pages cannot multiply site seed mass |
+| 2. Record the evidence graph | Add relationship revisions, evidence locators, policy acceptance and challenges; minimal contributor/reviewer UI. Distinguish observed links from accepted propagation edges. | 1 | A curator can record a citation/conflict, choose eligible edges for their template and inspect who supplied/accepted them |
+| 3. Implement pure graph computation | Build site/resource projections, seeded PageRank, deterministic ordering, convergence and exact contribution accounting. No query or LLM dependency. | 1–2 contracts; implementation can use a small reviewed fixture | A nonseed receives rank through accepted evidence; a seed/edge change produces an explained difference; identical inputs replay |
+| 4. Persist and publish runs | Freeze snapshots transactionally; add run/score/history storage, leased jobs, restricted worker and atomic publication. Add trust/seeds/graph read APIs and JSON export. | 1–3; worker deployment for persistent production jobs | A completed leaderboard and every explanation reference the same immutable inputs; retries/failed runs cannot publish partial scores |
+| 5. Build the trust workspace | Category/template chooser, separate site/resource tables, focused graph, score explanation, conflicts, seed-only/stale states and run comparison. | 4 | A user can answer “why is this site ranked here?” before typing a research question, and inspect every contributing relationship |
+| 6. Complete the shared-template workflow | Extend existing publish/fork/merge flows to include seed/policy versions; category hub cards, template comparison, separate adoption display, visibility-aware run sharing and challenges. | 5 and live step 0 for pilot | User A publishes a template; B inspects/forks/reorders its seeds, computes an independent result and compares it without private-parent leakage |
+| 7. Capture content and passages | Add bounded safe fetch jobs, source versions, hashes, parser provenance, passage anchors and observed links; retain failures and curator descriptions separately. | 4; builds on the existing public source shelf | A passage resolves to an identified captured page version; a failed fetch never appears as a verified quotation |
+| 8. Integrate trust with retrieval | Indexed lexical passage search; explicit link subset/exclusions; pinned template and graph run; separate relevance/authority factors; token/context and per-source limits. | 6–7 | Relevant evidence comes only from selected accessible links; changing the question leaves trust unchanged; changing template uses a new explained run |
+| 9. Add grounded research output | Server provider adapter, citation-structured response, citation checks, conflict/insufficient-evidence states, private saved research runs and explicit sharing. | 8 plus model/provider configuration | A generated result cites available captured passages; invented citation IDs fail; provider failure still leaves useful evidence to inspect |
+| 10. Add SourceSelect controls | Retrieval top-k/depth/filters, then supported temperature/top-p/sampling controls; persist effective settings without changing canonical trust. | 9 | Each control changes its stated layer and unsupported controls are absent. Deferred until the core works |
+
+Release work accompanies each step: activate additive migrations separately from
+code deploys, retain the previous current-run pointer for rollback, and run focused
+checks on the changed behavior. No independent test expansion or unrelated source
+editor polish interrupts this sequence. Broad-public-launch gates remain required.
+
+### Delivery checkpoints for this week
+
+Aim for the trust-workspace pilot, steps 1–6. Work in this order rather than opening
+many parallel projects: identity/templates → evidenced graph → computation and
+stored runs → inspection UI → two-user sharing/forking. Step 0 runs alongside this
+with Muse; local development does not wait for production credentials. The pure
+engine can use an explicitly labeled fixture while the first real category is
+prepared. A fixture proves behavior, not real-world source reliability.
+
+The first reviewable milestone is a small category graph with a published seed
+set, one propagated nonseed, a recorded conflict and a fully explained site score.
+The next is that same workflow driven by independently owned, shared templates.
+Only then start steps 7–9. This is a scope target, not a promise that the entire
+architecture, RAG and later controls fit in the remaining week. Record actual
+progress here after each deliverable rather than substituting test counts for it.
+
+### Decisions and external inputs
+
+- **Resolved by this plan:** separate site/resource projections; exact-host identity
+  initially; explicitly marked seeds; proposed uniform/ordered seed modes; accepted
+  positive edges only; no automatic supersession transfer; append-only runs; public
+  adoption separate from graph authority; RAG relevance separate from trust.
+- **Technical defaults:** damping 0.85, tolerance 1e-6, cap 100, initial graph/job
+  limits and retrieval-v2 coefficients are versioned proposals in DESIGN. Adjust
+  with documented evidence during implementation; never relabel them measured accuracy.
+- **Content/governance inputs:** Alex/Muse's real first-category seeds and evidence,
+  reference-policy maintainers and launch policy remain pending below. These do
+  not prevent users from building their own clearly attributed templates.
+- **Deployment inputs:** existing Supabase/SSO access is needed for step 0; a worker
+  host and restricted DB role for step 4; model/provider account and budget for step 9.
+  Credentials belong in secure configuration, not Markdown. No new approval flow
+  is implied for routine implementation; record actual access and decisions here.
 
 ## Muse coordination — inputs to unblock delivery
 
@@ -142,6 +186,18 @@ secret store; record only where access is available and the non-secret result.
   second distinct account. We need to verify JIT creation, returning-user identity,
   logout, private/public pack reads, owner-only edits, stale saves and fork/merge
   privacy. Local fixture checks already pass but do not establish live readiness.
+
+### Infrastructure for later implementation steps
+
+- **Graph worker — pending for step 4.** Confirm the job-process host and runtime
+  budget. Provision the restricted worker DB role and queue access described in
+  DESIGN; the public app keeps caller-JWT/RLS access. A local process is sufficient
+  during development; persistent production jobs need a deployed worker. Record
+  where secure credentials are configured, without their values.
+- **Generation provider — pending for step 9, not a trust-engine blocker.** Supply
+  the chosen provider/model, secure server credential location, spending limit and
+  policy for sending user questions and selected source passages to that provider.
+  Supported sampling parameters will determine which later UI controls appear.
 
 ### Product inputs for the next release slices
 
@@ -254,9 +310,10 @@ are authorized, with proportional checks. No separate agent owns unfinished work
 - Canonical evidence is still a seeded OAuth/PKCE demo with illustrative fixtures;
   source quotation/provenance cleanup and broader domain coverage remain unfinished.
 - Shelf search does not match tag labels.
-- Decide community tagging authority and new canonical seed domains before graph work.
-- Define immutable graph runs, edge governance, and actual recorded evidence factors
-  before claiming graph-derived trust or measured reliability.
+- Confirm reference-policy maintainers and new canonical seed domains with Alex;
+  user-owned templates can proceed under the scoped governance in DESIGN.
+- Implement the planned immutable graph runs and recorded evidence before claiming
+  graph-derived trust. Measured reliability remains separate future work.
 - Before broader launch: bounded fetch/SSRF protection, upload MIME checks,
   attachment handling, rate limiting, and moderation.
 - Votes/verification badges, audit history, personal confidence overrides, and

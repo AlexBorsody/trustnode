@@ -7,7 +7,7 @@ explore ranked evidence, and inspect the reasoning behind a claim's confidence.
 
 - [Strategy](docs/Business/STRATEGY.md) — canonical product direction.
 - [Current work](docs/Implementation/TASKS.md) — what is built, next, and blocked.
-- [Technical contracts](docs/Implementation/DESIGN.md) — implemented behavior and limits.
+- [Architecture and technical contracts](docs/Implementation/DESIGN.md) — existing behavior and the full trust → RAG → controls plan.
 - [Charter](docs/Business/CHARTER.md) — commons principles.
 
 Use this desktop workspace and `main` for current work. Read Strategy and Current
