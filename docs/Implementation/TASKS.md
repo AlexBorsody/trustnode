@@ -216,6 +216,40 @@ account role; omit credentials. No new Muse notes were present at the latest fet
   tenant/scopes behavior **pending live activation**; explicit auth initialization
   **retained** to surface callback errors alongside session restoration. Full review
   history remains in Git; there is no outstanding request to rewrite the auth flow.
+- Habib's full-frontend review (2026-09-21, `main` @ `376ac0a`): `test:api` 35/35,
+  `test:packs` 43/43 green. No secrets in the client bundle, no XSS sinks, no open
+  redirects; IDOR checks pass (pack mutations go through ownership-enforcing RPCs,
+  source PATCH/DELETE double-check `owner_id`, private packs 404 via RLS). Findings
+  for Codex, priority order:
+  1. SSRF in `fetchLinkMeta` (`app/src/app/api/sources/route.ts:166`): any
+     user-supplied URL is fetched with `redirect: "follow"` and no private-range
+     blocking — probes internal/cloud metadata endpoints. Reject private, loopback
+     and link-local ranges; re-validate the final URL after redirects.
+  2. Storage upload policy (`db/migration-001-sources.sql`): any signed-in user can
+     write any path, including overwriting another user's file via the direct
+     storage API. Constrain WITH CHECK to the caller's own folder.
+  3. `text/html` in `ALLOWED_MIME` (`app/src/app/api/sources/upload/route.ts:28`)
+     with a public bucket: uploaded HTML/JS is served from the supabase.co origin
+     (phishing/malware host). Drop HTML from the allowlist or force
+     `content-disposition: attachment`.
+  4. `/api/verify` (`route.ts:56`) selects `extracted_text` for up to 200 rows per
+     unauthenticated POST (~40MB worst case). Cap server-side — excerpt only.
+  5. Raw DB `error.message` strings returned to clients in the sources routes and
+     the upload route (DELETE partially fixed in `1112e30`). Use generic messages
+     like the packs routes.
+  6. Shelf search 500s when `q` contains parentheses (PostgREST `.or()` syntax).
+     Strip parens the same way commas are handled.
+  7. The 25MB upload cap is unreachable on Vercel (4.5MB serverless body limit).
+     Use signed direct-to-storage uploads, or lower the cap and the UI copy.
+  8. `owner_id` on sources and tag labels are reachable beyond intent via direct
+     PostgREST (`tn_tags` "auth update" policy lets any signed-in user rewrite any
+     label). Tighten, or document as intentional now the shelf exposes `owner_id`.
+  9. No rate limiting on the open compute endpoints (`/api/verify`, `/api/retrieve`).
+  Live pass (same day): /verify returned 100/100 WELL SUPPORTED while most shown
+  evidence was UNRELATED/SUPERSEDED — the headline number is not earned by the
+  visible evidence; identical claims returned different evidence sets despite the
+  DETERMINISTIC label; /charter served two different principle sets minutes apart
+  (likely a deploy/cache artifact — pin the canonical text).
 
 ## Remaining limits and deferred work
 
