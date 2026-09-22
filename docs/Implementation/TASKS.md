@@ -329,6 +329,24 @@ findings are addressed; resolution details and remaining issues follow the revie
   visible evidence; identical claims returned different evidence sets despite the
   DETERMINISTIC label; /charter served two different principle sets minutes apart
   (likely a deploy/cache artifact — pin the canonical text).
+- Habib's recheck (2026-09-21, `main` @ `8481e01`, before migration 010): Codex addressed 5 of the 9 in
+  `7257b7f` — SSRF fixed with DNS-validated fetcher (`app/src/sources/link-meta.ts`,
+  per-redirect checks), `text/html` dropped from `ALLOWED_MIME`, `/api/verify`
+  selects excerpt only, DB errors genericized, uploads use server-generated
+  `<uid>/<uuid>-name` paths with `upsert: false`. Still open at that commit: the storage *policy*
+  lets any signed-in user write any path via the direct storage API (needs an
+  additive migration — 001 cannot be rewritten), parens break shelf search, the
+  25MB cap exceeds Vercel's 4.5MB body limit, `owner_id`/tag-label exposure via
+  direct PostgREST, no rate limits on open compute endpoints. `test:api` 40/40 and
+  `test:packs` 43/43 green after `npm install` (the 40 failures seen mid-recheck
+  were the missing `ipaddr.js` in the local checkout, not a code regression).
+- Supervisor directive (2026-09-21): no file storage, ever. This supersedes the
+  storage findings above and the whole `source-files` bucket model: a file upload
+  is converted in memory to HTML as faithfully as possible (choose a conversion
+  library per accepted format — PDF/text/Markdown/CSV/JSON); only the converted
+  HTML is kept, the file bytes are discarded immediately and never written to
+  storage. Remove the bucket flow, file-retention-on-blocked-delete logic, and the
+  extracted-text sidecar model.
 
 **Codex resolution, 2026-09-21:** findings 1–8 are addressed by migration 009 and
 the source API changes. Fetching validates socket DNS addresses and every redirect,
