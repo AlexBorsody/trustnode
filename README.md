@@ -10,6 +10,11 @@ explore ranked evidence, and inspect the reasoning behind a claim's confidence.
 - [Architecture and technical contracts](docs/Implementation/DESIGN.md) — existing behavior and the full trust → RAG → controls plan.
 - [Charter](docs/Business/CHARTER.md) — commons principles.
 
+For a handoff, read the [completed work](docs/Implementation/TASKS.md#completed-work)
+and [next concrete deliverable](docs/Implementation/TASKS.md#next-concrete-deliverable).
+The trust graph is planned but unbuilt; existing packs, retrieval and account code
+are the foundation. Production database/SSO activation is tracked separately in TASKS.
+
 Use this desktop workspace and `main` for current work. Read Strategy and Current
 work before editing. Retired branches and agent handoffs are not active assignments.
 

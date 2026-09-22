@@ -7,6 +7,8 @@ The sections through Canonical verification describe the existing implementation
 The [target architecture](#target-architecture--planned-not-implemented) defines
 the next system; it is a plan, not a claim of shipped behavior. Delivery order and
 external dependencies live in [TASKS](TASKS.md#implementation-sequence).
+For the implemented milestones and verification evidence, use the
+[delivery ledger](TASKS.md#completed-work); do not infer delivery from this plan.
 
 ## Application
 

@@ -1,148 +1,110 @@
 # Current work
 
-Product direction: [STRATEGY](../Business/STRATEGY.md).
-Technical contracts: [DESIGN](DESIGN.md). Updated 2026-09-21.
+Updated 2026-09-21. [Strategy](../Business/STRATEGY.md) is canonical and locked.
+[DESIGN](DESIGN.md) contains existing contracts and the full target architecture
+(`plan-1`); this file is the single delivery ledger, work queue and Muse handoff.
 
-## Working agreement
+## Current state
 
-One implementation owner: Codex in the desktop app. One active checkout:
-`/Users/alexborsody/Projects/trustnode`, branch `main`.
-Alex decides product direction. Other tools/agents advise only when requested;
-old agent assignments are retired. Build the product, keep checks proportional,
-and update this queue instead of creating more handoff documents.
+- **Priority:** transparent trust ranking of sites/resources within category seed
+  sets → RAG using that trust signal → granular SourceSelect controls last.
+  Trust is independent of the research query. Curation, graph authority, relevance
+  and claim confidence remain separate, explained signals.
+- **Code:** latest application change is `ee0c98d`; later commits document the plan.
+  Architecture `plan-1` was published at `c788112`. No graph engine, graph migration
+  007+, passage index, generation adapter or sampling controls have been implemented.
+- **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
+  existing app, not the proposed architecture. A successful deployment does not
+  establish database or SSO readiness.
+- **Production, last observed 2026-09-21:** packs returned 503/PGRST205; migrations
+  003–006 were not applied by Codex. Google/Microsoft providers were disabled;
+  email and signup enabled, SAML disabled. These observations have not been
+  rechecked during this documentation update. Muse setup results are below.
+- **Workspace:** `/Users/alexborsody/Projects/trustnode`, `main`, one implementation
+  owner in the desktop app. Consolidation/conflict cleanup is complete. No other
+  agent has an active code assignment. Routine commits/pushes are authorized;
+  keep checks proportional and do not create parallel branches or handoff files.
 
-## Built
+## Completed work
 
-- SSO account flow: Google/Microsoft adapters, JIT creation through Supabase Auth,
-  PKCE callback, dedicated login/signup, first-login onboarding, account profile
-  and sign-out. Buttons reflect enabled project providers; live SSO is not activated.
+The ledger describes implemented behavior and documentation, not blanket live
+production readiness. Earlier foundation work is retained and integrated.
 
-- Link contribution, source shelf/search, owner source API operations, file extraction.
-- Owner source shelf controls: edit title/description with retained failed drafts,
-  confirm deletion, and preserve files when a referenced-source delete is rejected.
-- Public charter aligned with the retained v1.1 principles and version record.
-- Source packs: ordered links and notes, topics/tags, private/public visibility,
-  public sharing, and independent copies (PR #4).
-- Owner pack edits/deletion: atomic ordered saves, captured revision checks,
-  recoverable drafts, and explicit deletion confirmation. Requires migration 004.
-- Attributed forks: captured parent revision, independent copies, immutable origin
-  records and visibility-aware attribution. Requires migration 005.
-- Nested topic browsing, pack search and side-by-side comparison of source membership,
-  ranks and notes. Comparison uses caller visibility; browsing requires no new migration.
-- Two-parent merge drafts: explicit source/note choices, independent private saves,
-  both captured revisions, and per-parent visible attribution. Requires migration 006.
-- Explorer and retrieval API with visible ranking factors and pack scope (PR #5).
-- Canonical verification isolated from community ranking; pipeline 0.3.0.
-- Node setup, API input validation, existing regression checks and CI.
-- Homepage entry points for exploration/curation, source-shelf navigation and 25-row
-  pagination, loading/empty/retry states, recoverable contribution/sign-in failures,
-  and empty-claim feedback (BUG-006/007).
+| Area | Completed result | History |
+| --- | --- | --- |
+| Repository/docs organization | Consolidated onto main, resolved documentation conflicts, removed redundant active docs/assignments, retained recovery data and locked Strategy | `c2ff57d`, `18759b2` |
+| Source foundation | Link contribution; filtered/searchable public shelf; owner APIs; file text extraction and explicit failures; normalized input validation | `39eb561`, `ea15f8d`, `b6f7b10`, `fe4ec96` |
+| Source workflow | Homepage entry points, shelf pagination, loading/retry states and recoverable errors; owner title/description editing and confirmed deletion; files retained if pack references block deletion | `9e00256`, `1112e30` |
+| Pack creation and sharing | Ranked links/notes, topic/tags, ownership, public/private visibility and independent copies | `2e3717b` / PR #4; migration 003 |
+| Owner pack management | Atomic edits/deletion, captured revision checks, stale-save rejection and retained drafts | `e04a49e`, `bdb2904`; migration 004 |
+| Fork provenance | Immutable captured-parent ancestry, visibility-aware attribution, independent copies and stale-copy recovery | `72070ca`, `0b99c27`; migration 005 |
+| Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
+| Existing explorer | Deterministic `retrieval-v1`, displayed factors, public adoption and private-pack scope; canonical verification isolated from curation | `ae98399`, `0b8a9cc`, `3714c44` / PR #5 |
+| SSO/JIT account flow | Shared Supabase client, Google/Microsoft OAuth adapters, PKCE callback, first-login onboarding, account/profile/sign-out, enabled-provider discovery | `50f91b1`; live provider activation pending |
+| Review/configuration fix | Preserved Habib's review; server Supabase clients/provider discovery fall back to the public env pair | Review `143f68e`; fix `ee0c98d` |
+| Charter and collaboration | Public charter aligned with retained v1.1; Muse setup checklist and Markdown reply area established | `4eaabfe` |
+| Architecture | Full trust graph → RAG → controls plan, schemas, formula, provenance, APIs, jobs, privacy, migration/rollback and phased completion criteria | `c788112`; earlier RAG-first queue is superseded |
+| Runtime and verification baseline | Reproducible Node setup/CI, API validation and pipeline 0.3.0 correctness fixes; seeded OAuth/PKCE demo retained | `32bacb1`, `fe4ec96`, `a0b8dcb`, `a0a1545` |
 
-These are implementation milestones, not a claim that every production flow works.
+## Next concrete deliverable
 
-## Workspace status
+**Start implementation sequence step 1: site identity and versioned category
+seed templates.** The architecture/documentation work is complete; this update
+adds no feature code. Read DESIGN's target architecture before resuming.
 
-Consolidated onto `main`; documentation conflicts resolved. Strategy is canonical.
-Redundant docs and historical assignments are removed from the active tree;
-old work is preserved in Git history and the local recovery archive.
-Product work resumed in the desktop workspace after consolidation.
+1. Add deterministic site/resource identity and category mapping contracts. Keep
+   existing source IDs and pack references; record ambiguous aliases rather than
+   merging sites silently.
+2. Add the first additive migration from 007 for those identities and immutable
+   template versions, including ownership/RLS and an explicit backfill. Existing
+   links remain members, not automatically trusted seeds.
+3. Extend atomic pack save/version capture with explicit seed roles, rationale and
+   the named weighting modes in DESIGN. Preserve current revision checks,
+   public/private visibility and independent fork/merge behavior.
+4. Expose the minimal template editor/read path. Complete when an owned version
+   captures category, members and chosen seeds reproducibly; a later edit leaves
+   it unchanged and duplicate pages cannot multiply site seed mass.
 
-## Next
-
-**Active priority — architecture before further implementation.** The full plan is
-in [DESIGN, target architecture](DESIGN.md#target-architecture--planned-not-implemented),
-revision `plan-1` (2026-09-21). It covers the trust engine, category templates,
-community curation, evidence, RAG and the later controls as one system. This planning
-change ships no application code or migrations. Strategy remains canonical.
-
-Implementation follows the sequence below: trust ranking first, RAG second,
-granular controls last. Production activation proceeds with Muse in parallel.
-The existing OAuth/PKCE verification demo remains separate from new graph scores.
-
-1. Activate and verify pack persistence in production. The live read still returned
-   503 on 2026-09-21;
-   direct Supabase read returned PGRST205 (tn_packs missing from schema cache).
-   Apply migrations `003-source-packs`, `004-pack-editing`, `005-pack-ancestry`, and `006-pack-merge`
-   from `db/` in that order
-   through an authorized database session; check applied state before rerunning.
-   No authenticated dashboard/DB session is available to this desktop task.
-   The local public app credentials cannot run migrations. Migrations
-   001b/001c were previously reported applied. Do not infer DB state from deployment.
-   After activation: verify private/public reads, owner edits and deletion, two-tab
-   stale-save recovery, and second-account ownership isolation in an authorized test account.
-2. Activate SSO providers and verify real first/returning-user sign-in. Public Auth
-   settings checked on 2026-09-21: email enabled, Google/Microsoft disabled, signup
-   allowed, SAML disabled. Google/Microsoft OAuth credentials and callback allowlists
-   need an authorized project session. App wiring uses existing Supabase ownership;
-   no identity provider configuration or real user account was changed here.
-   Google/Microsoft are the current default pending Alex's provider preference;
-   enterprise SAML organization SSO would be a separate integration.
-3. Start implementation with step 1 below, then finish the trust workspace through
-   step 6 before expanding RAG. The design's proposed methodology defaults are
-   implementation specifications, not claims that algorithms or authority decisions
-   have already shipped. No further feature implementation is part of this planning task.
+This work can proceed locally while Muse handles production access. Do not start
+passage ingestion, generation, tuning controls, unrelated CRUD polish or a separate
+validation project ahead of the trust engine. Next milestones: record evidenced
+edges, compute explained scores, then make that workflow usable and shareable.
 
 ## Implementation sequence
 
-Each step is a focused deliverable on `main`. The detailed schemas, formulas,
-privacy rules and interfaces live only in DESIGN; this table tracks execution.
-Steps are **planned**, except the existing portions explicitly identified in step 0.
+All steps are **todo**. Step 0 activates existing code; steps 1–10 implement planned
+capabilities. Detailed contracts live in [DESIGN](DESIGN.md#target-architecture--planned-not-implemented).
+Each step ends with a focused commit, relevant checks and a status update here.
 
-| Step | Build and integration work | Dependency | Complete when |
+| Step | Deliverable | Depends on | Completion condition |
 | --- | --- | --- | --- |
-| 0. Activate the foundation | Inspect/apply 003–006, enable chosen SSO providers, verify JIT and ownership in production. Reuse existing code. | Muse's project/provider access | Two real accounts can sign in, manage their own packs and see only permitted private data; migration results recorded |
-| 1. Model sites, categories and template versions | Add stable site/resource mappings, category IDs, explicit seed roles and immutable pack-version capture. Preserve existing pack revisions and forks. First additive migration begins at 007. | Existing schema; live activation needed only for production | A saved template version contains a fixed category, members, seeds, weights and rationale; duplicate pages cannot multiply site seed mass |
-| 2. Record the evidence graph | Add relationship revisions, evidence locators, policy acceptance and challenges; minimal contributor/reviewer UI. Distinguish observed links from accepted propagation edges. | 1 | A curator can record a citation/conflict, choose eligible edges for their template and inspect who supplied/accepted them |
-| 3. Implement pure graph computation | Build site/resource projections, seeded PageRank, deterministic ordering, convergence and exact contribution accounting. No query or LLM dependency. | 1–2 contracts; implementation can use a small reviewed fixture | A nonseed receives rank through accepted evidence; a seed/edge change produces an explained difference; identical inputs replay |
-| 4. Persist and publish runs | Freeze snapshots transactionally; add run/score/history storage, leased jobs, restricted worker and atomic publication. Add trust/seeds/graph read APIs and JSON export. | 1–3; worker deployment for persistent production jobs | A completed leaderboard and every explanation reference the same immutable inputs; retries/failed runs cannot publish partial scores |
-| 5. Build the trust workspace | Category/template chooser, separate site/resource tables, focused graph, score explanation, conflicts, seed-only/stale states and run comparison. | 4 | A user can answer “why is this site ranked here?” before typing a research question, and inspect every contributing relationship |
-| 6. Complete the shared-template workflow | Extend existing publish/fork/merge flows to include seed/policy versions; category hub cards, template comparison, separate adoption display, visibility-aware run sharing and challenges. | 5 and live step 0 for pilot | User A publishes a template; B inspects/forks/reorders its seeds, computes an independent result and compares it without private-parent leakage |
-| 7. Capture content and passages | Add bounded safe fetch jobs, source versions, hashes, parser provenance, passage anchors and observed links; retain failures and curator descriptions separately. | 4; builds on the existing public source shelf | A passage resolves to an identified captured page version; a failed fetch never appears as a verified quotation |
-| 8. Integrate trust with retrieval | Indexed lexical passage search; explicit link subset/exclusions; pinned template and graph run; separate relevance/authority factors; token/context and per-source limits. | 6–7 | Relevant evidence comes only from selected accessible links; changing the question leaves trust unchanged; changing template uses a new explained run |
-| 9. Add grounded research output | Server provider adapter, citation-structured response, citation checks, conflict/insufficient-evidence states, private saved research runs and explicit sharing. | 8 plus model/provider configuration | A generated result cites available captured passages; invented citation IDs fail; provider failure still leaves useful evidence to inspect |
-| 10. Add SourceSelect controls | Retrieval top-k/depth/filters, then supported temperature/top-p/sampling controls; persist effective settings without changing canonical trust. | 9 | Each control changes its stated layer and unsupported controls are absent. Deferred until the core works |
+| 0. Production activation | Inspect/apply 003–006; configure SSO/JIT; verify two-user ownership | Muse access | Real accounts use owned/private/public packs; actual DB/provider results recorded |
+| 1. Identity and templates | Sites, categories, immutable pack versions and explicit seed roles | Existing schema | Fixed seed/member/category snapshot with revision and privacy protection |
+| 2. Evidence graph | Relationship revisions, evidence locators, scoped acceptance and challenges | 1 | Curator can record, review and explain a citation or conflict; observations are separate from accepted edges |
+| 3. Trust computation | Site/resource projections, seeded PageRank and contribution accounting | 1–2 contracts | A nonseed earns rank through evidence; seed/edge changes are explained; identical inputs replay |
+| 4. Stored/public runs | Frozen snapshots, scores, jobs, restricted worker, atomic publication and read/export APIs | 1–3; worker deployment for production | One completed run ties rankings and explanations to exact inputs; retries cannot publish partial results |
+| 5. Trust workspace | Category/template chooser, rankings, focused graph, explanations, conflicts and comparison | 4 | User can inspect why a site ranks before entering a research question |
+| 6. Shared template hub | Version-aware publish/fork/merge, category discovery, separate adoption and private-safe comparison | 5; 0 for live pilot | A second user independently forks and recomputes a template without private-parent leakage |
+| 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
+| 8. Trust-aware retrieval | Selected links/exclusions, indexed relevance and pinned graph run; visible separate factors | 6–7 | Query changes relevance but not trust; excluded/inaccessible sources never enter the context |
+| 9. Grounded output | Provider adapter, citation checks, conflicts, private research runs and explicit sharing | 8; provider setup | Output cites available passages; invalid citation IDs fail; provider failure leaves evidence usable |
+| 10. Granular controls | Retrieval top-k/depth; supported temperature/top-p/sampling controls | 9 | Effective session settings affect only their stated layer and never canonical trust; deferred |
 
-Release work accompanies each step: activate additive migrations separately from
-code deploys, retain the previous current-run pointer for rollback, and run focused
-checks on the changed behavior. No independent test expansion or unrelated source
-editor polish interrupts this sequence. Broad-public-launch gates remain required.
+**This week's target:** the trust-workspace pilot through step 6. First milestone:
+small category graph, published seeds, propagated nonseed, recorded conflict and
+fully explained site score. Next milestone: two users publish/fork/compare independent
+templates. Step 0 proceeds alongside development. A fixture can prove engine behavior
+while real category evidence is prepared; it cannot prove real-world reliability.
+This is a scope target, not a promise that RAG and controls also fit this week.
 
-### Delivery checkpoints for this week
-
-Aim for the trust-workspace pilot, steps 1–6. Work in this order rather than opening
-many parallel projects: identity/templates → evidenced graph → computation and
-stored runs → inspection UI → two-user sharing/forking. Step 0 runs alongside this
-with Muse; local development does not wait for production credentials. The pure
-engine can use an explicitly labeled fixture while the first real category is
-prepared. A fixture proves behavior, not real-world source reliability.
-
-The first reviewable milestone is a small category graph with a published seed
-set, one propagated nonseed, a recorded conflict and a fully explained site score.
-The next is that same workflow driven by independently owned, shared templates.
-Only then start steps 7–9. This is a scope target, not a promise that the entire
-architecture, RAG and later controls fit in the remaining week. Record actual
-progress here after each deliverable rather than substituting test counts for it.
-
-### Decisions and external inputs
-
-- **Resolved by this plan:** separate site/resource projections; exact-host identity
-  initially; explicitly marked seeds; proposed uniform/ordered seed modes; accepted
-  positive edges only; no automatic supersession transfer; append-only runs; public
-  adoption separate from graph authority; RAG relevance separate from trust.
-- **Technical defaults:** damping 0.85, tolerance 1e-6, cap 100, initial graph/job
-  limits and retrieval-v2 coefficients are versioned proposals in DESIGN. Adjust
-  with documented evidence during implementation; never relabel them measured accuracy.
-- **Content/governance inputs:** Alex/Muse's real first-category seeds and evidence,
-  reference-policy maintainers and launch policy remain pending below. These do
-  not prevent users from building their own clearly attributed templates.
-- **Deployment inputs:** existing Supabase/SSO access is needed for step 0; a worker
-  host and restricted DB role for step 4; model/provider account and budget for step 9.
-  Credentials belong in secure configuration, not Markdown. No new approval flow
-  is implied for routine implementation; record actual access and decisions here.
+**Release discipline:** code deployment and migration activation are separate.
+Start new additive migrations at 007; never rewrite applied migrations. Keep previous
+completed runs for rollback. Formula/parameter changes require methodology versions.
+Proposed constants are recorded in DESIGN, not treated as measured accuracy.
 
 ## Muse coordination — inputs to unblock delivery
 
-Muse: use this section for replies, decisions and setup results. Codex continues
+Muse: use this section for replies, decisions and setup results. Codex owns
 implementation on `main`; please coordinate here rather than creating branches or
 editing application code concurrently. Strategy stays locked. Mark each item
 **pending**, **ready**, or **decided**, with the date and what changed. Do not put
@@ -222,112 +184,60 @@ secret store; record only where access is available and the non-secret result.
 Add dated responses here, using the item names above. Codex will fold resolved
 items into Next and DESIGN rather than maintaining competing handoff documents.
 
-## Latest delivery check — 2026-09-21
+## Validation and review record
 
-Owner source controls and charter alignment: typecheck, production build and 35
-focused API checks pass. Referenced-source deletion preserves the backing file;
-malformed edits fail before database calls. Browser fixtures confirm owner-only
-controls and saved title/description updates on the shelf. Muse inputs are above.
+- Latest application commit `ee0c98d` passed hosted application/type/build and
+  PostgreSQL checks ([CI run](https://github.com/AlexBorsody/trustnode/actions/runs/35665903138)).
+  Local browser fixtures exercised owner source editing, SSO callback/onboarding/
+  sign-out, pack merge/reordering and stale-draft recovery. These fixtures do not
+  establish real-provider or production-database readiness.
+- Pack PostgreSQL checks covered atomic saves, stale revisions, ownership and
+  private/deleted-parent ancestry. No production data or migrations were changed
+  by these checks. Architecture/documentation updates received document checks;
+  they did not implement or validate the proposed graph algorithm.
+- Habib's SSO review (`143f68e`): env fallback **fixed** in `ee0c98d`; actual Microsoft
+  tenant/scopes behavior **pending live activation**; explicit auth initialization
+  **retained** to surface callback errors alongside session restoration. Full review
+  history remains in Git; there is no outstanding request to rewrite the auth flow.
 
-Merge: 37 focused pack/API checks, production build and disposable PostgreSQL
-engine checks pass, including two captured revisions, atomic rejection, private
-child/parent visibility and deletion preserving the other origin and child. Local
-browser fixtures verify source/note selection, reorder, stale-draft recovery,
-private saved merges and independent parent attribution.
-Hosted application/build and PostgreSQL CI passed for merge at `effe83d`.
-SSO: 33 focused API/redirect checks and production build pass. Disposable browser
-fixtures verify PKCE exchange for Google and Microsoft adapters, first-login
-onboarding/profile save, local sign-out and returning-user routing. No real provider
-login was attempted; live activation remains item 2.
-SSO hosted application/build and PostgreSQL checks passed at `50f91b1`.
-No production data or migrations were changed. Live readiness remains items 1–2.
+## Remaining limits and deferred work
 
-## Review — 2026-09-21 (Habib, commit `50f91b1`)
-
-Secret handling is correct: the browser uses only `NEXT_PUBLIC_SUPABASE_ANON_KEY`;
-`/api/auth/providers` uses the server-side `SUPABASE_ANON_KEY` to read public
-`/auth/v1/settings`. No service-role/client secret in the client bundle or the
-repo. Return-to URLs are allowlisted (`safeReturnTo`), covered by tests.
-
-Findings for Codex, in priority order:
-
-1. Env var name split — fix before activation. The client reads
-   `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` while the providers
-   route reads `SUPABASE_URL`/`SUPABASE_ANON_KEY`. If only the `NEXT_PUBLIC_` pair
-   is set, the route silently returns `{ providers: [] }` and the UI reports
-   "SSO sign-in is being configured" even though auth works. Have the route fall
-   back to the `NEXT_PUBLIC_` vars, or document that both pairs must be set.
-2. Azure `scopes: "email"` — verify at activation (item 2). Microsoft identity
-   platform requires the `openid` scope for OIDC; if Supabase replaces rather than
-   merges default scopes, the Azure flow breaks with no ID token. Confirm a real
-   Microsoft sign-in completes before calling SSO live.
-3. Minor: `useAuth` calls `client.auth.initialize()` then `getSession()` on top of
-   `onAuthStateChange` (which already fires `INITIAL_SESSION`) — harmless but
-   redundant; one session-restore path is enough.
-
-### Codex response — 2026-09-21
-
-- Review item 1 fixed: provider discovery and the server Supabase client fall back
-  to `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` when server aliases
-  are absent. The provider check covers a public-pair-only deployment.
-- Item 2 remains a real-provider activation check. The official Supabase Microsoft
-  guide uses `scopes: "email"`, matching the adapter; local PKCE checks do not prove
-  Microsoft's configured tenant/app behavior. Keep real sign-in pending in item 2.
-- Item 3 retained intentionally: `initialize()` exposes callback initialization
-  failures, while `getSession()` obtains the restored session. The shared singleton
-  prevents duplicate clients; the auth callback browser check verified a cancelled
-  flow surfaces an error. `INITIAL_SESSION` alone does not carry that error.
-- Muse setup/decision checklist and reply area are above. Other completed work in
-  this batch: owner source title/description editing and guarded deletion, plus
-  public charter alignment. No production credentials, providers or DB changed.
+- The central trust engine and every new architecture step above are unbuilt.
+  Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
+- Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
+  and illustrative content. Provenance cleanup and real domain evidence are needed;
+  graph authority must never be described as measured factual accuracy.
+- Source edits remain last-save-wins. Category/tag editing needs an atomic contract;
+  shelf search does not match tag labels. Keep these behind core trust delivery.
+- Before broader public launch: fetch/SSRF bounds, upload MIME/attachment handling,
+  quotas/rate limits, moderation, retention policy and real ownership verification.
+  Relevant safeguards ship with ingestion/jobs, not as an unrelated project.
+- Votes, verified-user badges, broad social features, measured reliability and
+  personal canonical-confidence overrides are deferred. Graph publication/evidence
+  history is part of steps 2–4; it is not deferred with unrelated social features.
+- Worker deployment is needed for persistent jobs; model/provider configuration is
+  needed only for generation. Neither is a reason to invent local production success.
 
 ## Resumption context
 
-Continue in this checkout on `main`; Strategy is locked. Routine commits/pushes
-are authorized, with proportional checks. No separate agent owns unfinished work.
-
-- SSO UI/session helpers are in `src/auth`, provider availability in
-  `/api/auth/providers`, and callback/onboarding in `/auth/callback` and `/account`.
-  Public settings must confirm enabled providers; do not claim live SSO from a fixture.
-- Topic/compare helpers are in `packs/browse.ts`; comparison UI is in
-  `PackComparison.tsx`, opened from `PackWorkspace.tsx`. Topics use `>` paths within
-  the existing category field. Browse and comparison choices are capped at 50 packs.
-- Merge is migration 006 and `merge_of` in the pack API/editor. Both captured parent
-  revisions stay fixed through draft edits. Read APIs return only visible `origins`;
-  the compatibility `origin` is the first visible one, with no total-parent count.
-- Ancestry is in migration 005, pack creation/detail routes, `packs/model.ts`, and
-  `PackWorkspace.tsx`. DESIGN records storage, privacy and locking choices.
-- Copies before migration 005 have no inferred ancestry. Parent attribution uses
-  current visible metadata, not a historical title/owner snapshot. A deleted parent
-  removes its origin row; the child remains. Ancestry never affects retrieval scores.
-- Copies use a narrow definer RPC to lock another owner's public parent without
-  weakening owner-write RLS; new children always belong to the authenticated caller.
-- Node/npm/gh are in `~/.local/bin`. SQL checks use a disposable database, never
-  production. Temporary browser fixtures are optional aids, not app dependencies.
-
-## Remaining limits and decisions
-
-- Canonical evidence is still a seeded OAuth/PKCE demo with illustrative fixtures;
-  source quotation/provenance cleanup and broader domain coverage remain unfinished.
-- Shelf search does not match tag labels.
-- Confirm reference-policy maintainers and new canonical seed domains with Alex;
-  user-owned templates can proceed under the scoped governance in DESIGN.
-- Implement the planned immutable graph runs and recorded evidence before claiming
-  graph-derived trust. Measured reliability remains separate future work.
-- Before broader launch: bounded fetch/SSRF protection, upload MIME checks,
-  attachment handling, rate limiting, and moderation.
-- Votes/verification badges, audit history, personal confidence overrides, and
-  downstream summarization controls remain deferred.
-- Source title/description editing uses the existing API and is currently last-save-wins;
-  unlike packs, source records do not yet have revision tokens. Category/tag editing
-  still needs an atomic update contract before expanding the owner editor.
+- Read Strategy → this queue → DESIGN. One checkout/owner, `main`. Use the sequence
+  above; do not revive the superseded RAG-first priority or historical agent tasks.
+- Existing code: `app/src/packs/` and pack API routes for curation; `app/src/auth/`
+  for shared SSO; `app/src/trustnode/ranking.ts` for retrieval-v1, `retrieval.ts` for
+  candidates, `pipeline.ts` for canonical demo confidence. Future graph code belongs
+  in `app/src/trustnode/graph/`, separate from both existing scoring paths.
+- Preserve captured revisions through drafts. Reads expose only currently visible
+  ancestry; hidden/deleted parents reveal no counts/IDs, and child packs survive.
+  Legacy copies have no invented origin. DESIGN holds the full implemented contract.
+- Node/npm/gh are in `~/.local/bin`. Use disposable local databases/fixtures for
+  development. No active background job, temporary browser fixture or agent owns
+  unfinished product work at this checkpoint.
 
 ## Recovery
 
-Pre-cleanup tracked/untracked source files, patches, and all Git refs are saved
-locally in `.recovery/2026-09-20-consolidation/` (ignored by Git).
-`pending-product-ui.patch` is the original recovery copy of the now-resumed
-homepage/error-recovery work; do not reapply it. Archive `README.txt` explains
-restoration of older drafts. The named pre-consolidation stash is also retained. Superseded pipeline/file-parser
-drafts are preserved there; the already merged implementations remain authoritative.
-Historical reviews, QA reports, and old assignments remain available in Git history.
+Pre-consolidation files, patches and Git refs are preserved in the ignored local
+`.recovery/2026-09-20-consolidation/` archive and retained named stash. Its README
+explains restoration. `pending-product-ui.patch` is historical recovery data for
+already-resumed work; do not reapply it. Superseded specs, reviews and assignments
+remain in Git history. Keep Strategy and the existing four-document map authoritative;
+update this queue rather than creating another status/handoff document.
