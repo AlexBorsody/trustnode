@@ -87,3 +87,41 @@ reset role;
 select test_assert(not has_function_privilege('anon','public.tn_save_source(uuid,jsonb,jsonb)','EXECUTE'),'anonymous save denied');
 select test_assert((select file_size_limit=4194304 and not ('text/html'=any(allowed_mime_types)) from storage.buckets where id='source-files'),'bucket enforces upload limits');
 select 'Atomic source saves, immutable attribution/tags and upload ownership passed' as result;
+
+\ir ../migration-010-source-write-invariants.sql
+set role authenticated;
+set request.jwt.claim.sub='11111111-1111-4111-8111-111111111111';
+do $$ declare path text; mime text; saved jsonb; bad_url text; begin
+  -- A caller cannot bypass RPC validation through PostgREST table INSERT.
+  for path,mime in select * from (values
+    ('22222222-2222-4222-8222-222222222222/file.txt','text/plain'),
+    ('11111111-1111-4111-8111-111111111111/file.html','text/html'),
+    ('11111111-1111-4111-8111-111111111111/../file.txt','text/plain'),
+    (null,'text/plain'),
+    ('11111111-1111-4111-8111-111111111111/file.txt',null)
+  ) as invalid(path,mime) loop
+    begin
+      insert into tn_sources(owner_id,kind,title,file_path,file_name,mime_type,status)
+      values(auth.uid(),'file','Forged source',path,'file.txt',mime,'ready');
+      raise exception 'invalid direct file INSERT accepted';
+    exception when check_violation then null; end;
+  end loop;
+  foreach bad_url in array array[null,'javascript:alert(1)','https://','https://user:pass@example.org','https://example.org/space here'] loop
+    begin
+      insert into tn_sources(owner_id,kind,title,url) values(auth.uid(),'link','Invalid link',bad_url);
+      raise exception 'invalid direct link INSERT accepted';
+    exception when check_violation then null; end;
+  end loop;
+  saved := tn_save_source(null,
+    '{"kind":"file","title":"Owned file","file_path":"11111111-1111-4111-8111-111111111111/file.txt","file_name":"file.txt","mime_type":"text/plain","extracted_text":"Evidence"}',
+    '[{"slug":"protocol","label":"Protocol"}]');
+  perform test_assert(saved->>'status'='ready','legitimate file RPC still works');
+  perform tn_save_source((saved->>'id')::uuid,'{"title":"Edited owned file"}',null);
+  saved := tn_save_source(null,'{"kind":"link","title":"Valid link","url":"https://example.org/direct-check?x=1#evidence","excerpt":"Evidence"}',null);
+  perform test_assert(saved->>'status'='ready','legitimate link RPC still works');
+  insert into tn_sources(owner_id,kind,title,url) values(auth.uid(),'link','Direct link','https://example.org/valid-direct');
+end $$;
+reset role;
+-- Retain file provenance when its account is deleted (the real FK uses SET NULL).
+update tn_sources set owner_id=null where title='Edited owned file';
+select 'Direct source identity invariants and legitimate RPC saves passed' as result;

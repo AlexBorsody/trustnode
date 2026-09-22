@@ -77,6 +77,15 @@ source ownership. An exact-link-URL unique index handles concurrent duplicates.
 Database bounds cover title, excerpt, extracted text, errors, URL and tags. These
 CHECK constraints use NOT VALID to preserve legacy rows while enforcing new writes.
 
+Migration 010 also enforces kind/URL/file-path/MIME invariants on the table itself,
+closing the direct-INSERT bypass of RPC validation. Links require HTTP(S) URLs
+without credentials/whitespace and no file fields. Files require a safe storage
+path under their owner's UUID, a filename and supported MIME, with no link URL.
+NULL inputs cannot bypass these checks. Account deletion may clear attribution
+without removing the public source. Existing rows remain readable; new writes and
+updates must satisfy the constraint. URL shape validation does not fetch or verify
+the site's contents; network destination checks remain in the fetch adapter.
+
 Uploads accept PDF/text/Markdown/CSV/JSON, maximum 4 MiB. Both the API and bucket
 enforce the size/MIME allowlist; storage inserts require the caller's UUID folder.
 Extracted text has a 200 KB character cap, separate from the contributor excerpt.
@@ -732,9 +741,10 @@ slider adjustment to canonical trust. These controls are deferred, not phase-one
 
 Apply existing migrations 003–006 only after inspecting the authorized target DB.
 Migration 007 implements identities/template versions; 008 tightens older RPC
-grants; 009 makes source saves atomic and restricts shared tags/storage writes.
+grants; 009 makes source saves atomic and restricts shared tags/storage writes;
+010 enforces source identity on direct writes.
 All are activated in production, with results in TASKS. Continue additive
-migrations at 010. Do not resurrect the unused historical
+migrations at 011. Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
 Give each group constraints, RLS/grants, backfill, compatibility reads and a recorded
