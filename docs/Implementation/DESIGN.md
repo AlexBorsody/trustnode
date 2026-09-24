@@ -237,8 +237,50 @@ Pack details expose seed editing, weight preview, version selection, direct link
 and JSON export. GET lists the latest 20 versions or a specific `?version=UUID`.
 Reads and versions follow the pack's current visibility; deleting the pack cascades
 to its versions. Later pack/source edits do not rewrite captured contents. Capture
-conflicts return 409 and retain choices until explicit reload. Existing fork/merge
-flows still copy pack members; version-aware seed reconciliation belongs to step 6.
+conflicts return 409 and retain choices until explicit reload. Legacy pack copy/merge
+flows still copy pack members. The selected-version fork below preserves seeds;
+multi-parent seed/evidence reconciliation remains step 6b.
+
+## Independent template forks (migration 013)
+
+`GET /api/templates/:version/fork` reads an accessible version's content hash,
+evidence revision, visibility epoch, current evidence/accepted counts and visible
+starting-version attribution. `POST` takes those captured tokens, an explicit
+`copy_evidence` choice, a title and a caller-generated `request_key`. One transaction
+locks current parent visibility against edits, deletion and evidence mutations,
+then creates a private caller-owned pack and immutable child template. A later
+parent pack/source edit cannot substitute for the selected version. The selected
+source entries, order, notes, seed mode and rationale are copied exactly; the child
+has its own owner, category identity, pack revision and content hash. A missing
+source fails the transaction rather than silently dropping a member.
+
+Seeds-only forks create no evidence. Opting into evidence copies all current
+revisions (including rejected/proposed/conflict relations), bounded to 200 records
+and 2 MiB; the preview states counts and limits. Each gets a new child edge and
+revision, a permanent `creation_kind=template-import` label, and the local importer
+as the person responsible for that proposal. No reviews, decisions or acceptance
+events are inherited. The importer can revise it; the child curator must review
+and accept the child revision before it propagates authority. Local changes and
+recomputation never alter the parent. Generic 404/409/422 responses distinguish
+unavailable scope, changed tokens and copy limits without disclosing hidden data.
+
+`tn_template_origins` and `tn_edge_origins` store attribution separately from
+independent content. Caller RLS requires both sides to remain accessible. Original
+revision/author links are resolved only in current reads and disappear when the
+parent is hidden or deleted. A cascade deletes only the attribution row, never
+the child. The import label remains visible. Parent IDs/authors are not copied
+into child snapshots or evidence bodies, and run capture reads base evidence rows
+without dynamic attribution. Thus a frozen child export cannot preserve hidden
+parent identifiers. Already-copied resource text and quotations remain independent
+content; making the parent private does not retract copies or previous downloads.
+
+Request keys serialize duplicate submissions. An identical retry returns the same
+caller-owned child even if the parent has since disappeared; changed payloads
+return 409. A deleted child leaves an inaccessible request tombstone so retry
+cannot recreate it. The UI retains the exact request on ambiguous failures, aborts
+on account/version changes, and links success to child evidence review and the
+existing trust workspace. Broader discovery, adoption and merge reconciliation
+are subsequent increments. Migration 013 is additive and not yet applied live.
 
 ## Evidence relationships (migration 011)
 
@@ -266,8 +308,9 @@ authenticated-only grants, current visibility/ownership checks, and row locks.
 Direct table mutations are revoked. An internal helper locks the pack's current
 visibility during writes and cannot be called by app roles. RLS follows current
 template visibility through every history layer, including for proposal authors.
-Deleting the pack removes its versions and evidence histories; independent forks
-do not inherit evidence records or decisions. Reference-policy maintainer roles
+Deleting the pack removes its versions and evidence histories. Selected-version
+forks can create independent imported proposals under 013, but never inherit
+decisions. Reference-policy maintainer roles
 and publication remain unbuilt; current decisions belong only to user templates.
 
 `GET/POST /api/relationships` lists or proposes/revises evidence for
@@ -402,7 +445,7 @@ does not make it the canonical policy for everyone.
 | Component | Reuse | Remaining work |
 | --- | --- | --- |
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
-| Curation | Sources, packs, revisions, forks/merges; immutable seed versions (007) | Version-aware forks/merges and graph policy reconciliation |
+| Curation | Sources, packs, revisions, legacy forks/merges; immutable seed versions (007); selected-version independent forks (013) | Multi-parent seed/evidence reconciliation and shared discovery |
 | Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
 | Source authority | Exact-host site identity (007), site/resource computation, frozen stored runs and trust workspace | Production activation and shared template discovery |
 | Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
@@ -808,6 +851,7 @@ recorded in TASKS; the local worker milestone does not establish either.
 | --- | --- |
 | Existing pack APIs | Remain compatible; add template config with atomic revision protection |
 | `POST /api/packs/:id/versions` | Capture owned template using expected revision; return immutable version ID |
+| `GET/POST /api/templates/:id/fork` — implemented | Visible copy summary; atomic selected-version fork with captured hash/evidence/visibility tokens, explicit proposal-copy choice and request-key retry |
 | `GET /api/seeds?template_version=` | Visible seeds, normalized masses, rationale and policy identity |
 | `POST /api/relationships` and decision/challenge actions | Authenticated proposals; policy-scoped acceptance; append-only revisions |
 | `POST /api/trust/runs` — implemented | `template_version_id`, `pack_revision`, `evidence_revision`, `request_key`; enqueue or reuse; 202, or 200 for an already completed request |
@@ -916,7 +960,8 @@ views; delayed responses cannot populate another scope. Refresh and page focus
 recheck current access and clear unavailable data. This does not retract already
 downloaded data or promise immediate revocation in an idle offline browser.
 Discovery is bounded to the newest 50 accessible packs, 20 versions and 20 runs
-per page; larger shared discovery and version-aware fork/merge belong to step 6.
+per page. Selected-version independent forks are implemented in step 6a; larger
+shared discovery and version-aware merge remain subsequent work.
 Detailed graph layout is presentation; it cannot alter rank.
 
 The second UI connects that chosen run to a research question and selected links,
@@ -939,7 +984,8 @@ grants; 009 makes source saves atomic and restricts shared tags/storage writes;
 010 enforces source identity on direct writes; 011 adds evidence relationships.
 003–011 are activated in production, with results in TASKS. Migration 012 adds
 stored snapshots, jobs, replay results and publication; it is staged locally and
-not yet applied in production. Continue new migrations at 013 after this milestone.
+not yet applied in production. Migration 013 adds selected-version forks and
+private-safe import provenance; it is also staged. Continue new migrations at 014.
 Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.

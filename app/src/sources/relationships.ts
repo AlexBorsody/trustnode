@@ -6,11 +6,14 @@ export interface EvidenceBody {
   source_id: string; target_id: string; relation: Relation; rationale: string;
   claim_scope: string; source_locator: string; source_quote: string;
   target_locator: string; target_quote: string; observed_on: string;
-  origin?: "manual-proposal"; source_url?: string; target_url?: string;
+  origin?: "manual-proposal" | "template-import"; source_url?: string; target_url?: string;
 }
 export interface EvidenceRevision { id: string; edge_id: string; revision: number; previous_revision_id: string | null; body: EvidenceBody; created_at: string }
 export interface EvidenceReview { id: number; revision_id: string; author_id: string | null; action: string; reason: string; locator: string; excerpt: string; challenge_id: number | null; created_at: string }
-export interface Relationship { id: string; template_version_id: string; author_id: string | null; created_at: string; current_revision: EvidenceRevision; current_decision: EvidenceReview | null }
+export interface Relationship { id: string; template_version_id: string; author_id: string | null; created_at: string; current_revision: EvidenceRevision; current_decision: EvidenceReview | null;
+  creation_kind?: "manual" | "template-import";
+  origin?: { revision_id: string; imported_revision_id: string; version_id: string; pack_id: string; title: string; author_id: string | null; creation_kind: "manual" | "template-import" } | null;
+}
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected evidence details.");

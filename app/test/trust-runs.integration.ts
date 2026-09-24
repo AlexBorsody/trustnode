@@ -14,7 +14,7 @@ async function code(expected: string, promise: Promise<unknown>) {
 }
 export async function runTrustIntegration(db: SqlClient, connection?: () => Promise<SqlClient & { end(): Promise<void> }>, restrictedConnection?: () => Promise<SqlClient>) {
   assert.equal((await db.query("select to_regclass('public.tn_sources') as existing")).rows[0].existing, null, "Use an empty disposable database only.");
-  await db.query(expand(fileURLToPath(new URL("../../db/tests/trust-runs.sql", import.meta.url))));
+  await db.query(expand(fileURLToPath(new URL("../../db/tests/template-forks.sql", import.meta.url))));
   const restrictedWorker = await restrictedConnection?.();
   if (restrictedWorker) await assertWorkerRole(restrictedWorker);
   const role = async (name: "authenticated" | "anon" | "tn_graph_worker" | "admin", id = OWNER) => {

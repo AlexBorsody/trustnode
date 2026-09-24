@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { workOnce, type SqlClient } from "../worker/graph";
+import { seedDistribution } from "../src/packs/templates";
+const OWNER="33333333-3333-4333-8333-333333333333", READER="44444444-4444-4444-8444-444444444444";
+export async function runTemplateForkIntegration(db: SqlClient) {
+  await db.query("reset role"); await db.query("insert into auth.users values($1),($2)",[OWNER,READER]);
+  const role = async (id: string | null) => { await db.query(id ? "set role authenticated" : "set role anon"); await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id??""]); };
+  const value = async (sql: string,args: unknown[] = []) => (await db.query(sql,args)).rows[0].value;
+  const rejected = async (code: string, operation: Promise<unknown>) => assert.rejects(operation,e=>(e as {code?:string}).code===code);
+  await role(OWNER);
+  const ids: string[]=[];
+  for(const host of ['fork-a','fork-b','fork-c']) ids.push((await value("select tn_save_source(null,$1::jsonb,null) as value",[JSON.stringify({kind:'link',title:host,url:`https://${host}.example/`,excerpt:'Synthetic fork fixture'})])).id);
+  const parent=await value("select tn_create_pack('Selected parent','','Fixture > Forks','{}',true,$1::jsonb) as value",[JSON.stringify(ids.map(source_id=>({source_id,note:'Selected note'})))]);
+  const version=await value("select tn_capture_pack_version($1,(select revision from tn_packs where id=$1),'ordered-seeds-v1',$2::jsonb) as value",[parent,JSON.stringify(ids.slice(0,2).map(source_id=>({source_id,rationale:'Selected seed rationale'})))]);
+  const sourceVersion=await value("select to_jsonb(v) as value from tn_pack_versions v where id=$1",[version]);
+  const body={source_id:ids[0],target_id:ids[2],relation:'cites',rationale:'Synthetic fork support',source_locator:'Section 1',source_quote:'A cites C',observed_on:'2026-09-22'};
+  const edge=await value("select tn_save_relationship($1,null,null,$2::jsonb) as value",[version,JSON.stringify(body)]);
+  await db.query("select tn_review_relationship($1,'accept','Parent reviewed',null,true,'','',null)",[edge.revision_id]);
+  const preview=()=>value("select tn_template_fork_info($1) as value",[version]);
+  let info=await preview(); const selectedInfo=info; assert.equal(info.evidence_count,1); assert.equal(info.accepted_count,1);
+  const fork=(tokens=info,key=randomUUID(),copy=true,title='Independent selected fork')=>value("select tn_fork_template($1,$2,$3,$4,$5,$6,$7) as value",[version,tokens.content_hash,tokens.evidence_revision,tokens.visibility_epoch,copy,title,key]);
+  // Later mutable pack/source titles must not replace selected snapshot contents.
+  await db.query("update tn_packs set title='Later parent title' where id=$1",[parent]);
+  await db.query("update tn_sources set title='Later source title' where id=$1",[ids[0]]);
+  await role(READER); const key=randomUUID(), child=await fork(info,key);
+  assert.equal((await fork(info,key)).version_id,child.version_id);
+  await rejected('PT409',fork(info,key,false)); await rejected('PT409',fork(info,key,true,'Different title'));
+  const childVersion=await value("select to_jsonb(v) as value from tn_pack_versions v where id=$1",[child.version_id]);
+  assert.deepEqual(childVersion.snapshot.entries,sourceVersion.snapshot.entries);
+  assert.equal(childVersion.snapshot.seed_mode,'ordered-seeds-v1'); assert.equal(childVersion.snapshot.owner_id,READER);
+  assert.deepEqual(seedDistribution(childVersion.snapshot.entries,childVersion.snapshot.seed_mode),seedDistribution(sourceVersion.snapshot.entries,sourceVersion.snapshot.seed_mode));
+  assert.equal(await value("select is_public as value from tn_packs where id=$1",[child.pack_id]),false);
+  let copied=(await value("select tn_list_relationships($1,0) as value",[child.version_id]))[0];
+  assert.equal(copied.current_decision,null); assert.equal(copied.creation_kind,'template-import'); assert.equal(copied.author_id,READER);
+  assert.equal(copied.origin.author_id,OWNER); assert.equal(copied.origin.revision_id,edge.revision_id);
+  assert.equal(await value("select count(*)::integer as value from tn_edge_reviews d join tn_edge_revisions r on r.id=d.revision_id join tn_source_edges e on e.id=r.edge_id where e.template_version_id=$1",[child.version_id]),0);
+  const seedsOnlyKey=randomUUID(), seedsOnly=await fork(info,seedsOnlyKey,false); assert.equal(seedsOnly.copied_evidence,0);
+  assert.equal((await value("select tn_list_relationships($1,0) as value",[seedsOnly.version_id])).length,0);
+  await db.query("delete from tn_packs where id=$1",[seedsOnly.pack_id]);
+  await rejected('PT404',fork(info,seedsOnlyKey,false));
+  await role(OWNER); assert.equal(await value("select count(*)::integer as value from tn_packs where id=$1",[child.pack_id]),0);
+  // A challenge changes the evidence token even though it doesn't change acceptance.
+  await db.query("select tn_review_relationship($1,'challenge','Check scope',null,false,'Section 2','Synthetic challenge',null)",[edge.revision_id]);
+  await role(READER); await rejected('PT409',fork(info)); info=await preview();
+  await rejected('PT409',fork({...info,content_hash:'0'.repeat(64)}));
+  const originalEvidence=JSON.stringify(await value("select tn_list_relationships($1,0) as value",[version]));
+  const compute=async(v: string)=>{
+    const t=await value("select jsonb_build_object('pack',p.revision,'evidence',v.evidence_revision) as value from tn_pack_versions v join tn_packs p on p.id=v.pack_id where v.id=$1",[v]);
+    const run=await value("select tn_enqueue_trust_run($1,$2,$3,$4) as value",[v,t.pack,t.evidence,randomUUID()]);
+    await db.query('set role tn_graph_worker'); assert.equal((await workOnce(db)).state,'completed'); await role(READER);
+    return {run:run.run_id,raw:await value("select tn_read_trust_run($1,'raw') as value",[run.run_id]),input:(await value("select tn_read_trust_run($1,'input') as value",[run.run_id])).text};
+  };
+  await db.query('set role tn_graph_worker'); await workOnce(db); await role(READER);
+  const before=await compute(child.version_id); assert.equal(before.raw.results.resource.evidence_state,'seed_only');
+  await db.query("select tn_review_relationship($1,'accept','Independently reviewed',null,true,'','',null)",[copied.current_revision.id]);
+  const after=await compute(child.version_id); assert.equal(after.raw.results.resource.evidence_state,'propagated');
+  assert(after.raw.results.resource.scores.find((s: any)=>s.node_id===ids[2]).mass>0);
+  assert.equal(JSON.stringify(await value("select tn_list_relationships($1,0) as value",[version])),originalEvidence);
+  for(const secret of [parent,version,edge.edge_id,edge.revision_id,OWNER]) assert(!after.input.includes(secret),`Parent identity ${secret} must not freeze in child run`);
+  const revision=await value("select tn_save_relationship($1,$2,$3,$4::jsonb) as value",[child.version_id,copied.id,copied.current_revision.id,JSON.stringify({...body,rationale:'Local revised rationale'})]);
+  copied=(await value("select tn_list_relationships($1,0) as value",[child.version_id]))[0];
+  assert.equal(copied.current_revision.id,revision.revision_id); assert.equal(copied.creation_kind,'template-import'); assert.equal(copied.current_decision,null);
+  const noApproval=await compute(child.version_id); assert.equal(noApproval.raw.results.resource.evidence_state,'seed_only');
+  // Publish the independent child, then hide/delete the original. Only attribution disappears.
+  await db.query("update tn_packs set is_public=true where id=$1",[child.pack_id]);
+  await role(OWNER); await db.query("update tn_packs set is_public=false where id=$1",[parent]);
+  await role(READER); assert.equal(await preview(),null); await rejected('PT404',fork(info));
+  assert.equal((await fork(selectedInfo,key)).version_id,child.version_id,'authorized child retry survives hidden parent');
+  for(const viewer of [READER,null]) {
+    await role(viewer);
+    const visibleInfo=await value("select tn_template_fork_info($1) as value",[child.version_id]); assert.equal(visibleInfo.origin,null);
+    const rows=await value("select tn_list_relationships($1,0) as value",[child.version_id]); assert.equal(rows[0].origin,null); assert.equal(rows[0].creation_kind,'template-import');
+    for(const secret of [parent,version,edge.edge_id,edge.revision_id,OWNER]) assert(!JSON.stringify({visibleInfo,rows}).includes(secret));
+  }
+  await role(OWNER); await db.query("update tn_packs set is_public=true where id=$1",[parent]);
+  await role(READER); await rejected('PT409',fork(info));
+  await role(OWNER);
+  for(let i=0;i<200;i++) await value("select tn_save_relationship($1,null,null,$2::jsonb) as value",[version,JSON.stringify(body)]);
+  await role(READER); const oversized=await preview(); assert.equal(oversized.copy_supported,false);
+  const ownedBefore=await value("select count(*)::integer as value from tn_packs where owner_id=$1",[READER]);
+  await rejected('PT422',fork(oversized));
+  assert.equal(await value("select count(*)::integer as value from tn_packs where owner_id=$1",[READER]),ownedBefore,'rejected copies leave no partial child');
+  assert.equal((await fork(oversized,randomUUID(),false)).copied_evidence,0,'seeds-only fork remains available beyond evidence-copy limit');
+  await role(OWNER); await db.query("delete from tn_packs where id=$1",[parent]);
+  await role(READER); assert.equal((await fork(selectedInfo,key)).version_id,child.version_id);
+  assert.equal((await value("select tn_list_relationships($1,0) as value",[child.version_id])).length,1);
+  assert.deepEqual((await value("select snapshot as value from tn_pack_versions where id=$1",[child.version_id])).entries,sourceVersion.snapshot.entries);
+  assert.equal((await value("select tn_read_trust_run($1,'raw') as value",[after.run])).input_hash,after.raw.input_hash);
+  await rejected('42501',db.query("update tn_source_edges set creation_kind='manual' where template_version_id=$1",[child.version_id]));
+  await db.query('reset role');
+  console.log('Selected-version forks, idempotency, local review/recompute and hidden/deleted-parent privacy passed');
+}

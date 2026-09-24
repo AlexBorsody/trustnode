@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { seedDistribution, type SeedMode, type TemplateEntry, type TemplateVersion } from "./templates";
 import EvidencePanel from "@/sources/EvidencePanel";
+import TemplateFork from "./TemplateFork";
 
 interface Loaded {
   pack: { revision: number; tn_pack_sources: { source_id: string; rank: number; note: string; tn_sources: {
@@ -130,6 +131,7 @@ export default function SeedTemplates({ packId, token, userId, isOwner, disabled
         <a className="chip" href={`/packs/${packId}?version=${version.id}`}>Open this version</a>{" "}
         <button className="chip" onClick={download}>Download template JSON</button>{" "}
         <a className="chip" href={`/trust?pack=${packId}&version=${version.id}`}>Compute and inspect trust</a>
+        <TemplateFork key={`${version.id}:${token ?? "anonymous"}`} version={version} token={token} />
         <EvidencePanel key={`${version.id}:${token ?? 'anonymous'}`} version={version} token={token} userId={userId} isOwner={isOwner} />
       </>}
     </div>}

@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { validateBundle, type RunBundle, type RunStatus, type Artifact } from "./model";
 import type { FrozenInput } from "../trustnode/runs/artifact";
 export class TrustRequestError extends Error { constructor(message: string, public readonly status: number) { super(message); } }
-export async function requestJson<T>(url: string, token?: string, signal?: AbortSignal, body?: unknown): Promise<T> {
+export async function requestJson<T>(url: string, token?: string, signal?: AbortSignal, body?: unknown, unavailable = "Trust ranking is unavailable right now. Try again later."): Promise<T> {
   const response = await fetch(url, { method: body === undefined ? "GET" : "POST", signal, cache: "no-store",
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const result = await response.json();
-  if (!response.ok) throw new TrustRequestError(response.status === 503 ? "Trust ranking is unavailable right now. Try again later." : result.error ?? "Trust request failed. Try again.", response.status);
+  if (!response.ok) throw new TrustRequestError(response.status === 503 ? unavailable : result.error ?? "Trust request failed. Try again.", response.status);
   return result as T;
 }
 export async function loadBundle(runId: string, status: RunStatus, token: string | undefined, signal: AbortSignal): Promise<RunBundle> {

@@ -1,6 +1,6 @@
 # Current work
 
-Updated 2026-09-22. [Strategy](../Business/STRATEGY.md) is canonical and locked.
+Updated 2026-09-24. [Strategy](../Business/STRATEGY.md) is canonical and locked.
 [DESIGN](DESIGN.md) contains existing contracts and the full target architecture
 (`plan-1`); this file is the single delivery ledger, work queue and Muse handoff.
 
@@ -18,8 +18,10 @@ Updated 2026-09-22. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   contribution ledgers. Step 4 implements local frozen snapshots, restricted
   worker jobs, stored replay artifacts and caller-scoped APIs. Step 5 now connects
   the trust workspace to those APIs: computation, rankings, frozen explanations,
-  comparison, exports and explicit publication. Production migration
-  012/worker activation is pending; the live app has no graph rankings yet.
+  comparison, exports and explicit publication. Step 6a adds independent forks of
+  selected saved versions, with optional evidence imports requiring local review.
+  Production migrations 012–013 and worker activation are pending; the live app
+  has no graph rankings or saved-template fork workflow yet.
   Passage indexing and generation remain unbuilt.
 - **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
   existing app, not the proposed architecture. A successful deployment does not
@@ -60,7 +62,8 @@ production readiness. Earlier foundation work is retained and integrated.
 | Browse, compare and merge | Nested topics/search, membership/rank/note comparison, two-parent merge drafts and atomic saves with both captured revisions | `ada0210`, `effe83d`; migration 006 |
 | Evidence relationships | Version-scoped manual proposals, immutable revisions, stale-protected curator decisions, challenges/resolutions and private-safe history APIs/editor | `1c3ede2` deployed; migration 011 applied 2026-09-21 |
 | Stored trust runs — local milestone | Consistent captures, fenced worker leases/retries, atomic results, RLS reads/exports and explicit publication | `7e8d942`; PostgreSQL CI passed; 012/worker production activation pending |
-| Trust workspace — local milestone | Category/template selection, stored-run requests/status, site/resource rankings, frozen contribution/evidence explanations, comparison, exports and publication | Step 5, 2026-09-22; production activation still pending |
+| Trust workspace — local milestone | Category/template selection, stored-run requests/status, site/resource rankings, frozen contribution/evidence explanations, comparison, exports and publication | `f99211a`; PM/CI passed; production activation pending |
+| Independent template forks — local milestone | Exact selected seeds/mode/order/rationale; private owned child; optional imported proposals without inherited reviews; local recomputation; current-RLS attribution and safe retries | Step 6a, 2026-09-24; migration 013 staged; PM review pending |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -73,26 +76,23 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Review step 5, then build the shared template workflow (step 6).**
-The technical PM accepted step 4 after independent code/database review and
-inspection of its passing PostgreSQL concurrency gate. Step 5 is implemented over
-the existing stored-run boundary; its focused graph is an evidence list from the
-same frozen artifact, with no separate live graph lookup. The only backend additions
-are a caller-scoped paged run list and current visibility/public-readability status
-fields in still-unapplied 012. No production worker is claimed.
+**Step 6a is implemented and locally verified; independent PM review is next.**
+The selected version/hash pins the seeds and member metadata. Evidence is copied
+only by explicit choice, using captured evidence and visibility tokens. Every
+import starts proposed under the child owner; parent reviews never transfer.
+Attribution lives in separate RLS-protected tables, so hiding/deleting a parent
+removes its details without changing child content or freezing private parent IDs
+into run exports. DESIGN records locking, retry tombstones and copy limits.
 
-1. Finish PM review of the trust workspace. Preserve run/account isolation, explicit
-   missing/zero and seed-only states, frozen evidence and explained comparison.
-2. Implement version-aware template sharing, independent fork/recompute and merge
-   reconciliation. Carry declared seed policy and evidence provenance deliberately;
-   never inherit another curator's acceptance or expose hidden parent details.
-   Add discovery/adoption without conflating popularity with graph authority.
-3. Activate the stored backend alongside this work: inspect the authorized Supabase
-   schema before applying 012; do not rewrite applied 003–011. Provision a dedicated
-   restricted worker login inheriting `tn_graph_worker`,
-   choose its host, configure secrets there, and start the pinned Node worker.
-   Confirm heartbeat and a real authorized run before describing graph ranking as
-   active in production. No service-role key belongs in the app.
+1. The production build and focused local checks passed. Deliver this change with
+   its hosted application/PostgreSQL result to the PM for independent review.
+   Keep step 6b merge reconciliation, discovery and adoption behind that review.
+2. Production activation remains a separate outstanding task: inspect the
+   authorized Supabase schema, then apply staged 012 followed by 013. Do not
+   rewrite applied 003–011. Provision a dedicated restricted worker login
+   inheriting `tn_graph_worker`, choose its host, configure secrets there and start
+   the pinned Node worker. Confirm heartbeat and a real authorized run before
+   describing graph ranking as active. No service-role key belongs in the app.
 
 SSO activation and two-account acceptance remain with Muse. Shared abuse limits
 and the verifier headline/charter report remain open before broader launch. Keep
@@ -120,8 +120,9 @@ The draft remains proposed, not imported or accepted evidence.
 ## Implementation sequence
 
 Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
-verification is pending. Steps 3–5 are implemented locally; stored runs still need
-production activation. Step 0 needs SSO; steps 6–10 remain todo.
+verification is pending. Steps 3–5 and the step 6a fork increment are implemented
+locally; 6a awaits PM review. Stored runs/forks still need production activation.
+Step 0 needs SSO; the rest of step 6 and steps 7–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
 Each step ends with a focused commit, relevant checks and a status update here.
 
@@ -132,8 +133,8 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 2. Evidence graph — implemented | Append-only proposals/revisions, curator decisions, challenges and resolutions; saved-template editor/history | 1 | Local DB/API checks and hosted rollback flow passed; real-account acceptance pending |
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
 | 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Enqueue/replay/isolation/retry and real PostgreSQL concurrency checks pass; production activation pending |
-| 5. Trust workspace — local milestone | Category/template chooser, stored rankings, focused evidence, explanations, conflicts and comparison | 4 | Disposable DB-backed browser workflow verified; PM review and production activation pending |
-| 6. Shared template hub | Version-aware publish/fork/merge, category discovery, separate adoption and private-safe comparison | 5; 0 for live pilot | A second user independently forks and recomputes a template without private-parent leakage |
+| 5. Trust workspace — local milestone | Category/template chooser, stored rankings, focused evidence, explanations, conflicts and comparison | 4 | Disposable DB-backed browser workflow and PM review passed; production activation pending |
+| 6. Shared template hub — partial | 6a selected-version fork implemented locally; merge reconciliation, category discovery and separate adoption remain | 5; 0 for live pilot | Local second-user fork/review/recompute verified; PM and live acceptance pending |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
 | 8. Trust-aware retrieval | Selected links/exclusions, indexed relevance and pinned graph run; visible separate factors | 6–7 | Query changes relevance but not trust; excluded/inaccessible sources never enter the context |
 | 9. Grounded output | Provider adapter, citation checks, conflicts, private research runs and explicit sharing | 8; provider setup | Output cites available passages; invalid citation IDs fail; provider failure leaves evidence usable |
@@ -147,7 +148,7 @@ while real category evidence is prepared; it cannot prove real-world reliability
 This is a scope target, not a promise that RAG and controls also fit this week.
 
 **Release discipline:** code deployment and migration activation are separate.
-Migration 012 is staged; new schema work follows at 013. Never rewrite applied migrations. Keep previous
+Migrations 012–013 are staged; new schema work follows at 014. Never rewrite applied migrations. Keep previous
 completed runs for rollback. Formula/parameter changes require methodology versions.
 Proposed constants are recorded in DESIGN, not treated as measured accuracy.
 
@@ -272,6 +273,28 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
+- Selected-version forks (step 6a, 2026-09-24): focused checks passed (45 pack/
+  template, 43 API, 8 graph/comparison), as did typecheck and disposable PGlite
+  integration. The latter verifies exact ordered seeds after parent/source edits,
+  seeds-only versus proposal imports, no inherited decisions, local review and
+  recomputation/replay, stale evidence/visibility rejection, same-request retries,
+  changed-input rejection and deleted-child retry tombstones. Copying over 200
+  proposals fails atomically while seeds-only remains available. Hidden/deleted
+  parent cases retain child content/runs and expose no parent attribution IDs;
+  frozen child inputs contain no parent author/version/evidence IDs.
+  Browser verification used mocked Auth/REST transport with real disposable schema,
+  RLS, RPCs and worker: the second user forked a selected version into a private
+  pack with two proposed imports. The initial run had zero eligible edges. Local
+  acceptance of the standard → guide relationship produced guide mass 0.45945926;
+  comparison showed unchanged seeds and changed evidence. Hiding the parent then
+  removed its links/author while retaining the import label, quotation and local
+  decision. This is local functional verification, not production or real SSO
+  acceptance. The production build passed. Hosted application/PostgreSQL CI runs
+  on the delivery commit; independent PM review remains pending.
+- Step 5 PM review passed at `f99211a`: independently checked cancellation,
+  artifact binding, URL safety, publication and RLS listing; focused application,
+  type and disposable database checks passed. Hosted application/PostgreSQL CI
+  passed, including real concurrent captures and restricted worker execution.
 - Trust workspace (step 5, 2026-09-22): browser fixture exercised category/template
   selection → enqueue → real PGlite worker completion → site/resource rankings →
   frozen quotation and contribution ledger → owner publication. A second seed
@@ -481,8 +504,9 @@ that the headline issue is resolved; reproduce with an exact claim and deploymen
 
 ## Remaining limits and deferred work
 
-- The engine, stored-run backend and trust workspace are implemented; production
-  worker activation and architecture steps 6–10 remain outstanding.
+- The engine, stored-run backend, trust workspace and selected-version forks are
+  implemented locally; migrations 012–013, production worker activation, the rest
+  of step 6 and architecture steps 7–10 remain outstanding.
   Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
 - Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
   and illustrative content. Provenance cleanup and real domain evidence are needed;

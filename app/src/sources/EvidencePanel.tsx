@@ -51,7 +51,7 @@ export default function EvidencePanel({ version, token, userId, isOwner }: {
   }
   return <section aria-label="Template evidence" style={{ marginTop: 24 }}>
     <h3>Evidence relationships</h3>
-    <p className="panel-sub">Record how these sources cite, support, dispute or replace one another. Proposals and curator decisions are separate. Acceptance applies only to this saved template; no graph score has been computed.</p>
+    <p className="panel-sub">Record how these sources cite, support, dispute or replace one another. Proposals and curator decisions are separate. Acceptance applies only to this saved template; compute its graph authority in the trust workspace.</p>
     {notice && <p role="status">{notice}</p>}{error && <p role="alert">{error}</p>}
     {error && <button className="chip" onClick={refresh} disabled={busy}>Retry reading evidence</button>}
     {token && version.snapshot.entries.length > 1 && <form onSubmit={save}>
@@ -106,7 +106,9 @@ function EvidenceCard({ row, version, api, signedIn, isOwner, refresh, revise }:
   return <article style={{ marginTop: 24 }}>
     <h4>{title(b.source_id)} → {title(b.target_id)}</h4>
     <p>{b.relation} · revision {current.revision} · {row.current_decision?.action ?? "proposed"} · observed {b.observed_on}</p>
-    <p className="panel-sub">Contributor: {row.author_id ?? "deleted account"}</p>
+    <p className="panel-sub">{row.creation_kind === "template-import" ? "Imported evidence · local importer" : "Contributor"}: {row.author_id ?? "deleted account"}</p>
+    {row.origin && <p>Imported starting revision from <a href={`/packs/${row.origin.pack_id}?version=${row.origin.version_id}`}>{row.origin.title}</a>
+      {" "}· {row.origin.revision_id} · parent {row.origin.creation_kind === "template-import" ? "importer" : "contributor"}: {row.origin.author_id ?? "deleted account"}. Parent decisions do not apply here.</p>}
     {b.claim_scope && <p>Scope: {b.claim_scope}</p>}<p>{b.rationale}</p>
     <p>First source: {b.source_locator}</p>{b.source_quote && <blockquote>{b.source_quote}</blockquote>}
     {b.target_locator && <p>Second source: {b.target_locator}</p>}{b.target_quote && <blockquote>{b.target_quote}</blockquote>}

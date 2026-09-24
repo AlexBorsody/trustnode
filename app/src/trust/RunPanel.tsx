@@ -124,6 +124,7 @@ function NodeExplanation({ bundle, projection, nodeId }: { bundle: RunBundle; pr
       <summary>{labelNode(bundle, projection, edge.source)} → {labelNode(bundle, projection, edge.target)} · {record?.current_revision.body.relation ?? "Evidence unavailable"}</summary>
       <p className="trust-id">Evidence {reference.edge_id} · revision {reference.revision_id} · accepted decision {reference.decision_id}</p>
       {record ? <><p>{record.current_revision.body.rationale}</p><p>{record.current_revision.body.claim_scope}</p>
+        {record.creation_kind === "template-import" && <p>Imported evidence · reviewed within this template. Current parent attribution is available only in the source template when accessible.</p>}
         <p>{record.current_revision.body.source_locator} · observed {record.current_revision.body.observed_on}</p><blockquote>{record.current_revision.body.source_quote}</blockquote>
         {record.current_revision.body.target_quote && <><p>{record.current_revision.body.target_locator}</p><blockquote>{record.current_revision.body.target_quote}</blockquote></>}
         {safeSourceUrl(members.get(record.current_revision.body.source_id)?.url ?? null) && <a href={safeSourceUrl(members.get(record.current_revision.body.source_id)!.url)!} target="_blank" rel="noopener noreferrer">Open cited source record</a>}
@@ -136,6 +137,7 @@ function NodeExplanation({ bundle, projection, nodeId }: { bundle: RunBundle; pr
     {excluded.slice(excludedPage * 10, excludedPage * 10 + 10).map((e, i) => <details className="trust-evidence" key={`${e.edge_id}:${i}`}><summary>{e.relation} · {e.reason.replaceAll("_", " ")}</summary>
       <p>{members.get(e.source_id)?.title ?? e.source_id} → {members.get(e.target_id)?.title ?? e.target_id}</p>
       <p>{revisions.get(e.revision_id)?.current_revision.body.rationale ?? "No captured explanation."}</p><p className="trust-id">Revision {e.revision_id}</p>
+      {revisions.get(e.revision_id)?.creation_kind === "template-import" && <p>Imported evidence · parent decisions do not apply to this template.</p>}
       <FrozenReviews bundle={bundle} revisionId={e.revision_id} />
     </details>)}
     <div className="trust-actions"><button className="chip" disabled={!excludedPage} onClick={() => setExcludedPage(n => n - 1)}>Previous exclusions</button><button className="chip" disabled={(excludedPage + 1) * 10 >= excluded.length} onClick={() => setExcludedPage(n => n + 1)}>More exclusions</button></div>
