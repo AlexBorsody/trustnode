@@ -239,7 +239,7 @@ Reads and versions follow the pack's current visibility; deleting the pack casca
 to its versions. Later pack/source edits do not rewrite captured contents. Capture
 conflicts return 409 and retain choices until explicit reload. Legacy pack copy/merge
 flows still copy pack members. The selected-version fork below preserves seeds;
-multi-parent seed/evidence reconciliation remains step 6b.
+the selected-version merge explicitly reconciles multi-parent seeds and evidence.
 
 ## Independent template forks (migration 013)
 
@@ -279,10 +279,10 @@ caller-owned child even if the parent has since disappeared; changed payloads
 return 409. A deleted child leaves an inaccessible request tombstone so retry
 cannot recreate it. The UI retains the exact request on ambiguous failures, aborts
 on account/version changes, and links success to child evidence review and the
-existing trust workspace. Broader discovery, adoption and merge reconciliation
-are subsequent increments. Migration 013 is additive and not yet applied live.
+existing trust workspace. Broader discovery and adoption remain subsequent work.
+Migration 013 is additive and not yet applied live.
 
-## Selected-version merge reconciliation (step 6b, in progress)
+## Selected-version merge reconciliation (migration 014)
 
 The merge accepts two versions from different packs, each with content hash,
 evidence revision and visibility epoch. Both parent packs are locked in UUID order
@@ -310,6 +310,8 @@ parents per child. Each origin remains independently filtered by current RLS;
 no hidden-origin count is exposed. Copied content and run exports contain no parent
 identifiers. Parent deletion removes its origin rows and leaves the child intact.
 The API, UI and checks reuse the 013 fork and existing review/run boundaries.
+The local merge/review/recompute/compare workflow and hosted PostgreSQL concurrency
+checks passed; delivery evidence is in TASKS. Migration 014 is not applied live.
 
 ## Evidence relationships (migration 011)
 
@@ -474,7 +476,7 @@ does not make it the canonical policy for everyone.
 | Component | Reuse | Remaining work |
 | --- | --- | --- |
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
-| Curation | Sources, packs, revisions, legacy forks/merges; immutable seed versions (007); selected-version independent forks (013) | Multi-parent seed/evidence reconciliation and shared discovery |
+| Curation | Sources, packs, revisions, legacy forks/merges; immutable seed versions (007); selected-version independent forks (013) and reconciled merges (014) | Production activation and shared discovery/adoption |
 | Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
 | Source authority | Exact-host site identity (007), site/resource computation, frozen stored runs and trust workspace | Production activation and shared template discovery |
 | Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
@@ -989,8 +991,8 @@ views; delayed responses cannot populate another scope. Refresh and page focus
 recheck current access and clear unavailable data. This does not retract already
 downloaded data or promise immediate revocation in an idle offline browser.
 Discovery is bounded to the newest 50 accessible packs, 20 versions and 20 runs
-per page. Selected-version independent forks are implemented in step 6a; larger
-shared discovery and version-aware merge remain subsequent work.
+per page. Selected-version independent forks and explicitly reconciled merges are
+implemented in steps 6a/6b; larger shared discovery and adoption remain subsequent work.
 Detailed graph layout is presentation; it cannot alter rank.
 
 The second UI connects that chosen run to a research question and selected links,

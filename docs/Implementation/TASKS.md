@@ -20,8 +20,9 @@ Updated 2026-09-25. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   the trust workspace to those APIs: computation, rankings, frozen explanations,
   comparison, exports and explicit publication. Step 6a adds independent forks of
   selected saved versions, with optional evidence imports requiring local review.
-  Step 6b merge reconciliation is implemented locally; browser acceptance and
-  the hosted concurrency gate remain pending for this delivery.
+  Step 6b merge reconciliation is committed at `cae27cd`; the complete local
+  browser workflow and hosted PostgreSQL concurrency gate passed. PM milestone
+  acceptance is pending the final evidence review.
   Production migrations 012–014 and worker activation are pending; the live app
   has no graph rankings or saved-template fork workflow yet.
   Passage indexing and generation remain unbuilt.
@@ -66,6 +67,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Stored trust runs — local milestone | Consistent captures, fenced worker leases/retries, atomic results, RLS reads/exports and explicit publication | `7e8d942`; PostgreSQL CI passed; 012/worker production activation pending |
 | Trust workspace — local milestone | Category/template selection, stored-run requests/status, site/resource rankings, frozen contribution/evidence explanations, comparison, exports and publication | `f99211a`; PM/CI passed; production activation pending |
 | Independent template forks — local milestone | Exact selected seeds/mode/order/rationale; private owned child; optional imported proposals without inherited reviews; local recomputation; current-RLS attribution and safe retries | `7c6836e`; PM/application/PostgreSQL CI passed; migration 013 staged |
+| Selected-version template merges — local milestone | Explicit metadata/member/seed reconciliation; private independent child; deduplicated unaccepted imports with separately visible origins; local review/recompute/compare | `cae27cd`; browser/application/PostgreSQL CI passed; final PM acceptance pending; migration 014 staged |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -78,41 +80,19 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Step 6b: merge two selected template versions with explicit reconciliation.**
-PM accepted `7c6836e` after independent API/type/PGlite review and verification of
-green [application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36000495164).
-The bounded next assignment is merge → local evidence review → recompute → compare.
+**Step 6b delivery is complete locally; final PM evidence review is next.**
+Commit `cae27cd` implements explicit reconciliation of two selected versions into
+a private independent child. The browser completed merge → local evidence review
+→ recompute → compare → parent hiding on 2026-09-25. Hosted
+[application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36204360323)
+passed, including concurrent retry serialization and second-parent evidence fencing.
+The PM independently reviewed migration/API/model/UI behavior, reran disposable
+integration and verified hosted CI without finding a blocking defect. The detailed
+browser evidence and its limits are recorded below for milestone acceptance.
 
-1. Pin two different packs' selected versions/hashes and evidence/visibility tokens.
-   Require an explicit resulting seed mode, seed membership/rationale and reviewed
-   member order. Resolve conflicting captured source metadata by choosing its parent;
-   select the parent supplying category/description/tags. Save a private independent
-   child with optional evidence proposals, never inherited acceptance. Deduplicate
-   identical imported evidence and preserve separately visible multiple origins.
-2. Verify atomic stale/hidden-parent rejection, same-key concurrency/retries,
-   parent deletion/privacy, independent child review and the browser workflow.
-   Broader discovery/adoption remains outside this increment. Report a read-only
-   assessment of production access and missing inputs; do not change production
-   or provision paid hosting during this assignment.
-   **Current checkpoint:** migration/API/UI and local integration are implemented;
-   production build passed. On 2026-09-25 the browser recovered long enough to
-   complete mocked sign-in, load both versions, display their differing seed modes
-   and resolve a captured-note conflict. Browser access then disappeared and the
-   turn was interrupted before saving the merge. End-to-end browser acceptance
-   remains pending; no successful browser merge or recomputation is claimed.
-   PM revised the sequencing gate on 2026-09-25: commit/push the bounded change
-   to run hosted PostgreSQL CI while browser acceptance remains pending. Browser
-   verification is still required for milestone acceptance. Retry the supported
-   browser once; if attachment still fails, provide the manual checklist below
-   and finish the hosted concurrency/permission gate without repeated preview waits.
-   Manual acceptance checklist: open the first saved version as the second user;
-   load the other version's direct link; choose metadata, seed mode, members/order
-   and rationale; opt into evidence copying and create the private child. Confirm
-   duplicates become single unaccepted imports with visible origins. Compute a
-   seed-only run, accept an imported relationship locally, reload inputs and compute
-   again. Compare both runs: same seeds, changed evidence and propagated mass.
-   Hide one parent and refresh: its attribution disappears while the child stays.
-3. Production activation remains a separate outstanding task: inspect the
+1. Finish the PM delivery review; keep broader discovery/adoption outside this
+   increment. No additional product scope has started.
+2. Production activation remains a separate outstanding task: inspect the
    authorized Supabase schema, then apply 012 → 013 → 014 after review. Do not
    rewrite applied 003–011. Provision a dedicated restricted worker login
    inheriting `tn_graph_worker`, choose its host, configure secrets there and start
@@ -145,8 +125,9 @@ The draft remains proposed, not imported or accepted evidence.
 ## Implementation sequence
 
 Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
-verification is pending. Steps 3–5 and the step 6a fork increment are implemented
-locally; 6a passed PM review and 6b is in progress. Stored runs/forks still need production activation.
+verification is pending. Steps 3–5 and the step 6a/6b fork/merge increments are
+implemented locally; 6a passed PM review and 6b awaits final evidence acceptance.
+Stored runs/forks/merges still need production activation.
 Step 0 needs SSO; the rest of step 6 and steps 7–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
 Each step ends with a focused commit, relevant checks and a status update here.
@@ -159,7 +140,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
 | 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Enqueue/replay/isolation/retry and real PostgreSQL concurrency checks pass; production activation pending |
 | 5. Trust workspace — local milestone | Category/template chooser, stored rankings, focused evidence, explanations, conflicts and comparison | 4 | Disposable DB-backed browser workflow and PM review passed; production activation pending |
-| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge reconciliation in progress; discovery and separate adoption remain | 5; 0 for live pilot | Local fork/review/recompute passed PM review; merge and live acceptance pending |
+| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge browser/CI passed, final PM acceptance pending; discovery and separate adoption remain | 5; 0 for live pilot | Local fork accepted; merge evidence ready for PM; live acceptance pending |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
 | 8. Trust-aware retrieval | Selected links/exclusions, indexed relevance and pinned graph run; visible separate factors | 6–7 | Query changes relevance but not trust; excluded/inaccessible sources never enter the context |
 | 9. Grounded output | Provider adapter, citation checks, conflicts, private research runs and explicit sharing | 8; provider setup | Output cites available passages; invalid citation IDs fail; provider failure leaves evidence usable |
@@ -315,7 +296,7 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
-- Selected-version merge (step 6b, local implementation): 47 pack/template checks, 43 API
+- Selected-version merge (step 6b, `cae27cd`, 2026-09-25): 47 pack/template checks, 43 API
   checks, 8 graph/comparison checks, typecheck and production build pass. Disposable PGlite integration
   passes two users' divergent fork policies, captured metadata/order reconciliation,
   explicit normalized seeds, duplicate import collapse, exclusion of evidence for
@@ -323,15 +304,31 @@ parked under Alex's latest direction.
   evidence. It also checks stale/hidden-parent atomic rejection, changed-key payloads,
   retries after hiding/deletion, deleted-child tombstones, combined copy bounds and
   independently filtered multiple origins. Child frozen exports contain no parent
-  identifiers. Same-key concurrent requests and second-parent evidence fencing are
-  included in the PostgreSQL runner; they have not yet run in hosted CI for this
-  change. Browser acceptance is pending the interruption recorded above.
+  identifiers. Hosted [application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36204360323)
+  passed; its logs confirm same-key concurrent merge serialization, second-parent
+  evidence fencing, capture/review isolation and restricted worker execution.
+  The PM independently reviewed the implementation, reran disposable integration
+  and verified this CI result without finding a blocking defect.
+
+  Browser acceptance completed after the interrupted session resumed. The second
+  user loaded two selected versions with different seed policies and a conflicting
+  source note, explicitly chose the second parent's metadata/note, reordered the
+  seeds and saved a private owned child. The displayed resource seed masses were
+  2/3 and 1/3. Four parent evidence records became two unaccepted imports, each with
+  two visible origins. The first run had zero eligible edges. Accepting the imported
+  review → guide relationship locally and recomputing produced guide mass
+  `0.36170199`; comparison showed unchanged seeds/method and changed evidence.
+  Hiding the first parent and reloading removed its links/author (zero matches),
+  while the second origin, child content, quotation and local acceptance remained.
+  Auth/REST transport was mocked; migrations, RLS, RPCs, queue and worker ran against
+  real disposable PGlite. This establishes the local browser workflow, not real SSO
+  or production acceptance. Migrations 012–014 remain unapplied in production.
+
   The disposable browser database is saved under
   `/private/tmp/trustnode-db-check/merge-browser-db`; the adjacent
   `template-merge-browser-fixture.mjs` launcher serves it on 3272, with the app on
   3271 using process-only fixture env overrides. Both processes are stopped.
-  This is synthetic local data, not production. Only the partial browser observations
-  above are established; mocked Auth/REST does not establish real SSO acceptance.
+  Temporary acceptance tabs are closed. The fixture contains synthetic local data.
 - Selected-version forks (step 6a, 2026-09-24): focused checks passed (45 pack/
   template, 43 API, 8 graph/comparison), as did typecheck and disposable PGlite
   integration. The latter verifies exact ordered seeds after parent/source edits,
@@ -564,7 +561,7 @@ that the headline issue is resolved; reproduce with an exact claim and deploymen
 
 ## Remaining limits and deferred work
 
-- The engine, stored-run backend, trust workspace and selected-version forks are
+- The engine, stored-run backend, trust workspace and selected-version forks/merges are
   implemented locally; migrations 012–014, production worker activation, the rest
   of step 6 and architecture steps 7–10 remain outstanding.
   Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
