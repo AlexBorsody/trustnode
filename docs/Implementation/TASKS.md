@@ -23,7 +23,8 @@ Updated 2026-09-25. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   Step 6b merge reconciliation is committed at `cae27cd`; the complete local
   browser workflow and hosted PostgreSQL concurrency gate passed. PM accepted this
   as a local milestone. Step 6c category-scoped saved-template discovery is implemented
-  locally; browser acceptance passed, with hosted CI and PM review pending.
+  locally at `14e5217`; browser and hosted CI passed. Independent PM review found
+  no blocking defect; final milestone acceptance is pending the CI handoff.
   Production migrations 012–015 and worker activation are pending; the live app
   has no graph rankings or saved-template fork workflow yet.
   Passage indexing and generation remain unbuilt.
@@ -69,7 +70,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Trust workspace — local milestone | Category/template selection, stored-run requests/status, site/resource rankings, frozen contribution/evidence explanations, comparison, exports and publication | `f99211a`; PM/CI passed; production activation pending |
 | Independent template forks — local milestone | Exact selected seeds/mode/order/rationale; private owned child; optional imported proposals without inherited reviews; local recomputation; current-RLS attribution and safe retries | `7c6836e`; PM/application/PostgreSQL CI passed; migration 013 staged |
 | Selected-version template merges — local milestone | Explicit metadata/member/seed reconciliation; private independent child; deduplicated unaccepted imports with separately visible origins; local review/recompute/compare | `cae27cd`; browser/application/PostgreSQL CI passed; PM accepted locally; migration 014 staged |
-| Category template discovery — local milestone | Cursor-paginated saved versions, captured category filters, visible provenance, run availability, separate capped resource adoption and version-bound workflow links | Step 6c; migration 015 staged; local browser/database checks passed; hosted CI/PM pending |
+| Category template discovery — local milestone | Cursor-paginated saved versions, captured category filters, visible provenance, run availability, separate capped resource adoption and version-bound workflow links | `14e5217`; browser/application/PostgreSQL CI passed; independent PM review passed; migration 015 staged |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -94,9 +95,8 @@ production limits remain explicit in the validation record.
    with the documented curator/total caps and newest-200-public-pack scope. No
    template trust score, reference scoring or new adoption mechanism. RLS precedes
    pagination; private packs affect neither public adoption nor hidden totals.
-   Local checks and browser acceptance passed for pagination, visibility/provenance
-   and graph-output isolation. Next: commit/push, inspect hosted CI and send the
-   completed evidence to the PM. No RAG, unrelated
+   Local/browser and hosted application/PostgreSQL checks passed at `14e5217`;
+   independent PM review found no blocking defect. Final evidence handoff is next. No RAG, unrelated
    refactoring or production changes in this increment.
 2. Production activation remains a separate outstanding task: inspect the
    authorized Supabase schema, then apply 012 → 013 → 014 → 015 after review. Do not
@@ -132,7 +132,7 @@ The draft remains proposed, not imported or accepted evidence.
 
 Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
 verification is pending. Steps 3–5 and the step 6a/6b fork/merge increments are
-implemented locally; 6a/6b passed PM review; 6c discovery passed local verification and awaits hosted CI/PM review.
+implemented locally; 6a/6b passed PM review; 6c discovery passed browser/hosted CI and independent PM review, awaiting final acceptance.
 Stored runs/forks/merges still need production activation.
 Step 0 needs SSO; independent-reference template comparison and steps 7–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
@@ -146,7 +146,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
 | 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Enqueue/replay/isolation/retry and real PostgreSQL concurrency checks pass; production activation pending |
 | 5. Trust workspace — local milestone | Category/template chooser, stored rankings, focused evidence, explanations, conflicts and comparison | 4 | Disposable DB-backed browser workflow and PM review passed; production activation pending |
-| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge accepted locally; 6c discovery implemented locally | 5; 0 for live pilot | Local fork/merge accepted; discovery browser passed, CI/PM and live acceptance pending |
+| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge accepted locally; 6c discovery implemented locally | 5; 0 for live pilot | Local fork/merge accepted; discovery browser/CI/review passed; final milestone and live acceptance pending |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
 | 8. Trust-aware retrieval | Selected links/exclusions, indexed relevance and pinned graph run; visible separate factors | 6–7 | Query changes relevance but not trust; excluded/inaccessible sources never enter the context |
 | 9. Grounded output | Provider adapter, citation checks, conflicts, private research runs and explicit sharing | 8; provider setup | Output cites available passages; invalid citation IDs fail; provider failure leaves evidence usable |
@@ -302,14 +302,18 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
-- Category discovery (step 6c, 2026-09-25): typecheck, 49 pack/template checks and
+- Category discovery (step 6c, `14e5217`, 2026-09-25): typecheck, 49 pack/template checks and
   production build passed. Disposable trust/fork/merge/discovery integration passed
   stable cursor ties including microseconds, captured-category descendants and
   mutable-draft isolation, owner/anonymous RLS, parent hiding, unpublished-run
   non-disclosure, publication epoch revocation and matching `retrieval-v1` adoption.
   Private packs do not change public scope counts; repeat curator packs cannot
   stack influence. Adding public adoption and reading discovery left the recomputed
-  canonical graph artifact identical. Hosted PostgreSQL CI remains pending.
+  canonical graph artifact identical. Hosted [application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36207565704)
+  passed on that exact commit; inspected logs confirm the discovery/RLS/adoption/
+  graph-isolation cases and existing real concurrent capture/merge checks ran.
+  PM independently inspected migration/API/model/UI and reran API/cursor and
+  disposable trust/discovery integration, finding no blocking defect.
   Browser acceptance used mocked Auth/REST with real disposable PGlite migrations,
   RLS/RPCs and stored runs: 15 saved templates paged 12 + 3 without overlap, previous
   page restored, category filtering selected the intended versions, and inspection
