@@ -1,9 +1,9 @@
 import { UUID } from "./model";
+export interface TemplateOrigin { version_id: string; pack_id: string; title: string; owner_id: string; pack_revision: number; evidence_revision: number }
 export interface ForkInfo {
   version_id: string; content_hash: string; evidence_revision: number; visibility_epoch: number;
-  evidence_count: number; accepted_count: number; copy_limit: number; copy_supported: boolean;
-  origin: { version_id: string; pack_id: string; title: string; owner_id: string;
-    pack_revision: number; evidence_revision: number } | null;
+  evidence_count: number; evidence_bytes?: number; accepted_count: number; copy_limit: number; copy_supported: boolean;
+  origin?: TemplateOrigin | null; origins?: TemplateOrigin[];
 }
 export interface ForkInput {
   content_hash: string; evidence_revision: number; visibility_epoch: number;

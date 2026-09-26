@@ -12,8 +12,9 @@ export interface EvidenceRevision { id: string; edge_id: string; revision: numbe
 export interface EvidenceReview { id: number; revision_id: string; author_id: string | null; action: string; reason: string; locator: string; excerpt: string; challenge_id: number | null; created_at: string }
 export interface Relationship { id: string; template_version_id: string; author_id: string | null; created_at: string; current_revision: EvidenceRevision; current_decision: EvidenceReview | null;
   creation_kind?: "manual" | "template-import";
-  origin?: { revision_id: string; imported_revision_id: string; version_id: string; pack_id: string; title: string; author_id: string | null; creation_kind: "manual" | "template-import" } | null;
+  origin?: EvidenceOrigin | null; origins?: EvidenceOrigin[];
 }
+export interface EvidenceOrigin { revision_id: string; imported_revision_id: string; version_id: string; pack_id: string; title: string; author_id: string | null; creation_kind: "manual" | "template-import" }
 
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Expected evidence details.");

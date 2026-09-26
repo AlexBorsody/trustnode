@@ -107,8 +107,8 @@ function EvidenceCard({ row, version, api, signedIn, isOwner, refresh, revise }:
     <h4>{title(b.source_id)} → {title(b.target_id)}</h4>
     <p>{b.relation} · revision {current.revision} · {row.current_decision?.action ?? "proposed"} · observed {b.observed_on}</p>
     <p className="panel-sub">{row.creation_kind === "template-import" ? "Imported evidence · local importer" : "Contributor"}: {row.author_id ?? "deleted account"}</p>
-    {row.origin && <p>Imported starting revision from <a href={`/packs/${row.origin.pack_id}?version=${row.origin.version_id}`}>{row.origin.title}</a>
-      {" "}· {row.origin.revision_id} · parent {row.origin.creation_kind === "template-import" ? "importer" : "contributor"}: {row.origin.author_id ?? "deleted account"}. Parent decisions do not apply here.</p>}
+    {(row.origins ?? (row.origin ? [row.origin] : [])).map(origin => <p key={origin.revision_id}>Imported starting revision from <a href={`/packs/${origin.pack_id}?version=${origin.version_id}`}>{origin.title}</a>
+      {" "}· {origin.revision_id} · parent {origin.creation_kind === "template-import" ? "importer" : "contributor"}: {origin.author_id ?? "deleted account"}. Parent decisions do not apply here.</p>)}
     {b.claim_scope && <p>Scope: {b.claim_scope}</p>}<p>{b.rationale}</p>
     <p>First source: {b.source_locator}</p>{b.source_quote && <blockquote>{b.source_quote}</blockquote>}
     {b.target_locator && <p>Second source: {b.target_locator}</p>}{b.target_quote && <blockquote>{b.target_quote}</blockquote>}

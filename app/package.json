@@ -26,7 +26,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx test/run.ts",
     "test:api": "node --import tsx --test test/api-validation.test.ts test/evidence.test.ts test/trust-api.test.ts",
-    "test:packs": "node --import tsx --test test/packs.test.ts test/templates.test.ts test/template-fork.test.ts",
+    "test:packs": "node --import tsx --test test/packs.test.ts test/templates.test.ts test/template-fork.test.ts test/template-merge.test.ts",
     "test:retrieval": "node --import tsx --test test/ranking.test.ts test/retrieval.test.ts",
     "test:graph": "node --import tsx --test test/graph.test.ts test/trust-workspace.test.ts",
     "worker:graph": "node --import tsx worker/run.ts",

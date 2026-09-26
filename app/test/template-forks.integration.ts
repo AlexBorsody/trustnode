@@ -33,7 +33,7 @@ export async function runTemplateForkIntegration(db: SqlClient) {
   assert.equal(await value("select is_public as value from tn_packs where id=$1",[child.pack_id]),false);
   let copied=(await value("select tn_list_relationships($1,0) as value",[child.version_id]))[0];
   assert.equal(copied.current_decision,null); assert.equal(copied.creation_kind,'template-import'); assert.equal(copied.author_id,READER);
-  assert.equal(copied.origin.author_id,OWNER); assert.equal(copied.origin.revision_id,edge.revision_id);
+  assert.equal(copied.origins[0].author_id,OWNER); assert.equal(copied.origins[0].revision_id,edge.revision_id);
   assert.equal(await value("select count(*)::integer as value from tn_edge_reviews d join tn_edge_revisions r on r.id=d.revision_id join tn_source_edges e on e.id=r.edge_id where e.template_version_id=$1",[child.version_id]),0);
   const seedsOnlyKey=randomUUID(), seedsOnly=await fork(info,seedsOnlyKey,false); assert.equal(seedsOnly.copied_evidence,0);
   assert.equal((await value("select tn_list_relationships($1,0) as value",[seedsOnly.version_id])).length,0);
@@ -69,8 +69,8 @@ export async function runTemplateForkIntegration(db: SqlClient) {
   assert.equal((await fork(selectedInfo,key)).version_id,child.version_id,'authorized child retry survives hidden parent');
   for(const viewer of [READER,null]) {
     await role(viewer);
-    const visibleInfo=await value("select tn_template_fork_info($1) as value",[child.version_id]); assert.equal(visibleInfo.origin,null);
-    const rows=await value("select tn_list_relationships($1,0) as value",[child.version_id]); assert.equal(rows[0].origin,null); assert.equal(rows[0].creation_kind,'template-import');
+    const visibleInfo=await value("select tn_template_fork_info($1) as value",[child.version_id]); assert.deepEqual(visibleInfo.origins,[]);
+    const rows=await value("select tn_list_relationships($1,0) as value",[child.version_id]); assert.deepEqual(rows[0].origins,[]); assert.equal(rows[0].creation_kind,'template-import');
     for(const secret of [parent,version,edge.edge_id,edge.revision_id,OWNER]) assert(!JSON.stringify({visibleInfo,rows}).includes(secret));
   }
   await role(OWNER); await db.query("update tn_packs set is_public=true where id=$1",[parent]);

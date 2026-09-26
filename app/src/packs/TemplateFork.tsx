@@ -29,8 +29,8 @@ export default function TemplateFork({ version, token }: { version: TemplateVers
     finally { if (!ctrl.signal.aborted) setBusy(false); }
   }
   return <section aria-label="Fork saved template" style={{ marginTop: 20 }}>
-    {info?.origin && <p>Starting version: <a href={`/packs/${info.origin.pack_id}?version=${info.origin.version_id}`}>{info.origin.title} · {info.origin.version_id.slice(0, 8)}</a>
-      {" "}· pack revision {info.origin.pack_revision} · evidence revision {info.origin.evidence_revision}. Your copy is independent.</p>}
+    {(info?.origins ?? (info?.origin ? [info.origin] : [])).map(origin => <p key={origin.version_id}>Starting version: <a href={`/packs/${origin.pack_id}?version=${origin.version_id}`}>{origin.title} · {origin.version_id.slice(0, 8)}</a>
+      {" "}· pack revision {origin.pack_revision} · evidence revision {origin.evidence_revision}. Your copy is independent.</p>)}
     {!result && <button className="chip" disabled={busy} onClick={() => setOpen(v => !v)}>{open ? "Close fork details" : "Fork this saved version"}</button>}
     {open && !result && <>
       <p>Fork version {version.id}. Your new pack starts private and preserves these {version.snapshot.entries.length} members, their order, seed weighting and rationale.</p>

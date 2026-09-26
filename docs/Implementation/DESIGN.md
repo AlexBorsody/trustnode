@@ -282,6 +282,35 @@ on account/version changes, and links success to child evidence review and the
 existing trust workspace. Broader discovery, adoption and merge reconciliation
 are subsequent increments. Migration 013 is additive and not yet applied live.
 
+## Selected-version merge reconciliation (step 6b, in progress)
+
+The merge accepts two versions from different packs, each with content hash,
+evidence revision and visibility epoch. Both parent packs are locked in UUID order
+before checking the captured tokens. A private owned child is created only after
+all reconciliation and bounded-copy checks pass. Retries use a caller-scoped key
+and payload digest; deleting a child leaves a tombstone. Parent changes after a
+successful request cannot invalidate a retry that only returns the caller's child.
+
+Each resulting member explicitly selects a parent's captured source metadata.
+The ordered member array supplies the new ranks; seed membership and rationale
+are independently chosen, with one explicit equal/ordered seed policy. Seed mass
+is recalculated from those choices, never added across parents. One selected
+parent supplies category, description and tags; the new title belongs to the child.
+The UI requires conflicts and resulting order/policy to be reviewed before saving.
+
+Evidence copying is optional. Current revisions from both parents are eligible
+only when both endpoints are included. Combined inputs are bounded to 200 records
+and 2 MiB. Identical evidence bodies are copied once after binding URLs/site IDs
+to the selected child entries; distinct assertions remain separate proposals.
+The graph's existing directed-pair deduplication prevents multiple supporting
+records from manufacturing extra rank after local acceptance. No reviews transfer.
+
+Migration 014 extends the existing template/evidence origin tables to multiple
+parents per child. Each origin remains independently filtered by current RLS;
+no hidden-origin count is exposed. Copied content and run exports contain no parent
+identifiers. Parent deletion removes its origin rows and leaves the child intact.
+The API, UI and checks reuse the 013 fork and existing review/run boundaries.
+
 ## Evidence relationships (migration 011)
 
 Saved template versions now own manual proposals in `tn_source_edges`, append-only
@@ -985,7 +1014,8 @@ grants; 009 makes source saves atomic and restricts shared tags/storage writes;
 003–011 are activated in production, with results in TASKS. Migration 012 adds
 stored snapshots, jobs, replay results and publication; it is staged locally and
 not yet applied in production. Migration 013 adds selected-version forks and
-private-safe import provenance; it is also staged. Continue new migrations at 014.
+private-safe import provenance; 014 adds explicitly reconciled merges and multiple
+origins. Both are staged. Continue new migrations at 015.
 Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.
