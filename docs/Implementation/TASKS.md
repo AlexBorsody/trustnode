@@ -26,14 +26,21 @@ Updated 2026-09-25. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   locally at `14e5217`; browser and hosted CI passed. Independent PM review found
   no blocking defect; PM accepted the local milestone. Step 6d optional independent-
   reference comparison is implemented at `59cf8fd`; browser/hosted CI and independent
-  PM review passed. Final milestone acceptance is pending the evidence handoff.
+  PM review passed; PM accepted the local milestone on 2026-09-25.
   Production migrations 012–016 and worker activation are pending; the live app
   has no graph rankings or saved-template fork workflow yet.
   Passage indexing and generation remain unbuilt.
 - **Preview:** [TrustNode on Vercel](https://trustnode-lemon.vercel.app) shows the
   existing app, not the proposed architecture. A successful deployment does not
   establish database or SSO readiness.
-- **Production, verified 2026-09-21:** migrations 003–011 are applied to the existing
+- **Production, rechecked 2026-09-25:** the read-only SQL inventory confirms the
+  recorded 003–011 baseline: source/pack/template/evidence tables have RLS, two
+  sources remain, and packs/versions/edges/reviews are empty. Staged 012–016 objects
+  and `tn_graph_worker` are absent. Public reads work; Google/Microsoft providers
+  remain disabled and signup is open. No production changes were made during
+  activation preparation. The operator sequence is in
+  [DESIGN](DESIGN.md#production-activation-operator-sequence).
+- **Earlier production verification, 2026-09-21:** migrations 003–011 are applied to the existing
   Supabase project. `/api/packs` now returns 200 with an empty list, replacing the
   previous 503/PGRST205; the two existing sources are preserved. Pack/template and
   evidence tables have RLS; mutation RPCs require authenticated execution. The live
@@ -73,7 +80,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Independent template forks — local milestone | Exact selected seeds/mode/order/rationale; private owned child; optional imported proposals without inherited reviews; local recomputation; current-RLS attribution and safe retries | `7c6836e`; PM/application/PostgreSQL CI passed; migration 013 staged |
 | Selected-version template merges — local milestone | Explicit metadata/member/seed reconciliation; private independent child; deduplicated unaccepted imports with separately visible origins; local review/recompute/compare | `cae27cd`; browser/application/PostgreSQL CI passed; PM accepted locally; migration 014 staged |
 | Category template discovery — local milestone | Cursor-paginated saved versions, captured category filters, visible provenance, run availability, separate capped resource adoption and version-bound workflow links | `14e5217`; browser/application/PostgreSQL CI passed; independent PM review passed; migration 015 staged |
-| Independent-reference comparison — local milestone | Explicit completed reference, newest-50 authorized cohort, distinct-site medians/coverage, unknowns, pinned pages/export and current-access revocation | `59cf8fd`; browser/application/PostgreSQL CI and independent PM review passed; migration 016 staged |
+| Independent-reference comparison — local milestone | Explicit completed reference, newest-50 authorized cohort, distinct-site medians/coverage, unknowns, pinned pages/export and current-access revocation | `59cf8fd`, evidence `247041c`; PM accepted locally; browser/application/PostgreSQL CI passed; migration 016 staged |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -86,35 +93,31 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Step 6d: optional independent-reference comparison.** PM accepted step 6c
-(`14e5217`, evidence `0c86627`) locally after independent code/API/database review,
-hosted CI and the full fixture browser flow. Production remains separate.
+**Production activation preparation**, assigned by the PM after accepting step 6d
+(`59cf8fd`, evidence `247041c`). No further feature work or RAG before this gate.
 
-1. Implemented locally: user chooses one accessible completed reference run. Pin run ID/input hash,
-   methodology and `median-site-authority-v1`; compare the newest 50 accessible
-   saved versions in the selected captured category/descendants, excluding every
-   version from the reference pack. Show median raw site authority across distinct
-   sites represented in the reference, with mapped/total site coverage and explicit
-   unknowns. Do not equate candidate graphs/categories or label this factual accuracy.
-   Sort the whole bounded cohort before paging, with stable version-ID ties;
-   bind pages/export to its fingerprint and recheck current reference visibility.
-   No reference means existing chronological discovery; adoption stays separate.
-   Export all cohort results with the reference/metric/scope identifiers. Verify
-   duplicate sites, partial/zero coverage, even medians/ties, authorization/revocation,
-   graph isolation and browser select → compare → export → revoked reference.
-   Feature `59cf8fd` passed local/browser and hosted application/PostgreSQL checks;
-   independent PM review found no blocker. Final evidence handoff is next. Keep RAG, model controls,
-   production changes and paid provisioning out of scope.
-2. Production activation remains a separate outstanding task: inspect the
-   authorized Supabase schema, then apply 012 → 013 → 014 → 015 → 016 after review. Do not
-   rewrite applied 003–011. Provision a dedicated restricted worker login
-   inheriting `tn_graph_worker`, choose its host, configure secrets there and start
-   the pinned Node worker. Confirm heartbeat and a real authorized run before
-   describing graph ranking as active. No service-role key belongs in the app.
+1. Done: read-only live schema/provider inventory, dated below. No production SQL
+   mutations, provider changes, paid provisioning or explicit deployment in this task.
+2. Rehearse 012 → 016 on a populated disposable 011 baseline. The existing SQL chain
+   now compares retained source/file metadata, pack membership/order/notes, immutable
+   seeds/hashes, evidence authors/reviews/challenges after every migration. Local
+   PGlite rehearsal passed. The existing PostgreSQL runner now exercises actual
+   worker process start/heartbeat, SIGTERM stop, pending-job restart, expired-lease
+   recovery with a new token, restricted-login denial and command-line artifact
+   replay. Hosted PostgreSQL execution is pending; timestamp backdating represents
+   lease expiry in this disposable rehearsal, not a timed production outage.
+3. Prepared one [operator sequence in DESIGN](DESIGN.md#production-activation-operator-sequence):
+   preflight/backup, ordered migration checkpoints, secure narrow-login provisioning,
+   worker supervision/heartbeat, two-real-account end-to-end acceptance and
+   nondestructive rollback. No new architecture/handoff document.
+4. External inputs remain: worker host and deploy/secret access; chosen SSO provider
+   registrations and tenant/signup policy; release URL/redirects; two real identities.
+   Exact details are in the existing Muse checklist below. Supabase dashboard access
+   already works; another database login is not currently needed from Alex.
 
-SSO activation and two-account acceptance remain with Muse. Shared abuse limits
-and the verifier headline/charter report remain open before broader launch. Keep
-RAG, model controls and unrelated UI/refactoring behind the trust engine.
+After review and external setup, activate the production trust pilot and record
+actual results. Shared abuse limits and verifier headline/charter reporting remain
+open before broader launch. RAG and model controls stay behind this gate.
 
 **Reference seed collection v1 (OAuth/PKCE) — proposed 2026-09-21:** the first real
 reference seed set is drafted at `docs/Implementation/reference-seed-oauth-pkce.json`:
@@ -139,7 +142,7 @@ The draft remains proposed, not imported or accepted evidence.
 
 Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
 verification is pending. Steps 3–5 and the step 6a/6b fork/merge increments are
-implemented locally; 6a/6b passed PM review; 6c discovery passed PM acceptance; 6d reference comparison passed browser/hosted CI and independent PM review, awaiting final acceptance.
+implemented locally; 6a/6b/6c/6d passed PM acceptance, browser and hosted CI.
 Stored runs/forks/merges still need production activation.
 Step 0 needs SSO; steps 7–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
@@ -153,7 +156,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
 | 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Enqueue/replay/isolation/retry and real PostgreSQL concurrency checks pass; production activation pending |
 | 5. Trust workspace — local milestone | Category/template chooser, stored rankings, focused evidence, explanations, conflicts and comparison | 4 | Disposable DB-backed browser workflow and PM review passed; production activation pending |
-| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge accepted locally; 6c discovery accepted; 6d optional reference comparison implemented locally | 5; 0 for live pilot | Local fork/merge accepted; discovery accepted; reference browser/CI/review passed; final milestone and live acceptance pending |
+| 6. Shared template hub — local milestone | 6a selected-version fork, 6b merge, 6c discovery and 6d independent-reference comparison accepted locally | 5; 0 for live pilot | Local browser/CI/PM acceptance passed; production activation and real-account acceptance pending |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
 | 8. Trust-aware retrieval | Selected links/exclusions, indexed relevance and pinned graph run; visible separate factors | 6–7 | Query changes relevance but not trust; excluded/inaccessible sources never enter the context |
 | 9. Grounded output | Provider adapter, citation checks, conflicts, private research runs and explicit sharing | 8; provider setup | Output cites available passages; invalid citation IDs fail; provider failure leaves evidence usable |
@@ -183,11 +186,17 @@ secret store; record only where access is available and the non-secret result.
 
 ### Immediate: production database and SSO
 
-- **Read-only activation assessment, 2026-09-24:** the authenticated Supabase
-  dashboard still opens project `nrxhyqzzozynemaxghba` and reports healthy status.
-  Existing dashboard/SQL access is available; no new database login is currently
-  requested from Alex. This inspection did not execute SQL or reconfirm the schema;
-  the recorded applied baseline remains 003–011, with 012–014 awaiting activation.
+- **Read-only activation assessment, 2026-09-25, 21:29 EDT / Sept 26 01:29 UTC:**
+  the authenticated dashboard and read-only SQL transaction work for project
+  `nrxhyqzzozynemaxghba`; it reports healthy status. Observed sources=2 and
+  packs/versions/edges/reviews=0. Baseline source/pack/version/edge/revision/review
+  tables all have RLS. Graph runs/jobs/health, template origins/merge requests and
+  enqueue/fork/merge/discovery/reference functions are absent; `tn_graph_worker`
+  does not exist. This confirms 012–016 still need activation. The live app returns
+  providers=[], signupEnabled=true, sources=2 and packs=[] (all successful reads).
+  The dashboard shows no managed backups; establish the recovery copy in DESIGN
+  before applying migrations. No production SQL mutations or settings changes were
+  executed. This supersedes the Sept 24 dashboard-only assessment.
   Local `app/.env.local` contains only the server/public Supabase URL and anon-key
   pairs. No worker database URL, provider secret or privileged database credential
   is configured there. No Supabase/Vercel CLI login or worker-host deployment
@@ -199,7 +208,7 @@ secret store; record only where access is available and the non-secret result.
   storing its `TRUSTNODE_WORKER_DATABASE_URL`, applying migrations and verifying
   heartbeat/real-account execution remain implementation/setup work after that
   decision. Do not put credentials in Markdown. No production configuration was
-  changed and no paid resource was provisioned during step 6b.
+  changed and no paid resource was provisioned during this preparation.
 - **Database access — ready, 2026-09-21.** Alex authenticated the in-app Supabase
   dashboard. The `trustnode` project `nrxhyqzzozynemaxghba` matches the app's configured
   URL. SQL editor access works; no privileged credential was copied into the repo.
@@ -309,6 +318,8 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
+- Step 6d PM acceptance: `59cf8fd` plus `247041c` accepted locally on 2026-09-25;
+  production activation preparation is the next assigned gate.
 - Independent-reference comparison (step 6d, `59cf8fd`, 2026-09-25): typecheck, production
   build and 51 pack/template checks passed. Pure math verifies duplicate sites,
   even medians, partial/zero coverage, known zero versus unknown, and stable ties.
@@ -632,8 +643,8 @@ that the headline issue is resolved; reproduce with an exact claim and deploymen
 ## Remaining limits and deferred work
 
 - The engine, stored-run backend, trust workspace and selected-version forks/merges are
-  implemented locally; migrations 012–016, production worker activation, final acceptance
-  of step 6d and architecture steps 7–10 remain outstanding.
+  implemented and PM accepted locally; migrations 012–016, production worker/SSO
+  activation, real-account acceptance and architecture steps 7–10 remain outstanding.
   Current retrieval searches seed text/titles/short excerpts; it is not passage RAG.
 - Canonical confidence remains an OAuth/PKCE demonstration with analyst weights
   and illustrative content. Provenance cleanup and real domain evidence are needed;

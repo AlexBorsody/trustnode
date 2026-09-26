@@ -956,10 +956,10 @@ connections must verify certificates. Download all three replay parts, then run
 `npm run graph:replay -- input.json canonical.json manifest.json`; the command
 verifies hashes, recomputes the frozen graph and compares canonical output bytes.
 
-Deployment order: inspect/apply 012, provision the narrow login securely, configure
-and start the worker, verify its heartbeat and an authorized caller run, then enable
-user-facing rank controls. Production activation and actual SSO acceptance are
-recorded in TASKS; the local worker milestone does not establish either.
+Follow the [activation operator sequence](#production-activation-operator-sequence)
+for migrations 012–016, the restricted worker and real-account acceptance.
+Production observations belong in TASKS; a local worker milestone does not establish
+production readiness.
 
 ### 9. API and code boundaries
 
@@ -1138,6 +1138,162 @@ cases, a replay, and the relevant RLS/visibility checks. Then manually exercise
 create → rank → explain → fork → compare with two users. For RAG, prove selected
 links constrain evidence and citations resolve. Existing CI/typecheck/build stay
 the routine checks. Completion is the working product path, not a test count.
+
+### Production activation operator sequence
+
+This is the prepared release procedure, not a record of execution. The dated live
+baseline and external setup decisions are in [TASKS](TASKS.md#immediate-production-database-and-sso).
+Do not begin production changes until the worker host/access and SSO inputs there
+are available. Keep the app, worker and reviewed migrations on the same commit.
+
+1. **Preflight and recovery copy.** Use the existing authorized project
+   `nrxhyqzzozynemaxghba`. Confirm the target, reviewed commit and current schema;
+   historical SQL-editor applications are not tracked reliably in migration history.
+   Run the following read-only inventory before and after each migration. Initially
+   the six baseline tables must exist with RLS, staged objects must be absent, and
+   counts must match the recorded preflight. An unexpected partially applied stage
+   requires inspection, not rerunning non-idempotent files. Use an operator-only
+   session/secret store for database access; never place credentials in SQL files,
+   Markdown, command-line URLs or app environment variables.
+
+   ```sql
+   begin read only;
+   select c.relname, c.relrowsecurity from pg_class c
+     join pg_namespace n on n.oid=c.relnamespace
+     where n.nspname='public' and c.relname in
+       ('tn_sources','tn_packs','tn_pack_versions','tn_source_edges',
+        'tn_edge_revisions','tn_edge_reviews','tn_jobs','tn_trust_runs',
+        'tn_graph_worker_health','tn_graph_snapshots','tn_trust_scores','tn_trust_requests',
+        'tn_policy_publications','tn_template_origins','tn_edge_origins',
+        'tn_template_fork_requests','tn_template_merge_requests');
+   select 'sources' as object, count(*) from public.tn_sources
+     union all select 'packs',count(*) from public.tn_packs
+     union all select 'versions',count(*) from public.tn_pack_versions
+     union all select 'edges',count(*) from public.tn_source_edges
+     union all select 'revisions',count(*) from public.tn_edge_revisions
+     union all select 'reviews',count(*) from public.tn_edge_reviews;
+   select p.proname, p.prosecdef,
+     has_function_privilege('anon',p.oid,'EXECUTE') as anon_execute,
+     has_function_privilege('authenticated',p.oid,'EXECUTE') as user_execute
+     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+     where n.nspname='public' and p.proname in
+       ('tn_enqueue_trust_run','tn_fork_template','tn_merge_templates',
+        'tn_discover_templates','tn_template_reference_scope');
+   rollback;
+   ```
+
+   Capture a private recovery backup using a trusted operator machine with libpq
+   connection settings supplied securely (`PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`,
+   verified TLS and password via secret injection or a protected password file).
+   Set `TRUSTNODE_BACKUP_PATH` to a private backup destination, then run
+   `umask 077`, `pg_dump --format=custom --file="$TRUSTNODE_BACKUP_PATH"`, and
+   `pg_restore --list "$TRUSTNODE_BACKUP_PATH"`. Establish a usable restore path
+   before release. Do not copy production/private data into public CI fixtures.
+   The existing disposable PostgreSQL gate rehearses a populated 011 baseline;
+   it is not a production backup or a Supabase restore rehearsal.
+
+2. **Apply reviewed migrations in order.** From the repo root, execute each command
+   separately with the operator connection above (`ON_ERROR_STOP` is mandatory).
+   Each file owns its transaction. After each command, run the inventory and verify
+   its checkpoint below before proceeding. All baseline rows/IDs/content must survive;
+   only additive epoch/revision/creation-kind metadata is expected.
+
+   ```sh
+   psql -X -v ON_ERROR_STOP=1 -f db/migration-012-trust-runs.sql
+   psql -X -v ON_ERROR_STOP=1 -f db/migration-013-template-forks.sql
+   psql -X -v ON_ERROR_STOP=1 -f db/migration-014-template-merges.sql
+   psql -X -v ON_ERROR_STOP=1 -f db/migration-015-template-discovery.sql
+   psql -X -v ON_ERROR_STOP=1 -f db/migration-016-template-reference.sql
+   ```
+
+   | Stage | Required checkpoint |
+   | --- | --- |
+   | 012 | Runs/jobs/snapshots/scores/publications/health have RLS; NOLOGIN `tn_graph_worker` exists; enqueue authenticated-only; worker has only lease/complete/fail, no direct tables |
+   | 013 | Origins/request tables have RLS; fork authenticated-only; old edges have `creation_kind='manual'` |
+   | 014 | Merge authenticated-only; request table has RLS; origin keys support two parents |
+   | 015 | `tn_discover_templates` executable by anon/authenticated, `prosecdef=false` |
+   | 016 | `tn_template_reference_scope` executable by anon/authenticated, `prosecdef=false` |
+
+   On error, stop and retain the last committed stage. Do not run `db/tests/*` on
+   production. Record actual results in TASKS; do not call a deployment a migration.
+
+3. **Provision the restricted worker login and host.** In the operator psql session,
+   after confirming this login does not already exist:
+
+   ```sql
+   create role trustnode_graph_login login inherit nosuperuser nocreatedb
+     nocreaterole noreplication nobypassrls;
+   grant connect on database postgres to trustnode_graph_login;
+   grant tn_graph_worker to trustnode_graph_login;
+   \password trustnode_graph_login
+   ```
+
+   Set the password through the secure prompt, not a committed SQL statement.
+   Give this login no other role membership/schema/table privileges. Supply its
+   connection URL as `TRUSTNODE_WORKER_DATABASE_URL` only in the worker host's secret
+   settings. Use a direct or session-pool connection with verified certificate and
+   stable session identity; verify the configured login is the actual `session_user`.
+   Optional `TRUSTNODE_WORKER_CA` contains the trusted PEM CA. Omit URL `ssl*` options
+   because startup rejects them. Do not use `postgres`, Supabase service-role keys
+   or the app's anon key for the worker.
+
+   On the selected host, check out the reviewed commit, pin Node 22.23.2, then from
+   `app` run `npm ci` (the worker needs `tsx`) and `npm run worker:graph -- --once`.
+   This validates runtime/login/TLS and polls once. Configure the host supervisor
+   to run `npm run worker:graph` from `app`, restart on failure with backoff, forward
+   SIGTERM and allow at least 30 seconds for graceful shutdown. Run one worker for
+   this pilot. The app remains a separate Vercel process using caller JWTs/RLS.
+
+   Verify heartbeat from the administrator session, twice across a polling interval:
+
+   ```sql
+   select last_seen, clock_timestamp()-last_seen as age
+     from public.tn_graph_worker_health;
+   select state, count(*), min(created_at) as oldest
+     from public.tn_jobs group by state;
+   ```
+
+   `last_seen` must advance; enqueue rejects workers older than two minutes. Check
+   sanitized worker logs and investigate repeated failures/expired leases. The
+   heartbeat is readiness, not proof of a successful caller run.
+
+4. **Configure selected SSO and accept with two real accounts.** Apply the provider,
+   tenant/signup and redirect choices in TASKS through Supabase and the provider
+   consoles. Confirm `/api/auth/providers` lists the enabled choice. On the release
+   URL, use accounts A and B through normal sign-in; verify new-user JIT, returning
+   identity, logout and private ownership. A creates a small public saved template
+   with actual citation evidence, reviews the edge and computes a completed run.
+   Verify a nonseed receives explained mass, frozen evidence is correct and all
+   three replay exports pass `npm run graph:replay -- input.json canonical.json manifest.json`.
+   A explicitly publishes. B discovers the captured category, forks the selected
+   version with proposals, verifies they have no inherited approval, reviews locally
+   and computes independently. B merges two selected versions with explicit choices,
+   confirms the new child is private, then reviews/recomputes. Compare runs and use
+   A's published run as the independent reference; verify bounded scope, coverage,
+   unknown sites and exported identifiers. A hides the parent/reference: B retains
+   the independent child and its scores but loses parent attribution and reference
+   access, including old pages/export links. Re-publication must not revive the old
+   run. Record IDs/hashes and outcomes, never credentials or private content.
+
+5. **Release or stop without deleting history.** Only mark the pilot active after
+   migrations, advancing heartbeat, successful real caller run/replay and both
+   accounts' ownership/privacy flow pass. If the worker fails, stop it through its
+   supervisor; completed runs stay stored and queued work can resume. For rollback,
+   stop new graph/fork/merge work with these administrator commands:
+
+   ```sql
+   revoke execute on function public.tn_enqueue_trust_run(uuid,integer,bigint,uuid) from authenticated;
+   revoke execute on function public.tn_fork_template(uuid,text,bigint,bigint,boolean,text,uuid) from authenticated;
+   revoke execute on function public.tn_merge_templates(jsonb) from authenticated;
+   ```
+
+   Stop the worker, record pending/leased jobs and hold the pilot. Hide affected
+   entry points with the web host's last known compatible deployment if necessary;
+   there is currently no runtime feature flag. Existing RLS-protected reads/history
+   remain available. Restore those exact grants only after resolving the failure,
+   restart the worker and repeat acceptance. Do not run down-migrations, delete
+   snapshots or overwrite canonical outputs. A backup restore is disaster recovery,
+   not ordinary rollback.
 
 ## Delivery
 
