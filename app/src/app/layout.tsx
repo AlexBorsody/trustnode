@@ -26,6 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/">Home</a>
               <a href="/sources">Source shelf</a>
               <a href="/packs">Source packs</a>
+              <a href="/templates">Category templates</a>
               <a href="/trust">Trust rankings</a>
               <a href="/explore">Explore sources</a>
               <a href="/verify">Verify a claim</a>

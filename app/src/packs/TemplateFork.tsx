@@ -28,7 +28,7 @@ export default function TemplateFork({ version, token }: { version: TemplateVers
     } catch (e) { if (!ctrl.signal.aborted) setError(e instanceof Error ? e.message : "Could not fork this version."); }
     finally { if (!ctrl.signal.aborted) setBusy(false); }
   }
-  return <section aria-label="Fork saved template" style={{ marginTop: 20 }}>
+  return <section id="template-fork" aria-label="Fork saved template" style={{ marginTop: 20 }}>
     {(info?.origins ?? (info?.origin ? [info.origin] : [])).map(origin => <p key={origin.version_id}>Starting version: <a href={`/packs/${origin.pack_id}?version=${origin.version_id}`}>{origin.title} · {origin.version_id.slice(0, 8)}</a>
       {" "}· pack revision {origin.pack_revision} · evidence revision {origin.evidence_revision}. Your copy is independent.</p>)}
     {!result && <button className="chip" disabled={busy} onClick={() => setOpen(v => !v)}>{open ? "Close fork details" : "Fork this saved version"}</button>}

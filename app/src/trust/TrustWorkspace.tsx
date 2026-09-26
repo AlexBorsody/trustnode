@@ -50,7 +50,7 @@ function Workspace({ token, userId, initial }: { token?: string; userId?: string
           {visible.map(p => <option key={p.id} value={p.id}>{p.title}{p.is_public ? "" : " · Private"}</option>)}
         </select></label>
       </div>
-      <p className="panel-sub">Browsing the newest 50 accessible packs. Create seeds and recorded evidence in <a href="/packs">Source packs</a>.</p>
+      <p className="panel-sub">Quick selection shows the newest 50 accessible packs. <a href="/templates">Browse all accessible saved templates by category</a>, or create seeds and recorded evidence in <a href="/packs">Source packs</a>.</p>
       {busy && <p role="status">Loading packs…</p>}{error && <p role="alert">{error}</p>}
       {!busy && !error && !packs.length && <p>No accessible packs yet. <a href="/packs">Create a source pack</a> to begin.</p>}
       <button className="chip" disabled={busy} onClick={() => { setPackId(""); openRun(""); setRefresh(n => n + 1); }}>Refresh pack list</button>

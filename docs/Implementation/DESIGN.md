@@ -16,7 +16,7 @@ For the implemented milestones and verification evidence, use the
 
 Next.js App Router on Vercel; Supabase Postgres, Auth, and Storage.
 Pages: `/`, `/sources`, `/packs`, `/packs/:id`, `/explore`, `/verify`, `/charter`,
-`/login`, `/signup`, `/account`, and `/auth/callback`.
+`/templates`, `/trust`, `/login`, `/signup`, `/account`, and `/auth/callback`.
 Writes use the caller's bearer token and RLS. No app service-role key.
 Private responses use `Cache-Control: private, no-store` and vary by authorization.
 Missing database configuration/schema produces an explicit unavailable state.
@@ -313,6 +313,43 @@ The API, UI and checks reuse the 013 fork and existing review/run boundaries.
 The local merge/review/recompute/compare workflow and hosted PostgreSQL concurrency
 checks passed; delivery evidence is in TASKS. Migration 014 is not applied live.
 
+## Saved-template discovery (migration 015)
+
+`/templates` and `GET /api/templates` list immutable saved versions across all
+currently accessible packs. Each row identifies the current attributed owner,
+captured revision/category, seed choices/rationale, schema and edge policy, member
+and mapped-site coverage, and separately visible starting versions. Links pin the
+selected version for inspection, fork/merge entry and the trust workspace. This is
+template discovery; it assigns no template trust score or reference-based ordering.
+
+`tn_discover_templates` is a read-only SECURITY INVOKER RPC. Caller RLS filters
+versions, provenance and runs before any returned data or pagination decision.
+Category paths match the captured normalized path and descendants, not the current
+mutable draft; matching labels do not merge curator identities. Newest captures
+sort by `(created_at DESC, id DESC)`, 12 per page by default, maximum 25. An opaque
+cursor preserves PostgreSQL microseconds and the last returned visible ID, bound
+to the normalized category. One accessible lookahead row supplies `next_cursor`;
+no hidden-row cursor or global template count is emitted. This is keyset browsing,
+not a frozen catalogue: refresh restarts at the newest currently visible versions.
+
+Public adoption is displayed **per resource**, never summed into a template score.
+It uses the existing `retrieval-v1` exact-URL association and best reciprocal pack
+rank per curator (at most 1 per curator, 2 total), rounded to four decimals. Scope
+is explicitly the newest 200 public packs, with deterministic time/ID ties and
+their public count. Owner-visible private packs cannot affect that scope or its
+totals. Multiple versions of one pack are not additional adoption. The discovery
+query neither reads graph scores for adoption nor writes graph inputs/results.
+
+A card links the newest currently readable published completed run when one
+exists, otherwise the caller's newest accessible completed run. It shows the
+stored methodology, timestamp, stale flag and separate site/resource evidence
+states (including seed-only); it does not substitute an aggregate score. With no
+accessible completed run, it says so without exposing unpublished run existence.
+Current visibility epochs and existing run RLS control these reads. Account changes
+remount the view; category/page changes abort old requests; refresh/focus rechecks
+access and clears previous cards. Responses remain private/no-store.
+Migration 015 is staged; production activation is separate.
+
 ## Evidence relationships (migration 011)
 
 Saved template versions now own manual proposals in `tn_source_edges`, append-only
@@ -476,9 +513,9 @@ does not make it the canonical policy for everyone.
 | Component | Reuse | Remaining work |
 | --- | --- | --- |
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
-| Curation | Sources, packs, revisions, legacy forks/merges; immutable seed versions (007); selected-version independent forks (013) and reconciled merges (014) | Production activation and shared discovery/adoption |
+| Curation | Sources, packs, revisions, immutable seed versions (007), independent forks (013), reconciled merges (014), category discovery with separate resource adoption (015) | Production activation and real-account acceptance |
 | Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
-| Source authority | Exact-host site identity (007), site/resource computation, frozen stored runs and trust workspace | Production activation and shared template discovery |
+| Source authority | Exact-host site identity (007), site/resource computation, frozen stored runs, trust workspace and category template discovery | Production activation; independent-reference template comparison remains deferred |
 | Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
 | Retrieval | `retrieval-v1` and pack filtering | Passage index, selected subsets and pinned trust-run input |
 | Operations | Next.js/Vercel, Supabase; bounded Postgres jobs and restricted graph worker (012) | Production worker credentials/host and migration activation |
@@ -990,9 +1027,11 @@ Account, run and template changes abort outstanding requests and reset their
 views; delayed responses cannot populate another scope. Refresh and page focus
 recheck current access and clear unavailable data. This does not retract already
 downloaded data or promise immediate revocation in an idle offline browser.
-Discovery is bounded to the newest 50 accessible packs, 20 versions and 20 runs
-per page. Selected-version independent forks and explicitly reconciled merges are
-implemented in steps 6a/6b; larger shared discovery and adoption remain subsequent work.
+The workspace's quick selector shows the newest 50 accessible packs, 20 versions
+and 20 runs per page. The separate `/templates` hub cursor-pages saved versions
+across accessible packs by captured category. Selected-version independent forks,
+explicit reconciliation and discovery are implemented in steps 6a–6c. Independent
+reference-based template ordering remains deferred.
 Detailed graph layout is presentation; it cannot alter rank.
 
 The second UI connects that chosen run to a research question and selected links,
@@ -1017,7 +1056,8 @@ grants; 009 makes source saves atomic and restricts shared tags/storage writes;
 stored snapshots, jobs, replay results and publication; it is staged locally and
 not yet applied in production. Migration 013 adds selected-version forks and
 private-safe import provenance; 014 adds explicitly reconciled merges and multiple
-origins. Both are staged. Continue new migrations at 015.
+origins. Migration 015 adds caller-RLS template discovery and separate public
+resource-adoption summaries. Migrations 012–015 are staged; new schema work follows at 016.
 Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.

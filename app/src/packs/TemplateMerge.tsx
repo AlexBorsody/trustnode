@@ -52,7 +52,7 @@ export default function TemplateMerge({version,token}:{version:TemplateVersion;t
     catch(e){if(!ctrl.signal.aborted)setError(e instanceof Error?e.message:"Could not merge. Your request is retained.");}
     finally{if(!ctrl.signal.aborted)setBusy(false);}
   }
-  return <section aria-label="Merge saved templates" style={{marginTop:20}}>
+  return <section id="template-merge" aria-label="Merge saved templates" style={{marginTop:20}}>
     {!result&&<button className="chip" disabled={busy} onClick={()=>setOpen(v=>!v)}>{open?"Close merge details":"Merge this saved version"}</button>}
     {open&&!result&&<>
       <p>First version: {version.snapshot.title} · {version.id}. Select a second version, then explicitly reconcile the child’s members and seed policy.</p>
