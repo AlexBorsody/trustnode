@@ -25,8 +25,8 @@ Updated 2026-09-25. [Strategy](../Business/STRATEGY.md) is canonical and locked.
   as a local milestone. Step 6c category-scoped saved-template discovery is implemented
   locally at `14e5217`; browser and hosted CI passed. Independent PM review found
   no blocking defect; PM accepted the local milestone. Step 6d optional independent-
-  reference comparison is implemented locally; browser/database checks passed,
-  hosted CI and PM review pending.
+  reference comparison is implemented at `59cf8fd`; browser/hosted CI and independent
+  PM review passed. Final milestone acceptance is pending the evidence handoff.
   Production migrations 012–016 and worker activation are pending; the live app
   has no graph rankings or saved-template fork workflow yet.
   Passage indexing and generation remain unbuilt.
@@ -73,7 +73,7 @@ production readiness. Earlier foundation work is retained and integrated.
 | Independent template forks — local milestone | Exact selected seeds/mode/order/rationale; private owned child; optional imported proposals without inherited reviews; local recomputation; current-RLS attribution and safe retries | `7c6836e`; PM/application/PostgreSQL CI passed; migration 013 staged |
 | Selected-version template merges — local milestone | Explicit metadata/member/seed reconciliation; private independent child; deduplicated unaccepted imports with separately visible origins; local review/recompute/compare | `cae27cd`; browser/application/PostgreSQL CI passed; PM accepted locally; migration 014 staged |
 | Category template discovery — local milestone | Cursor-paginated saved versions, captured category filters, visible provenance, run availability, separate capped resource adoption and version-bound workflow links | `14e5217`; browser/application/PostgreSQL CI passed; independent PM review passed; migration 015 staged |
-| Independent-reference comparison — local milestone | Explicit completed reference, newest-50 authorized cohort, distinct-site medians/coverage, unknowns, pinned pages/export and current-access revocation | Step 6d; migration 016 staged; local/browser checks passed; hosted CI/PM pending |
+| Independent-reference comparison — local milestone | Explicit completed reference, newest-50 authorized cohort, distinct-site medians/coverage, unknowns, pinned pages/export and current-access revocation | `59cf8fd`; browser/application/PostgreSQL CI and independent PM review passed; migration 016 staged |
 | Deterministic graph engine | Separate site/resource projections, accepted-pair deduplication, seeded PageRank, exact contribution accounting, seed attribution and canonical replay | Step 3, 2026-09-22; pure computation only |
 | Category seed templates | Exact-host site identities, private-safe category hierarchy, immutable captures with explicit seeds/rationale, equal or ordered weights, version links and JSON export | `376ac0a`; migration 007 applied 2026-09-21 |
 | Production database activation | Applied 003–007; added/applied 008 to remove direct anon grants on older pack RPCs; live packs/source reads return 200 | Dashboard SQL session, 2026-09-21; SSO still pending |
@@ -102,8 +102,8 @@ hosted CI and the full fixture browser flow. Production remains separate.
    Export all cohort results with the reference/metric/scope identifiers. Verify
    duplicate sites, partial/zero coverage, even medians/ties, authorization/revocation,
    graph isolation and browser select → compare → export → revoked reference.
-   Local math/API/database and browser acceptance passed. Next: commit/push, inspect
-   hosted CI and send exact evidence for PM review. Keep RAG, model controls,
+   Feature `59cf8fd` passed local/browser and hosted application/PostgreSQL checks;
+   independent PM review found no blocker. Final evidence handoff is next. Keep RAG, model controls,
    production changes and paid provisioning out of scope.
 2. Production activation remains a separate outstanding task: inspect the
    authorized Supabase schema, then apply 012 → 013 → 014 → 015 → 016 after review. Do not
@@ -139,7 +139,7 @@ The draft remains proposed, not imported or accepted evidence.
 
 Steps 1–2 are **implemented and their schemas activated**; real-account signed-in
 verification is pending. Steps 3–5 and the step 6a/6b fork/merge increments are
-implemented locally; 6a/6b passed PM review; 6c discovery passed PM acceptance; 6d reference comparison passed local/browser checks and awaits hosted CI/PM review.
+implemented locally; 6a/6b passed PM review; 6c discovery passed PM acceptance; 6d reference comparison passed browser/hosted CI and independent PM review, awaiting final acceptance.
 Stored runs/forks/merges still need production activation.
 Step 0 needs SSO; steps 7–10 remain todo.
 Detailed contracts live in [DESIGN](DESIGN.md#target-architecture-and-implementation-plan).
@@ -153,7 +153,7 @@ Each step ends with a focused commit, relevant checks and a status update here.
 | 3. Trust computation — implemented | Site/resource projections, seeded PageRank, contribution and per-seed accounting | 1–2 contracts | Synthetic nonseed propagation, independent seed masses, exclusions and exact replay verified; persistence/publication belongs to 4 |
 | 4. Stored/public runs — local milestone | Frozen snapshots, scores, bounded jobs, restricted worker, explicit publication and read/export APIs | 1–3 | Enqueue/replay/isolation/retry and real PostgreSQL concurrency checks pass; production activation pending |
 | 5. Trust workspace — local milestone | Category/template chooser, stored rankings, focused evidence, explanations, conflicts and comparison | 4 | Disposable DB-backed browser workflow and PM review passed; production activation pending |
-| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge accepted locally; 6c discovery accepted; 6d optional reference comparison implemented locally | 5; 0 for live pilot | Local fork/merge accepted; discovery accepted; reference browser passed, CI/PM and live acceptance pending |
+| 6. Shared template hub — partial | 6a selected-version fork accepted locally; 6b merge accepted locally; 6c discovery accepted; 6d optional reference comparison implemented locally | 5; 0 for live pilot | Local fork/merge accepted; discovery accepted; reference browser/CI/review passed; final milestone and live acceptance pending |
 | 7. Content and passages | Safe bounded capture, immutable page versions, hashes, passage anchors and link observations | 4; scheduled after 6 | Passage citations resolve to captured versions; fetch failures and curator notes are not presented as quotations |
 | 8. Trust-aware retrieval | Selected links/exclusions, indexed relevance and pinned graph run; visible separate factors | 6–7 | Query changes relevance but not trust; excluded/inaccessible sources never enter the context |
 | 9. Grounded output | Provider adapter, citation checks, conflicts, private research runs and explicit sharing | 8; provider setup | Output cites available passages; invalid citation IDs fail; provider failure leaves evidence usable |
@@ -309,7 +309,7 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
-- Independent-reference comparison (step 6d, 2026-09-25): typecheck, production
+- Independent-reference comparison (step 6d, `59cf8fd`, 2026-09-25): typecheck, production
   build and 51 pack/template checks passed. Pure math verifies duplicate sites,
   even medians, partial/zero coverage, known zero versus unknown, and stable ties.
   API checks bind reference/metric/category/fingerprint across pages and full export,
@@ -318,7 +318,11 @@ parked under Alex's latest direction.
   proved the newest-50 limit and time/UUID ties after category/RLS/self-pack filtering;
   private candidates and unpublished/revoked runs remained unavailable; complete
   site masses included known zeros; reading comparisons preserved canonical graph
-  output bytes. Hosted PostgreSQL CI remains pending.
+  output bytes. Hosted [application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36208329873)
+  passed on that exact commit; inspected logs confirm reference scope/RLS/revocation/
+  graph immutability, discovery and real concurrent capture/merge cases ran. PM
+  independently reviewed the implementation and reran focused math/API plus fresh
+  disposable trust/reference integration without finding a blocking defect.
   Browser acceptance selected published fixture run
   `85618cd0-f6df-420d-b361-841375fe6367` explicitly as anonymous reader. Its 17 eligible
   candidates paged 12 + 5; partial coverage showed median `0.54054074` across 1/2
