@@ -93,8 +93,9 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Production activation preparation**, assigned by the PM after accepting step 6d
-(`59cf8fd`, evidence `247041c`). No further feature work or RAG before this gate.
+**Production activation — preparation complete at `f8f6f47`, pending PM review and
+external setup.** Assigned after PM acceptance of step 6d (`59cf8fd`, evidence
+`247041c`). No further feature work or RAG before this gate.
 
 1. Done: read-only live schema/provider inventory, dated below. No production SQL
    mutations, provider changes, paid provisioning or explicit deployment in this task.
@@ -104,7 +105,8 @@ production readiness. Earlier foundation work is retained and integrated.
    PGlite rehearsal passed. The existing PostgreSQL runner now exercises actual
    worker process start/heartbeat, SIGTERM stop, pending-job restart, expired-lease
    recovery with a new token, restricted-login denial and command-line artifact
-   replay. Hosted PostgreSQL execution is pending; timestamp backdating represents
+   replay. Hosted PostgreSQL and application/build CI passed on `f8f6f47`; logs
+   were inspected (see validation record). Timestamp backdating represents
    lease expiry in this disposable rehearsal, not a timed production outage.
 3. Prepared one [operator sequence in DESIGN](DESIGN.md#production-activation-operator-sequence):
    preflight/backup, ordered migration checkpoints, secure narrow-login provisioning,
@@ -213,6 +215,12 @@ secret store; record only where access is available and the non-secret result.
   dashboard. The `trustnode` project `nrxhyqzzozynemaxghba` matches the app's configured
   URL. SQL editor access works; no privileged credential was copied into the repo.
   A separate staging project has not been established.
+- **Recovery transport — pending for activation.** The SQL editor session is
+  usable; a libpq administrator connection and private backup destination are not
+  configured locally. An authorized operator needs those to create and verify the
+  recovery copy in DESIGN. Provide access through the operator's secret store,
+  or record who will perform the backup; do not paste its credential here. This
+  does not require another dashboard login.
 - **Migration state — ready through 011, 2026-09-21.** Before applying, confirmed
   source/category tables existed, pack/identity tables and functions were absent,
   and category keys had no duplicate backfill collisions. Applied 003 (packs), 004
@@ -266,6 +274,11 @@ secret store; record only where access is available and the non-secret result.
 - **Graph worker — production setup pending.** Migration 012 creates the NOLOGIN
   `tn_graph_worker` group and narrow job functions. After applying it, provision a
   dedicated LOGIN role inheriting only that group and choose the process host.
+  Muse/Alex inputs: host/provider and service/project name, deployment/secret-settings
+  access, and a budget if new paid hosting is required. The host must run a persistent
+  Node 22.23.2 process, support supervisor restart/SIGTERM and reach the selected
+  Supabase direct/session database endpoint with verified TLS. Record the service
+  and secret location names only. Vercel's web request process is not this worker.
   Configure `TRUSTNODE_WORKER_DATABASE_URL` (and trusted CA if needed) on that host,
   pin Node 22.23.2 and run `npm run worker:graph` from `app`. The worker rejects
   privileged logins. App JWT/RLS access stays unchanged. Record the host, credential
@@ -318,6 +331,17 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
+- Activation preparation (`f8f6f47`, 2026-09-25): local typecheck and populated-011
+  PGlite upgrade/regression rehearsal passed. Hosted
+  [application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36208887352)
+  passed on that exact commit, including build. Inspected PostgreSQL logs explicitly
+  confirm unchanged retained data after every migration 012–016 and actual worker
+  process start/heartbeat, graceful SIGTERM stop, pending-job restart, expired-lease
+  recovery under a new token, restricted-login permission denial, unchanged prior
+  canonical bytes and successful CLI replay. Expiry was backdated by disposable
+  admin; this is PostgreSQL 16 on loopback, not production TLS/host supervision or
+  real SSO acceptance. Existing capture/merge concurrency and reference privacy
+  checks also passed. No app runtime or applied migration was changed.
 - Step 6d PM acceptance: `59cf8fd` plus `247041c` accepted locally on 2026-09-25;
   production activation preparation is the next assigned gate.
 - Independent-reference comparison (step 6d, `59cf8fd`, 2026-09-25): typecheck, production
