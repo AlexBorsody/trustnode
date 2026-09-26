@@ -350,6 +350,54 @@ remount the view; category/page changes abort old requests; refresh/focus rechec
 access and clears previous cards. Responses remain private/no-store.
 Migration 015 is staged; production activation is separate.
 
+## Independent-reference comparison (migration 016)
+
+The optional comparison in `/templates` requires an explicitly selected accessible
+completed run. It makes no automatic reference/canonical designation. Without a
+reference, the existing chronological discovery/adoption view remains unchanged.
+`GET /api/templates/compare` pins the run ID, input/output hashes, captured algorithm
+and `median-site-authority-v1`. Migration 016's SECURITY INVOKER RPC reads complete
+stored **site** masses and an authorized candidate cohort in one statement snapshot;
+it never recomputes a graph or feeds adoption into graph inputs.
+
+Scope is the newest **50 accessible saved versions** in the captured category path
+and descendants, ordered by capture time/UUID. Current RLS/category filtering and
+exclusion of every version from the reference run's pack happen **before** taking
+50. Excluding the same pack prevents self-scoring; it is not proof of independent
+evidence or independent curators. A visible lookahead says whether more candidates
+exist; this is explicitly not global category ranking.
+
+The metric deduplicates each candidate's recorded site identities, looks up their
+raw masses in the frozen reference vector, and takes the median of known values.
+For an even count, use the arithmetic mean of the middle two. A known zero remains
+zero; an absent site is unknown and excluded from the median. Zero known sites
+produces a null/unscored median. Coverage is known sites / **all distinct recorded
+site identities** in the selected template; members lacking site identity are
+counted separately. Rank the full cohort by median descending, then version UUID
+ascending; unscored candidates follow scored ones, also by UUID. Pages contain 12
+rows. This describes selected sites on a reference graph, not factual accuracy or
+a candidate's own graph result. Category identities/paths are shown and differences
+labeled; candidate seeds, accepted evidence and graph scope are never assumed equal.
+
+A scope fingerprint binds the reference ID/hashes/algorithm/visibility epoch,
+metric, normalized category, chronological candidate IDs/content hashes/current
+visibility epochs and the bounded lookahead flag. Every page and export rechecks
+reference and candidate RLS and recomputes that fingerprint. A changed cohort or
+visibility epoch returns 409/restart rather than silently substituting rows;
+inaccessible reference returns generic 404. Cursor bindings retain reference hash,
+metric, category, fingerprint and offset. No persistent comparison cache is used.
+Account/reference/category changes abort old requests; refresh/focus reauthorizes
+and clears prior results. A failed export also clears the displayed comparison.
+
+`GET /api/templates/compare/export` requires the selected input hash and scope
+fingerprint, reauthorizes them, then returns all cohort rows (not merely the visible
+page) as `template-reference-comparison-v1`. It records reference IDs/hashes and
+algorithm, metric, scope limit/selection/ordering/fingerprint, per-template coverage
+and each site's known mass or null. All responses are private/no-store. Revocation
+prevents subsequent reads/exports; previously downloaded files cannot be recalled.
+Migration 016 is staged. Production activation and real-provider acceptance remain
+separate from local functionality.
+
 ## Evidence relationships (migration 011)
 
 Saved template versions now own manual proposals in `tn_source_edges`, append-only
@@ -515,7 +563,7 @@ does not make it the canonical policy for everyone.
 | Identity | Shared Supabase SSO/JIT and caller JWT | Activate providers; verify real identities |
 | Curation | Sources, packs, revisions, immutable seed versions (007), independent forks (013), reconciled merges (014), category discovery with separate resource adoption (015) | Production activation and real-account acceptance |
 | Topics | Curator-scoped category hierarchy and captured category membership (007) | Reviewed shared taxonomy and cross-category relationships |
-| Source authority | Exact-host site identity (007), site/resource computation, frozen stored runs, trust workspace and category template discovery | Production activation; independent-reference template comparison remains deferred |
+| Source authority | Exact-host site identity (007), site/resource computation, stored runs, discovery and explicit bounded independent-reference comparison (016) | Production activation and real-category evidence |
 | Evidence review | Versioned relationships, curator decisions and challenges (011) | Versioned page captures and reference-policy maintainer publication |
 | Retrieval | `retrieval-v1` and pack filtering | Passage index, selected subsets and pinned trust-run input |
 | Operations | Next.js/Vercel, Supabase; bounded Postgres jobs and restricted graph worker (012) | Production worker credentials/host and migration activation |
@@ -1030,8 +1078,8 @@ downloaded data or promise immediate revocation in an idle offline browser.
 The workspace's quick selector shows the newest 50 accessible packs, 20 versions
 and 20 runs per page. The separate `/templates` hub cursor-pages saved versions
 across accessible packs by captured category. Selected-version independent forks,
-explicit reconciliation and discovery are implemented in steps 6a–6c. Independent
-reference-based template ordering remains deferred.
+explicit reconciliation, discovery and bounded independent-reference comparison are
+implemented in steps 6a–6d. No reference is selected automatically.
 Detailed graph layout is presentation; it cannot alter rank.
 
 The second UI connects that chosen run to a research question and selected links,
@@ -1057,7 +1105,8 @@ stored snapshots, jobs, replay results and publication; it is staged locally and
 not yet applied in production. Migration 013 adds selected-version forks and
 private-safe import provenance; 014 adds explicitly reconciled merges and multiple
 origins. Migration 015 adds caller-RLS template discovery and separate public
-resource-adoption summaries. Migrations 012–015 are staged; new schema work follows at 016.
+resource-adoption summaries. Migration 016 adds independent-reference comparison
+reads. Migrations 012–016 are staged; new schema work follows at 017.
 Do not resurrect the unused historical
 002 or rewrite applied files. Group migrations by identity/template versions,
 relationships/governance, snapshots/jobs/scores, and later content/passages/research.

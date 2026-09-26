@@ -13,7 +13,7 @@ explore ranked evidence, and inspect the reasoning behind a claim's confidence.
 For a handoff, read the [completed work](docs/Implementation/TASKS.md#completed-work)
 and [next concrete deliverable](docs/Implementation/TASKS.md#next-concrete-deliverable).
 Evidence storage, graph computation, stored runs, the trust workspace, independent
-template forks/merges and category discovery are implemented locally. Production
+template forks/merges, category discovery and optional reference comparison are implemented locally. Production
 activation remains separate; retrieval does not determine graph authority.
 Production database/SSO activation is tracked separately in TASKS.
 
@@ -26,7 +26,7 @@ work before editing. Retired branches and agent handoffs are not active assignme
 - `/account`: onboarding, account details, and sign-out.
 - `/sources`: contribute links and browse the source shelf.
 - `/packs`: curate/share packs, capture category seed templates, and propose/review evidence relationships with version history.
-- `/templates`: browse saved category templates, visible provenance and separate resource adoption; inspect, fork or merge a chosen version.
+- `/templates`: browse saved category templates, provenance and separate adoption; inspect/fork/merge or compare a bounded set against an explicitly chosen reference run.
 - `/trust`: compute and inspect stored site/resource rankings and their explanations.
 - `/explore`: retrieve sources with visible ranking factors and pack controls.
 - `/verify`: inspect the seeded claim/evidence/confidence workflow.
@@ -47,7 +47,7 @@ npm run dev
 Open `http://localhost:3000`. Home, seeded verification, and seed-backed exploration
 work without credentials. Database-backed contribution and pack flows need Supabase.
 Copy `app/.env.example` to `app/.env.local`, supply the public-project values (server aliases fall back to the `NEXT_PUBLIC_` pair),
-and apply the source migrations (001, 001b, 001c), then migrations 003 through 015 in order
+and apply the source migrations (001, 001b, 001c), then migrations 003 through 016 in order
 in `db/`. For SSO, configure Google and/or Microsoft OAuth in Supabase Auth and
 allow your app's `/auth/callback` redirect (including its `next` query) for local
 and production origins. Enable new-user signup for JIT account creation. Provider
@@ -61,7 +61,7 @@ worker login, set `TRUSTNODE_WORKER_DATABASE_URL` on that process, and run
 `npm run worker:graph` from `app`. The worker uses the same pinned Node runtime.
 See [the stored-run contract](docs/Implementation/DESIGN.md#implemented-stored-run-boundary-migration-012)
 for roles, TLS, quotas, publication and replay. Production migration 012 and worker
-activation, plus migrations 013–015, are still pending; a Vercel deploy does not run the worker.
+activation, plus migrations 013–016, are still pending; a Vercel deploy does not run the worker.
 
 For a quick code check: `npm run typecheck`. Existing CI also runs the application
 checks and production build. Keep validation focused on the change being delivered.

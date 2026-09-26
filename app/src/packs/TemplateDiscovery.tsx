@@ -4,6 +4,8 @@ import { useAuth } from "../auth/useAuth";
 import { requestJson } from "../trust/client";
 import { safeSourceUrl } from "../trust/model";
 import type { DiscoveryPage, DiscoveryTemplate } from "./template-discovery";
+import { UUID } from "./model";
+import TemplateReference from "./TemplateReference";
 
 export default function TemplateDiscovery({ initialCategory }: { initialCategory: string }) {
   const { session, ready, error } = useAuth();
@@ -12,10 +14,30 @@ export default function TemplateDiscovery({ initialCategory }: { initialCategory
     <h1 className="page-title">Category templates</h1>
     <p className="page-sub">Discover saved seed policies, inspect their evidence, and fork or merge an independent version. Template curation and public adoption are separate from <a href="/trust">site and resource trust rankings</a>.</p>
     {error && <p role="alert">{error}</p>}
-    <Discovery key={`${session?.user.id ?? "anonymous"}:${session?.access_token ?? ""}`} token={session?.access_token} initialCategory={initialCategory} />
+    <DiscoveryModes key={`${session?.user.id ?? "anonymous"}:${session?.access_token ?? ""}`} token={session?.access_token} initialCategory={initialCategory} />
   </>;
 }
-function Discovery({ token, initialCategory }: { token?: string; initialCategory: string }) {
+function DiscoveryModes({ token, initialCategory }: { token?: string; initialCategory: string }) {
+  const [category, setCategory] = useState(initialCategory), [draft, setDraft] = useState("");
+  const [reference, setReference] = useState(""), [error, setError] = useState("");
+  return <>
+    <form className="panel" onSubmit={e => {
+      e.preventDefault(); let id = draft.trim();
+      try { if (!UUID.test(id)) id = new URL(id).searchParams.get("run") ?? ""; } catch { /* Report invalid selection below. */ }
+      if (!UUID.test(id)) { setError("Paste a completed run ID or its trust-workspace link."); return; }
+      setError(""); setReference(id.toLowerCase());
+    }}>
+      <label>Optional reference run ID or link<input className="claim-input" value={draft} onChange={e => setDraft(e.target.value)} /></label>
+      <p>Choose an accessible completed run explicitly. Comparison uses the current category: {category || "All categories"}. No reference is selected automatically or designated canonical.</p>
+      <button className="chip">Compare using this reference</button>{" "}
+      {reference && <button className="chip" type="button" onClick={() => { setReference(""); setDraft(""); setError(""); }}>Return to chronological discovery</button>}
+      {error && <p role="alert">{error}</p>}
+    </form>
+    {reference ? <TemplateReference key={`${reference}:${category}`} run={reference} category={category} token={token} />
+      : <Discovery token={token} initialCategory={category} onCategory={setCategory} />}
+  </>;
+}
+function Discovery({ token, initialCategory, onCategory }: { token?: string; initialCategory: string; onCategory(category: string): void }) {
   const [draft, setDraft] = useState(initialCategory), [category, setCategory] = useState(initialCategory);
   const [cursors, setCursors] = useState<(string | null)[]>([null]), [page, setPage] = useState(0);
   const [data, setData] = useState<DiscoveryPage | null>(null), [error, setError] = useState("");
@@ -36,7 +58,7 @@ function Discovery({ token, initialCategory }: { token?: string; initialCategory
   }, [category, cursor, token, refresh]);
   return <>
     <form className="panel" onSubmit={e => {
-      e.preventDefault(); restart(); setCategory(draft.trim());
+      e.preventDefault(); restart(); setCategory(draft.trim()); onCategory(draft.trim());
       const query = new URLSearchParams(); if (draft.trim()) query.set("category", draft.trim());
       window.history.replaceState(null, "", `/templates${query.size ? `?${query}` : ""}`);
     }}>
