@@ -93,9 +93,13 @@ production readiness. Earlier foundation work is retained and integrated.
 
 ## Next concrete deliverable
 
-**Production activation — preparation complete at `f8f6f47`, pending PM review and
-external setup.** Assigned after PM acceptance of step 6d (`59cf8fd`, evidence
-`247041c`). No further feature work or RAG before this gate.
+**Production activation — preparation accepted by PM (`f8f6f47` + `44765c3`);
+externally blocked on setup decisions.** PM independently confirmed the hosted
+checks and found no blocker in the operator procedure or rehearsal. This accepts
+preparation only; live activation, hosted TLS/supervision and SSO remain unverified.
+Hold production mutations and further feature scope, including RAG, until the
+decisions below arrive. Do not repeatedly poll external accounts or rerun passing
+checks while waiting.
 
 1. Done: read-only live schema/provider inventory, dated below. No production SQL
    mutations, provider changes, paid provisioning or explicit deployment in this task.
@@ -115,9 +119,11 @@ external setup.** Assigned after PM acceptance of step 6d (`59cf8fd`, evidence
 4. External inputs remain: worker host and deploy/secret access; chosen SSO provider
    registrations and tenant/signup policy; release URL/redirects; two real identities.
    Exact details are in the existing Muse checklist below. Supabase dashboard access
-   already works; another database login is not currently needed from Alex.
+   already works; another dashboard login is not currently needed from Alex.
+   The PM has requested these decisions from Alex; this is an external setup
+   dependency, not an unassigned implementation task.
 
-After review and external setup, activate the production trust pilot and record
+After the decisions and external setup, activate the production trust pilot and record
 actual results. Shared abuse limits and verifier headline/charter reporting remain
 open before broader launch. RAG and model controls stay behind this gate.
 
@@ -331,6 +337,10 @@ parked under Alex's latest direction.
 
 ## Validation and review record
 
+- Activation preparation PM acceptance: `f8f6f47` plus `44765c3` accepted after
+  independent operator/rehearsal review and confirmation that hosted run
+  `36208887352` passed both application and PostgreSQL jobs. Production activation
+  remains on hold pending hosting/access and provider/account decisions.
 - Activation preparation (`f8f6f47`, 2026-09-25): local typecheck and populated-011
   PGlite upgrade/regression rehearsal passed. Hosted
   [application/PostgreSQL CI](https://github.com/AlexBorsody/trustnode/actions/runs/36208887352)
